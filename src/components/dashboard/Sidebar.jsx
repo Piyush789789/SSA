@@ -13,6 +13,18 @@ export const Sidebar = ({ activeItemId = 'dashboard', onItemSelect, isOpen, onCl
       navigate(ROUTES.ADMIN_DASHBOARD);
     } else if (itemId === 'students') {
       navigate(ROUTES.ADMIN_STUDENTS);
+    } else if (itemId === 'teachers') {
+      navigate(ROUTES.ADMIN_TEACHERS);
+    } else if (itemId === 'attendance') {
+      navigate(ROUTES.ADMIN_ATTENDANCE);
+    } else if (itemId === 'fees') {
+      navigate(ROUTES.FEES);
+    } else if (itemId === 'timetable') {
+      navigate(ROUTES.TIMETABLE);
+    } else if (itemId === 'notice-board' || itemId === 'notices') {
+      navigate(ROUTES.ADMIN_NOTICES);
+    } else if (itemId === 'roles-permissions' || itemId === 'roles') {
+      navigate(ROUTES.ADMIN_ROLES_PERMISSIONS);
     }
 
     if (onItemSelect) onItemSelect(itemId);

@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MoreHorizontal, Eye, Edit3, Trash2 } from 'lucide-react';
 import { StudentStatusBadge } from './StudentStatusBadge';
 
 export const StudentRow = ({ student }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -15,6 +17,11 @@ export const StudentRow = ({ student }) => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleViewStudent = () => {
+    setIsMenuOpen(false);
+    navigate(`/admin/students/${student.id}`);
+  };
 
   return (
     <tr className="border-b border-slate-100 hover:bg-slate-50/70 transition-colors">
@@ -80,7 +87,7 @@ export const StudentRow = ({ student }) => {
         {isMenuOpen && (
           <div className="absolute right-6 top-12 z-20 w-40 bg-white border border-slate-200/90 rounded-2xl shadow-xl py-1 text-left text-xs font-medium text-slate-700">
             <button
-              onClick={() => setIsMenuOpen(false)}
+              onClick={handleViewStudent}
               className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-50 text-slate-700 cursor-pointer"
             >
               <Eye className="w-3.5 h-3.5 text-slate-400" />

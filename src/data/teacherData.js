@@ -1,0 +1,103 @@
+/**
+ * SSA SHIV SHANTI ADARSH ACADEMY — Student ERP
+ * Centralized Teacher Mock Data
+ */
+
+export const teacherSubjectsOptions = [
+  'English',
+  'Hindi',
+  'Mathematics',
+  'Science',
+  'Environmental Studies',
+  'Social Science',
+  'Computer Science',
+  'Art & Craft',
+  'Physical Education',
+  'General',
+];
+
+export const allAssignableClasses = [
+  '1-A',
+  '1-B',
+  '10-A',
+  '10-B',
+  '2-A',
+  '2-B',
+  '3-A',
+  '3-B',
+  '4-A',
+  '4-B',
+  '5-A',
+  '5-B',
+  '6-A',
+  '6-B',
+  '7-A',
+  '7-B',
+  '8-A',
+  '8-B',
+  '9-A',
+  '9-B',
+];
+
+export const initialTeachersData = [
+  {
+    id: 1,
+    name: 'Javed Akhtar',
+    subject: 'Environmental Studies',
+    email: 'javed.akhtar@teacher.example',
+    phone: '+91 90000 00001',
+    qualification: 'M.Sc, B.Ed',
+    experience: '6 years',
+    assignedClasses: ['1-B'],
+  },
+  {
+    id: 2,
+    name: 'Rehana Begum',
+    subject: 'Art & Craft',
+    email: 'rehana.begum@teacher.example',
+    phone: '+91 90000 00002',
+    qualification: 'B.A, B.Ed',
+    experience: '4 years',
+    assignedClasses: ['1-A'],
+  },
+  {
+    id: 3,
+    name: 'Sunil Rathore',
+    subject: 'Computer Science',
+    email: 'sunil.rathore@teacher.example',
+    phone: '+91 90000 00003',
+    qualification: 'B.Tech CSE',
+    experience: '5 years',
+    assignedClasses: ['10-B'],
+  },
+  {
+    id: 4,
+    name: 'Tabassum Bano',
+    subject: 'Hindi',
+    email: 'tabassum.bano@teacher.example',
+    phone: '+91 90000 00004',
+    qualification: 'M.A, B.Ed',
+    experience: '8 years',
+    assignedClasses: ['5-A'],
+  },
+  {
+    id: 5,
+    name: 'Manoj Saini',
+    subject: 'Social Science',
+    email: 'manoj.saini@teacher.example',
+    phone: '+91 90000 00005',
+    qualification: 'M.A, B.Ed',
+    experience: '7 years',
+    assignedClasses: ['9-B'],
+  },
+  {
+    id: 6,
+    name: 'Aisha Siddiqui',
+    subject: 'English',
+    email: 'aisha.siddiqui@teacher.example',
+    phone: '+91 90000 00006',
+    qualification: 'M.A English, B.Ed',
+    experience: '5 years',
+    assignedClasses: ['9-A'],
+  },
+];

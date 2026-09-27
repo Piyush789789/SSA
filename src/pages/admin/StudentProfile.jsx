@@ -3,6 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Mail, Phone, Calendar, MapPin, User, Download, Edit } from 'lucide-react';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { ProfileAcademic } from '@/components/students/profile/ProfileAcademic';
+import { ProfileFinance } from '@/components/students/profile/ProfileFinance';
+import { ProfileCommunication } from '@/components/students/profile/ProfileCommunication';
+import { ProfileDocuments } from '@/components/students/profile/ProfileDocuments';
 import { studentsData } from '@/data/studentData';
 import { ROUTES } from '@/constants/routes';
 
@@ -16,7 +20,7 @@ export const StudentProfile = () => {
   // Assuming studentId is the numeric id in URL, e.g. /admin/students/2
   const student = studentsData.find((s) => String(s.id) === String(studentId)) || studentsData[0];
 
-  const TABS = ['Overview', 'Academic', 'Finance', 'Communication', 'Documents'];
+  const TABS = ['Overview', 'Academic', 'Attendance', 'Finance', 'Communication', 'Documents'];
 
   return (
     <div className="min-h-screen bg-slate-50/60 font-sans text-slate-900 antialiased flex flex-col">
@@ -177,24 +181,51 @@ export const StudentProfile = () => {
             )}
             
             {activeTab === 'Academic' && (
-               <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 text-center text-slate-500">
-                 Academic details will be shown here.
-               </div>
+               <ProfileAcademic student={student} />
+            )}
+            {activeTab === 'Attendance' && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900">Student Attendance Records</h3>
+                    <p className="text-xs text-slate-500">Detailed daily and monthly logs for {student.name}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/admin/attendance/student/${student.studentId}`)}
+                    className="px-4 py-2 bg-[#FF6B2C] text-white text-xs font-bold rounded-2xl shadow-xs hover:bg-[#e85a1c] transition-colors"
+                  >
+                    View Detailed Attendance Page
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4">
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p className="text-xs text-slate-500">Overall Rate</p>
+                    <h4 className="text-xl font-bold text-slate-900 mt-1">{student.attendance}%</h4>
+                  </div>
+                  <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                    <p className="text-xs text-emerald-700 font-medium">Days Present</p>
+                    <h4 className="text-xl font-bold text-emerald-700 mt-1">{student.attendanceStats.present}</h4>
+                  </div>
+                  <div className="p-4 bg-rose-50 rounded-2xl border border-rose-100">
+                    <p className="text-xs text-rose-700 font-medium">Days Absent</p>
+                    <h4 className="text-xl font-bold text-rose-700 mt-1">{student.attendanceStats.absent}</h4>
+                  </div>
+                  <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+                    <p className="text-xs text-indigo-700 font-medium">Total Days</p>
+                    <h4 className="text-xl font-bold text-indigo-700 mt-1">{student.attendanceStats.totalDays}</h4>
+                  </div>
+                </div>
+              </div>
             )}
             {activeTab === 'Finance' && (
-               <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 text-center text-slate-500">
-                 Finance details will be shown here.
-               </div>
+               <ProfileFinance student={student} />
             )}
             {activeTab === 'Communication' && (
-               <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 text-center text-slate-500">
-                 Communication details will be shown here.
-               </div>
+               <ProfileCommunication student={student} />
             )}
             {activeTab === 'Documents' && (
-               <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 text-center text-slate-500">
-                 Documents will be shown here.
-               </div>
+               <ProfileDocuments student={student} />
             )}
           </div>
         </main>
