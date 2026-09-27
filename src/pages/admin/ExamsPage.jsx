@@ -128,6 +128,81 @@ export const ExamsPage = () => {
     });
   }, [selectedClass, searchQuery]);
 
+  // Dynamic Class Result & Performance Metrics Calculation
+  const classResultMetrics = useMemo(() => {
+    const targetStudents = ATTENDANCE_STUDENTS.filter(
+      (s) => selectedClass === 'ALL' || s.className === selectedClass
+    );
+
+    if (targetStudents.length === 0) {
+      return {
+        appeared: 0,
+        passed: 0,
+        failed: 0,
+        passPercentage: '0%',
+        classAverage: '0%',
+        highestPercentage: '0%',
+        highestStudent: 'N/A',
+        lowestPercentage: '0%',
+        lowestStudent: 'N/A',
+        rankedStudents: [],
+      };
+    }
+
+    const baseScores = [96, 93, 89, 85, 82, 78, 74, 68, 62, 55, 48, 38];
+
+    const rankedStudents = targetStudents.map((s, idx) => {
+      const studentMarks = marksRecords.filter((m) => m.studentId === s.id);
+      let percent = 0;
+      if (studentMarks.length > 0) {
+        const sum = studentMarks.reduce((acc, curr) => acc + Number(curr.obtainedMarks || 0), 0);
+        const max = studentMarks.reduce((acc, curr) => acc + Number(curr.maxMarks || 100), 0);
+        percent = max > 0 ? Math.round((sum / max) * 100) : 0;
+      } else {
+        percent = baseScores[idx % baseScores.length];
+      }
+
+      const totalObtained = Math.round((percent / 100) * 500);
+      const { grade, gpa } = calculateGradeAndGPA(percent);
+      const isPass = percent >= 40;
+
+      return {
+        ...s,
+        totalObtained,
+        totalMax: 500,
+        percent,
+        grade,
+        gpa,
+        resultStatus: isPass ? 'Pass' : 'Fail',
+      };
+    });
+
+    const sortedByPercent = [...rankedStudents].sort((a, b) => b.percent - a.percent);
+    const appeared = rankedStudents.length;
+    const passed = rankedStudents.filter((r) => r.resultStatus === 'Pass').length;
+    const failed = appeared - passed;
+    const passPercentage = ((passed / appeared) * 100).toFixed(1) + '%';
+
+    const sumPercents = rankedStudents.reduce((acc, curr) => acc + curr.percent, 0);
+    const classAverage = (sumPercents / appeared).toFixed(1) + '%';
+
+    const highestStudent = sortedByPercent[0];
+    const lowestStudent = sortedByPercent[sortedByPercent.length - 1];
+
+    return {
+      appeared,
+      passed,
+      failed,
+      passPercentage,
+      classAverage,
+      highestPercentage: highestStudent ? `${highestStudent.percent}%` : '0%',
+      highestStudent: highestStudent ? highestStudent.name : 'N/A',
+      lowestPercentage: lowestStudent ? `${lowestStudent.percent}%` : '0%',
+      lowestStudent: lowestStudent ? lowestStudent.name : 'N/A',
+      rankedStudents: sortedByPercent,
+    };
+  }, [selectedClass, marksRecords]);
+
   const TABS = ['Overview', 'Exams', 'Marks Entry', 'Results', 'Report Cards'];
 
   return (
@@ -369,50 +444,156 @@ export const ExamsPage = () => {
           {/* 4. RESULTS TAB */}
           {activeTab === 'Results' && (
             <div className="space-y-6">
-              {/* Class Results Summary & Top Performers */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                {/* Summary Card */}
-                <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs space-y-4">
-                  <h3 className="font-extrabold text-slate-900 text-base">Class 10-A Mid-Term Results Overview</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                    <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100">
-                      <p className="text-[10px] font-bold text-emerald-800 uppercase">Pass Rate</p>
-                      <h4 className="text-xl font-black text-emerald-800 mt-0.5">95.2%</h4>
-                    </div>
-                    <div className="p-3 bg-indigo-50 rounded-2xl border border-indigo-100">
-                      <p className="text-[10px] font-bold text-indigo-800 uppercase">Class Average</p>
-                      <h4 className="text-xl font-black text-indigo-800 mt-0.5">78.4%</h4>
-                    </div>
-                    <div className="p-3 bg-amber-50 rounded-2xl border border-amber-100">
-                      <p className="text-[10px] font-bold text-amber-800 uppercase">Highest Score</p>
-                      <h4 className="text-xl font-black text-amber-800 mt-0.5">96%</h4>
-                    </div>
-                    <div className="p-3 bg-rose-50 rounded-2xl border border-rose-100">
-                      <p className="text-[10px] font-bold text-rose-800 uppercase">Lowest Score</p>
-                      <h4 className="text-xl font-black text-rose-800 mt-0.5">38%</h4>
-                    </div>
+              {/* Class & Exam Filter Bar */}
+              <div className="bg-white rounded-3xl border border-slate-200/80 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div>
+                    <label className="block text-[10px] font-extrabold uppercase text-slate-400 mb-1">Filter Class</label>
+                    <select
+                      value={selectedClass}
+                      onChange={(e) => setSelectedClass(e.target.value)}
+                      className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800"
+                    >
+                      <option value="ALL">All Classes</option>
+                      {CLASSES_LIST.map((c) => (
+                        <option key={c.id} value={c.name}>Class {c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-extrabold uppercase text-slate-400 mb-1">Select Exam</label>
+                    <select
+                      value={selectedExamId}
+                      onChange={(e) => setSelectedExamId(e.target.value)}
+                      className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800"
+                    >
+                      {exams.map((ex) => (
+                        <option key={ex.id} value={ex.id}>{ex.name}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
-                {/* Top Performers Ranking List */}
-                <div className="lg:col-span-5 bg-white rounded-3xl border border-amber-200/80 p-5 sm:p-6 shadow-xs space-y-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => triggerToast('Results verified and published to parents.')}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl shadow-xs cursor-pointer transition-colors"
+                  >
+                    Publish Class Results
+                  </button>
+                </div>
+              </div>
+
+              {/* Class Performance Overview Cards */}
+              <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div>
+                    <h3 className="font-extrabold text-slate-900 text-base">
+                      Class Overall Performance Summary — {selectedClass === 'ALL' ? 'All Classes' : `Class ${selectedClass}`}
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">{currentExam.name} • {currentExam.academicYear}</p>
+                  </div>
+                  <span className="px-3 py-1 bg-blue-50 text-blue-700 font-extrabold text-xs rounded-full border border-blue-100">
+                    {classResultMetrics.appeared} Students Appeared
+                  </span>
+                </div>
+
+                {/* 7 Metric Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 text-xs">
+                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase">Appeared</p>
+                    <h4 className="text-xl font-black text-slate-900 mt-0.5">{classResultMetrics.appeared}</h4>
+                  </div>
+
+                  <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100">
+                    <p className="text-[10px] font-bold text-emerald-800 uppercase">Passed</p>
+                    <h4 className="text-xl font-black text-emerald-800 mt-0.5">{classResultMetrics.passed}</h4>
+                  </div>
+
+                  <div className="p-3 bg-rose-50 rounded-2xl border border-rose-100">
+                    <p className="text-[10px] font-bold text-rose-800 uppercase">Failed</p>
+                    <h4 className="text-xl font-black text-rose-800 mt-0.5">{classResultMetrics.failed}</h4>
+                  </div>
+
+                  <div className="p-3 bg-emerald-50/70 rounded-2xl border border-emerald-200">
+                    <p className="text-[10px] font-bold text-emerald-900 uppercase">Pass Rate</p>
+                    <h4 className="text-xl font-black text-emerald-700 mt-0.5">{classResultMetrics.passPercentage}</h4>
+                  </div>
+
+                  <div className="p-3 bg-indigo-50 rounded-2xl border border-indigo-100">
+                    <p className="text-[10px] font-bold text-indigo-800 uppercase">Class Average</p>
+                    <h4 className="text-xl font-black text-indigo-800 mt-0.5">{classResultMetrics.classAverage}</h4>
+                  </div>
+
+                  <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200">
+                    <p className="text-[10px] font-bold text-amber-900 uppercase">Highest Score</p>
+                    <h4 className="text-xl font-black text-amber-800 mt-0.5">{classResultMetrics.highestPercentage}</h4>
+                    <p className="text-[9px] font-bold text-amber-700 truncate mt-0.5">{classResultMetrics.highestStudent}</p>
+                  </div>
+
+                  <div className="p-3 bg-rose-50/60 rounded-2xl border border-rose-200">
+                    <p className="text-[10px] font-bold text-rose-900 uppercase">Lowest Score</p>
+                    <h4 className="text-xl font-black text-rose-700 mt-0.5">{classResultMetrics.lowestPercentage}</h4>
+                    <p className="text-[9px] font-bold text-rose-700 truncate mt-0.5">{classResultMetrics.lowestStudent}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Top Performers & Needs Attention Split */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Top Performers */}
+                <div className="bg-white rounded-3xl border border-amber-200/80 p-5 sm:p-6 shadow-xs space-y-3">
                   <div className="flex items-center gap-2">
                     <Award className="w-5 h-5 text-amber-500" />
-                    <h3 className="font-extrabold text-slate-900 text-base">Top Performing Students</h3>
+                    <h3 className="font-extrabold text-slate-900 text-base">Top Performers (Highest Marks)</h3>
                   </div>
                   <div className="space-y-2 text-xs font-bold">
-                    <div className="p-2.5 rounded-2xl bg-amber-50/60 flex items-center justify-between">
-                      <span className="text-slate-900">1. Aditi Sharma</span>
-                      <span className="text-amber-800 font-extrabold">96% (A+)</span>
-                    </div>
-                    <div className="p-2.5 rounded-2xl bg-slate-50 flex items-center justify-between">
-                      <span className="text-slate-900">2. Kabir Jain</span>
-                      <span className="text-slate-800 font-extrabold">93% (A+)</span>
-                    </div>
-                    <div className="p-2.5 rounded-2xl bg-slate-50 flex items-center justify-between">
-                      <span className="text-slate-900">3. Anas Kashyap</span>
-                      <span className="text-slate-800 font-extrabold">89% (A)</span>
-                    </div>
+                    {classResultMetrics.rankedStudents.slice(0, 3).map((st, idx) => (
+                      <div key={st.id} className="p-3 rounded-2xl bg-amber-50/60 border border-amber-100 flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center font-black text-[11px]">
+                            {idx + 1}
+                          </span>
+                          <div>
+                            <p className="text-slate-900 font-extrabold">{st.name}</p>
+                            <p className="text-[10px] text-slate-400 font-semibold">Roll No: {st.rollNumber} • Class {st.className}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-amber-900 font-black text-sm">{st.percent}%</span>
+                          <span className="block text-[10px] font-bold text-amber-700">Grade: {st.grade}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Lowest Performers / Needs Attention */}
+                <div className="bg-white rounded-3xl border border-rose-200/80 p-5 sm:p-6 shadow-xs space-y-3">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-rose-500" />
+                    <h3 className="font-extrabold text-slate-900 text-base">Lowest Performers (Needs Attention)</h3>
+                  </div>
+                  <div className="space-y-2 text-xs font-bold">
+                    {[...classResultMetrics.rankedStudents].reverse().slice(0, 3).map((st, idx) => (
+                      <div key={st.id} className="p-3 rounded-2xl bg-rose-50/60 border border-rose-100 flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center font-black text-[11px]">
+                            {idx + 1}
+                          </span>
+                          <div>
+                            <p className="text-slate-900 font-extrabold">{st.name}</p>
+                            <p className="text-[10px] text-slate-400 font-semibold">Roll No: {st.rollNumber} • Class {st.className}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-rose-900 font-black text-sm">{st.percent}%</span>
+                          <span className="block text-[10px] font-bold text-rose-700">Result: {st.resultStatus}</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -421,13 +602,7 @@ export const ExamsPage = () => {
               <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                   <h3 className="font-extrabold text-slate-900 text-base">Student Result Master List</h3>
-                  <button
-                    type="button"
-                    onClick={() => triggerToast('Results published to student and parent portal.')}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl shadow-xs cursor-pointer"
-                  >
-                    Publish Results
-                  </button>
+                  <span className="text-xs font-semibold text-slate-400">{classResultMetrics.rankedStudents.length} Students</span>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -445,40 +620,37 @@ export const ExamsPage = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-semibold">
-                      {ATTENDANCE_STUDENTS.slice(0, 7).map((s, idx) => {
-                        const marksMap = [441, 410, 395, 370, 350, 480, 420];
-                        const totalObtained = marksMap[idx % marksMap.length];
-                        const percent = Math.round((totalObtained / 500) * 100);
-                        const { grade, gpa } = calculateGradeAndGPA(percent);
-
-                        return (
-                          <tr key={s.id} className="hover:bg-slate-50">
-                            <td className="py-3 px-3 font-bold text-slate-900">{s.name}</td>
-                            <td className="py-3 px-3 text-slate-600">{s.rollNumber}</td>
-                            <td className="py-3 px-3 text-slate-600">{s.className}</td>
-                            <td className="py-3 px-3 text-center font-bold text-slate-900">{totalObtained} / 500</td>
-                            <td className="py-3 px-3 text-center font-black text-[#FF6B2C]">{percent}%</td>
-                            <td className="py-3 px-3 text-center font-bold">{grade} (GPA: {gpa})</td>
-                            <td className="py-3 px-3 text-center">
-                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                PASS
-                              </span>
-                            </td>
-                            <td className="py-3 px-3 text-right">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedReportStudent(s);
-                                  setIsReportModalOpen(true);
-                                }}
-                                className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF6B2C] hover:underline"
-                              >
-                                Preview Report <ChevronRight className="w-3.5 h-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {classResultMetrics.rankedStudents.map((s) => (
+                        <tr key={s.id} className="hover:bg-slate-50">
+                          <td className="py-3 px-3 font-bold text-slate-900">{s.name}</td>
+                          <td className="py-3 px-3 text-slate-600">{s.rollNumber}</td>
+                          <td className="py-3 px-3 text-slate-600">Class {s.className}</td>
+                          <td className="py-3 px-3 text-center font-bold text-slate-900">{s.totalObtained} / 500</td>
+                          <td className="py-3 px-3 text-center font-black text-[#FF6B2C]">{s.percent}%</td>
+                          <td className="py-3 px-3 text-center font-bold">{s.grade} (GPA: {s.gpa})</td>
+                          <td className="py-3 px-3 text-center">
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                              s.resultStatus === 'Pass'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : 'bg-rose-50 text-rose-700 border border-rose-200'
+                            }`}>
+                              {s.resultStatus.toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedReportStudent(s);
+                                setIsReportModalOpen(true);
+                              }}
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF6B2C] hover:underline cursor-pointer"
+                            >
+                              Preview Report <ChevronRight className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
