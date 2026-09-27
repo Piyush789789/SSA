@@ -1,0 +1,16 @@
+export const ROUTES = {
+  HOME: '/',
+  LOGIN: '/login',
+  DASHBOARD: '/dashboard',
+  ADMIN_DASHBOARD: '/admin/dashboard',
+  ADMIN_STUDENTS: '/admin/students',
+  STUDENTS: '/admin/students',
+  TEACHERS: '/teachers',
+  ATTENDANCE: '/attendance',
+  FEES: '/fees',
+  EXAMINATIONS: '/examinations',
+  ACADEMICS: '/academics',
+  COMMUNICATION: '/communication',
+  REPORTS: '/reports',
+  SETTINGS: '/settings',
+};
