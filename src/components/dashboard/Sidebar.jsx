@@ -9,26 +9,37 @@ export const Sidebar = ({ activeItemId = 'dashboard', onItemSelect, isOpen, onCl
   const navigate = useNavigate();
 
   const handleNavigation = (itemId) => {
+    let targetRoute = null;
+
     if (itemId === 'dashboard') {
-      navigate(ROUTES.ADMIN_DASHBOARD);
+      targetRoute = ROUTES.ADMIN_DASHBOARD;
     } else if (itemId === 'students') {
-      navigate(ROUTES.ADMIN_STUDENTS);
+      targetRoute = ROUTES.ADMIN_STUDENTS;
+    } else if (itemId === 'classes') {
+      targetRoute = ROUTES.ADMIN_CLASSES;
     } else if (itemId === 'teachers') {
-      navigate(ROUTES.ADMIN_TEACHERS);
+      targetRoute = ROUTES.ADMIN_TEACHERS;
     } else if (itemId === 'attendance') {
-      navigate(ROUTES.ADMIN_ATTENDANCE);
+      targetRoute = ROUTES.ADMIN_ATTENDANCE;
     } else if (itemId === 'fees') {
-      navigate(ROUTES.FEES);
+      targetRoute = ROUTES.FEES;
     } else if (itemId === 'timetable') {
-      navigate(ROUTES.TIMETABLE);
+      targetRoute = ROUTES.TIMETABLE;
     } else if (itemId === 'notice-board' || itemId === 'notices') {
-      navigate(ROUTES.ADMIN_NOTICES);
+      targetRoute = ROUTES.ADMIN_NOTICES;
+    } else if (itemId === 'exams' || itemId === 'tests-exams') {
+      targetRoute = ROUTES.ADMIN_EXAMS;
     } else if (itemId === 'roles-permissions' || itemId === 'roles') {
-      navigate(ROUTES.ADMIN_ROLES_PERMISSIONS);
+      targetRoute = ROUTES.ADMIN_ROLES_PERMISSIONS;
     }
 
-    if (onItemSelect) onItemSelect(itemId);
     if (onClose) onClose();
+
+    if (targetRoute) {
+      navigate(targetRoute);
+    } else if (onItemSelect) {
+      onItemSelect(itemId);
+    }
   };
 
   return (

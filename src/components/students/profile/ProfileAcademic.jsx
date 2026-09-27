@@ -67,34 +67,63 @@ export const ProfileAcademic = ({ student }) => {
           </div>
         </div>
 
-        {/* Recent Results */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-slate-900">Recent Results</h3>
-            <button className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">
-              View All <FileText className="w-4 h-4" />
-            </button>
+        {/* Examination History & Report Card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 lg:col-span-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-3 border-b border-slate-100">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900">Examination History</h3>
+              <p className="text-xs text-slate-500">Summary of all past examinations and report cards</p>
+            </div>
+            <a
+              href={`/admin/exams?student=${student.studentId}&tab=reportCards`}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors"
+            >
+              <FileText className="w-4 h-4" />
+              View Report Card
+            </a>
           </div>
-          <div className="space-y-4">
-            {student.resultsData?.slice(0, 5).map((result) => (
-              <div key={result.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
-                <div>
-                  <h4 className="font-medium text-slate-900 text-sm">{result.name}</h4>
-                  <p className="text-xs text-slate-500 mt-1">{result.subject} • {result.date}</p>
-                </div>
-                <div className="flex items-center gap-4 sm:justify-end">
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-slate-900">{result.marks} / {result.total}</p>
-                    <p className="text-xs text-slate-500">{result.percent}</p>
-                  </div>
-                  <div className={`px-2.5 py-1 rounded-md text-xs font-semibold ${
-                    result.result === 'Pass' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-                  }`}>
-                    {result.result}
-                  </div>
-                </div>
-              </div>
-            ))}
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-200">
+                  <th className="py-3 px-4">Exam</th>
+                  <th className="py-3 px-4">Percentage</th>
+                  <th className="py-3 px-4">Grade</th>
+                  <th className="py-3 px-4">Result</th>
+                  <th className="py-3 px-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                <tr className="hover:bg-slate-50/60 transition-colors">
+                  <td className="py-3 px-4 font-semibold text-slate-900">Unit Test 1</td>
+                  <td className="py-3 px-4 text-slate-700">82%</td>
+                  <td className="py-3 px-4"><span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-bold">A</span></td>
+                  <td className="py-3 px-4"><span className="text-emerald-600 font-bold text-xs">Pass</span></td>
+                  <td className="py-3 px-4 text-right">
+                    <a href={`/admin/exams?student=${student.studentId}&tab=reportCards`} className="text-xs text-indigo-600 hover:underline font-medium">Report Card</a>
+                  </td>
+                </tr>
+                <tr className="hover:bg-slate-50/60 transition-colors">
+                  <td className="py-3 px-4 font-semibold text-slate-900">Mid-Term Examination</td>
+                  <td className="py-3 px-4 text-slate-700">86%</td>
+                  <td className="py-3 px-4"><span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-bold">A</span></td>
+                  <td className="py-3 px-4"><span className="text-emerald-600 font-bold text-xs">Pass</span></td>
+                  <td className="py-3 px-4 text-right">
+                    <a href={`/admin/exams?student=${student.studentId}&tab=reportCards`} className="text-xs text-indigo-600 hover:underline font-medium">Report Card</a>
+                  </td>
+                </tr>
+                <tr className="hover:bg-slate-50/60 transition-colors">
+                  <td className="py-3 px-4 font-semibold text-slate-900">Final Examination (Predicted)</td>
+                  <td className="py-3 px-4 text-slate-700">91%</td>
+                  <td className="py-3 px-4"><span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-bold">A+</span></td>
+                  <td className="py-3 px-4"><span className="text-emerald-600 font-bold text-xs">Pass</span></td>
+                  <td className="py-3 px-4 text-right">
+                    <a href={`/admin/exams?student=${student.studentId}&tab=reportCards`} className="text-xs text-indigo-600 hover:underline font-medium">Report Card</a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

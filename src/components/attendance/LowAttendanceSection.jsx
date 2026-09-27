@@ -90,7 +90,10 @@ export const LowAttendanceSection = ({ threshold = 75, onSelectClass }) => {
           {lowAttendanceClasses.map((c) => (
             <div
               key={c.name}
-              onClick={() => onSelectClass(c.name)}
+              onClick={() => {
+                if (onSelectClass) onSelectClass(c.name);
+                navigate(`/admin/classes/${c.name}`);
+              }}
               className="p-3.5 rounded-2xl bg-slate-50 hover:bg-amber-50/50 border border-slate-200/80 hover:border-amber-200 flex items-center justify-between cursor-pointer transition-all group"
             >
               <div className="flex items-center gap-3">
@@ -106,8 +109,8 @@ export const LowAttendanceSection = ({ threshold = 75, onSelectClass }) => {
                   </p>
                 </div>
               </div>
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700">
-                Inspect <ChevronRight className="w-3.5 h-3.5" />
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 hover:underline">
+                View Class <ChevronRight className="w-3.5 h-3.5" />
               </span>
             </div>
           ))}

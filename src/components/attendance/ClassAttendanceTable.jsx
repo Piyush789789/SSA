@@ -1,8 +1,11 @@
 import React from 'react';
-import { Building2, ChevronRight } from 'lucide-react';
+import { Building2, ChevronRight, ExternalLink } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { CLASSES_LIST } from '@/data/attendanceData';
 
 export const ClassAttendanceTable = ({ onSelectClass, selectedClass }) => {
+  const navigate = useNavigate();
+
   // Generate sample class performance statistics
   const classStats = CLASSES_LIST.slice(0, 8).map((c, index) => {
     const total = c.totalStudents;
@@ -44,7 +47,7 @@ export const ClassAttendanceTable = ({ onSelectClass, selectedClass }) => {
               <th className="py-2.5 px-3">Present</th>
               <th className="py-2.5 px-3">Absent</th>
               <th className="py-2.5 px-3">Attendance Rate</th>
-              <th className="py-2.5 px-3 text-right">Action</th>
+              <th className="py-2.5 px-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-xs font-semibold">
@@ -53,12 +56,15 @@ export const ClassAttendanceTable = ({ onSelectClass, selectedClass }) => {
               return (
                 <tr
                   key={item.id}
-                  onClick={() => onSelectClass(item.name)}
+                  onClick={() => {
+                    onSelectClass(item.name);
+                    navigate(`/admin/classes/${item.name}`);
+                  }}
                   className={`cursor-pointer transition-colors ${
                     isSelected ? 'bg-[#FFF5F0]/70' : 'hover:bg-slate-50'
                   }`}
                 >
-                  <td className="py-3 px-3 font-extrabold text-slate-900">
+                  <td className="py-3 px-3 font-extrabold text-slate-900 group-hover:text-[#FF6B2C]">
                     Class {item.name}
                   </td>
                   <td className="py-3 px-3 text-slate-600">{item.total}</td>
@@ -82,9 +88,16 @@ export const ClassAttendanceTable = ({ onSelectClass, selectedClass }) => {
                     </div>
                   </td>
                   <td className="py-3 px-3 text-right">
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF6B2C]">
-                      Filter <ChevronRight className="w-3.5 h-3.5" />
-                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/admin/classes/${item.name}`);
+                      }}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF6B2C] hover:underline"
+                    >
+                      View Class <ExternalLink className="w-3.5 h-3.5" />
+                    </button>
                   </td>
                 </tr>
               );
