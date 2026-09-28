@@ -1,7 +1,16 @@
 import { AppRouter } from '@/routes';
+import { AuthProvider } from '@/context/AuthContext';
+import { DataProvider } from '@/context/DataContext';
 
 export const App = () => {
-  return <AppRouter />;
+  return (
+    <AuthProvider>
+      <DataProvider>
+        <AppRouter />
+      </DataProvider>
+    </AuthProvider>
+  );
 };
 
 export default App;
+

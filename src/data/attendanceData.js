@@ -27,6 +27,27 @@ export const CLASSES_LIST = [
 ];
 
 export const ATTENDANCE_STUDENTS = [
+  // Class 5-B
+  { id: 'STU-2026-0501', name: 'Marium Chauhan', classId: 'CLASS-5-B', className: '5-B', rollNumber: 1, email: 'marium.c@student.example' },
+  { id: 'STU-2026-0502', name: 'Kabir Jain', classId: 'CLASS-5-B', className: '5-B', rollNumber: 2, email: 'kabir.j@student.example' },
+  { id: 'STU-2026-0503', name: 'Rohit Verma', classId: 'CLASS-5-B', className: '5-B', rollNumber: 3, email: 'rohit.v@student.example' },
+  { id: 'STU-2026-0504', name: 'Rohit Ahmad', classId: 'CLASS-5-B', className: '5-B', rollNumber: 4, email: 'rohit.a@student.example' },
+  { id: 'STU-2026-0505', name: 'Sneha Sharma', classId: 'CLASS-5-B', className: '5-B', rollNumber: 5, email: 'sneha.s@student.example' },
+  { id: 'STU-2026-0506', name: 'Saif Abbasi', classId: 'CLASS-5-B', className: '5-B', rollNumber: 6, email: 'saif.a@student.example' },
+  { id: 'STU-2026-0507', name: 'Alina Khan', classId: 'CLASS-5-B', className: '5-B', rollNumber: 7, email: 'alina.k@student.example' },
+  { id: 'STU-2026-0508', name: 'Devansh Roy', classId: 'CLASS-5-B', className: '5-B', rollNumber: 8, email: 'devansh.r@student.example' },
+
+  // Class 6-A
+  { id: 'STU-2026-0601', name: 'Owais Khan', classId: 'CLASS-6-A', className: '6-A', rollNumber: 1, email: 'owais.k@student.example' },
+  { id: 'STU-2026-0602', name: 'Sara Khan', classId: 'CLASS-6-A', className: '6-A', rollNumber: 2, email: 'sara.k@student.example' },
+  { id: 'STU-2026-0603', name: 'Aarav Mehta', classId: 'CLASS-6-A', className: '6-A', rollNumber: 3, email: 'aarav.m@student.example' },
+  { id: 'STU-2026-0604', name: 'Ananya Gupta', classId: 'CLASS-6-A', className: '6-A', rollNumber: 4, email: 'ananya.g@student.example' },
+  { id: 'STU-2026-0605', name: 'Rahul Singh', classId: 'CLASS-6-A', className: '6-A', rollNumber: 5, email: 'rahul.s@student.example' },
+  { id: 'STU-2026-0606', name: 'Zoya Siddiqui', classId: 'CLASS-6-A', className: '6-A', rollNumber: 6, email: 'zoya.s@student.example' },
+  { id: 'STU-2026-0607', name: 'Tanya Joshi', classId: 'CLASS-6-A', className: '6-A', rollNumber: 7, email: 'tanya.j@student.example' },
+  { id: 'STU-2026-0608', name: 'Yash Vardhan', classId: 'CLASS-6-A', className: '6-A', rollNumber: 8, email: 'yash.v@student.example' },
+
+  // Other Classes
   { id: 'STU-2026-0001', name: 'Ayesha Abbasi', classId: 'CLASS-1-A', className: '1-A', rollNumber: 1, email: 'ayesha.a@ssa.edu.in' },
   { id: 'STU-2026-0002', name: 'Anas Kashyap', classId: 'CLASS-1-A', className: '1-A', rollNumber: 2, email: 'anas.k@ssa.edu.in' },
   { id: 'STU-2026-0003', name: 'Kabir Jain', classId: 'CLASS-1-A', className: '1-A', rollNumber: 3, email: 'kabir.j@ssa.edu.in' },

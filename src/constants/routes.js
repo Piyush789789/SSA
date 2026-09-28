@@ -26,4 +26,42 @@ export const ROUTES = {
   ROLES_PERMISSIONS: '/admin/roles-permissions',
   REPORTS: '/reports',
   SETTINGS: '/settings',
+
+  // Teacher Routes
+  TEACHER_DASHBOARD: '/teacher/dashboard',
+  TEACHER_ATTENDANCE: '/teacher/attendance',
+  TEACHER_HOMEWORK: '/teacher/homework',
+  TEACHER_EXAMS: '/teacher/exams',
+  TEACHER_MARKS_ENTRY: '/teacher/exams/:examId/marks',
+  TEACHER_TIMETABLE: '/teacher/timetable',
+  TEACHER_NOTICES: '/teacher/notices',
+  TEACHER_COMMUNICATION: '/teacher/communication',
+  TEACHER_AI_ASSISTANT: '/teacher/ai-assistant',
+  TEACHER_STUDY_MATERIALS: '/teacher/study-materials',
+  TEACHER_PROFILE: '/teacher/profile',
+
+  // Student Routes
+  STUDENT_DASHBOARD: '/student/dashboard',
+  STUDENT_ATTENDANCE: '/student/attendance',
+  STUDENT_FEES: '/student/fees',
+  STUDENT_HOMEWORK: '/student/homework',
+  STUDENT_EXAMS: '/student/exams',
+  STUDENT_NOTICES: '/student/notices',
+  STUDENT_COMMUNICATION: '/student/communication',
+  STUDENT_REPORT_CARD: '/student/report-card',
+  STUDENT_PROGRESS: '/student/progress',
+  STUDENT_AI_ASSISTANT: '/student/ai-assistant',
+  STUDENT_STUDY_MATERIALS: '/student/study-materials',
+  STUDENT_PROFILE: '/student/profile',
+
+  // Parent Routes
+  PARENT_DASHBOARD: '/parent/dashboard',
+  PARENT_ATTENDANCE: '/parent/attendance',
+  PARENT_RESULTS: '/parent/results',
+  PARENT_FEES: '/parent/fees',
+  PARENT_NOTICES: '/parent/notices',
+  PARENT_COMMUNICATION: '/parent/communication',
+  PARENT_PROFILE: '/parent/profile',
 };
+
+

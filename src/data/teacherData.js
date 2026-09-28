@@ -41,6 +41,21 @@ export const allAssignableClasses = [
 
 export const initialTeachersData = [
   {
+    id: 'TCH-2026-001',
+    teacherId: 'TCH-2026-001',
+    name: 'Anjali Singh',
+    subject: 'Mathematics & Science',
+    email: 'anjali.singh@teacher.example',
+    phone: '+91 98765 43210',
+    qualification: 'M.Sc Mathematics, B.Ed',
+    experience: '8 years',
+    joiningDate: '2018-06-15',
+    role: 'Teacher',
+    assignedClasses: ['5-B', '6-A'],
+    subjects: ['Mathematics', 'Science'],
+    avatar: 'AS',
+  },
+  {
     id: 1,
     name: 'Javed Akhtar',
     subject: 'Environmental Studies',

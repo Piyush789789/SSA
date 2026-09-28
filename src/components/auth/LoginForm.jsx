@@ -5,9 +5,12 @@ import { RoleSelector } from './RoleSelector';
 import { ROLES } from '@/constants/roles';
 import { ROUTES } from '@/constants/routes';
 
+import { useAuth } from '@/context/AuthContext';
+
 export const LoginForm = () => {
   const navigate = useNavigate();
-  const [selectedRoleId, setSelectedRoleId] = useState('Admin');
+  const { login } = useAuth();
+  const [selectedRoleId, setSelectedRoleId] = useState('Teacher');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -32,8 +35,19 @@ export const LoginForm = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Navigate to admin dashboard for demo flow
-    navigate(ROUTES.ADMIN_DASHBOARD);
+    if (selectedRoleId === 'Teacher') {
+      login('teacher', 'TCH-2026-001');
+      navigate('/teacher/dashboard');
+    } else if (selectedRoleId === 'Student') {
+      login('student');
+      navigate('/student/dashboard');
+    } else if (selectedRoleId === 'Parent') {
+      login('parent');
+      navigate('/parent/dashboard');
+    } else {
+      login('admin');
+      navigate(ROUTES.ADMIN_DASHBOARD);
+    }
   };
 
   return (

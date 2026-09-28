@@ -43,6 +43,45 @@ export const calculateGradeAndGPA = (percentage, config = DEFAULT_GRADE_CONFIG) 
 
 export const INITIAL_EXAMS = [
   {
+    id: 'exam-501',
+    name: 'Mid-Term Examination 2026',
+    type: 'Mid-Term',
+    academicYear: '2026-27',
+    startDate: '2026-10-10',
+    endDate: '2026-10-22',
+    classes: ['5-B', '6-A', '10-A', '10-B', '9-A', '9-B', '8-A', '8-B'],
+    status: 'Upcoming',
+    description: 'Comprehensive mid-term evaluation across core subjects.',
+    marksCompletion: 0,
+    resultsStatus: 'Pending',
+  },
+  {
+    id: 'exam-502',
+    name: 'Unit Test 1 — Primary & Middle',
+    type: 'Unit Test',
+    academicYear: '2026-27',
+    startDate: '2026-09-15',
+    endDate: '2026-09-22',
+    classes: ['5-B', '6-A', '1-A', '1-B', '2-A', '2-B', '7-A', '7-B'],
+    status: 'Completed',
+    description: 'First periodic assessment for primary and upper primary classes.',
+    marksCompletion: 100,
+    resultsStatus: 'Published',
+  },
+  {
+    id: 'exam-503',
+    name: 'Class Assessment Test 2',
+    type: 'Periodic Test',
+    academicYear: '2026-27',
+    startDate: '2026-09-28',
+    endDate: '2026-10-05',
+    classes: ['5-B', '6-A'],
+    status: 'Active',
+    description: 'Monthly evaluation test for Mathematics and Science.',
+    marksCompletion: 65,
+    resultsStatus: 'Draft',
+  },
+  {
     id: 'exam-001',
     name: 'Mid-Term Examination',
     type: 'Mid-Term',
@@ -55,82 +94,39 @@ export const INITIAL_EXAMS = [
     marksCompletion: 86,
     resultsStatus: 'Published',
   },
-  {
-    id: 'exam-002',
-    name: 'Unit Test 1',
-    type: 'Unit Test',
-    academicYear: '2026-27',
-    startDate: '2026-09-15',
-    endDate: '2026-09-22',
-    classes: ['1-A', '1-B', '2-A', '2-B', '7-A', '7-B'],
-    status: 'Completed',
-    description: 'First periodic assessment for primary and upper primary classes.',
-    marksCompletion: 100,
-    resultsStatus: 'Published',
-  },
-  {
-    id: 'exam-003',
-    name: 'Half-Yearly Examination',
-    type: 'Half-Yearly',
-    academicYear: '2026-27',
-    startDate: '2026-11-05',
-    endDate: '2026-11-18',
-    classes: ['1-A', '1-B', '2-A', '2-B', '7-A', '7-B', '8-A', '8-B', '10-A', '10-B'],
-    status: 'Upcoming',
-    description: 'School-wide half yearly evaluation for all grades.',
-    marksCompletion: 0,
-    resultsStatus: 'Pending',
-  },
-  {
-    id: 'exam-004',
-    name: 'Pre-Board Examination',
-    type: 'Pre-Board',
-    academicYear: '2026-27',
-    startDate: '2026-12-10',
-    endDate: '2026-12-20',
-    classes: ['10-A', '10-B'],
-    status: 'Upcoming',
-    description: 'Mock board examination for Class 10 students.',
-    marksCompletion: 0,
-    resultsStatus: 'Pending',
-  },
 ];
 
 export const INITIAL_EXAM_SCHEDULES = [
+  // Class 5-B & 6-A Schedules (Anjali Singh's subjects: Mathematics & Science)
+  { id: 'sch-501', examId: 'exam-503', subject: 'Mathematics', className: '5-B', date: '2026-09-29', startTime: '09:00 AM', endTime: '10:30 AM', maxMarks: 50, passingMarks: 18, status: 'Active' },
+  { id: 'sch-502', examId: 'exam-503', subject: 'Science', className: '6-A', date: '2026-09-30', startTime: '09:00 AM', endTime: '10:30 AM', maxMarks: 50, passingMarks: 18, status: 'Active' },
+  { id: 'sch-503', examId: 'exam-502', subject: 'Mathematics', className: '5-B', date: '2026-09-16', startTime: '09:00 AM', endTime: '10:30 AM', maxMarks: 25, passingMarks: 9, status: 'Completed' },
+  { id: 'sch-504', examId: 'exam-502', subject: 'Science', className: '6-A', date: '2026-09-18', startTime: '09:00 AM', endTime: '10:30 AM', maxMarks: 25, passingMarks: 9, status: 'Completed' },
+  { id: 'sch-505', examId: 'exam-501', subject: 'Mathematics', className: '5-B', date: '2026-10-12', startTime: '09:00 AM', endTime: '12:00 PM', maxMarks: 100, passingMarks: 33, status: 'Upcoming' },
+  { id: 'sch-506', examId: 'exam-501', subject: 'Science', className: '6-A', date: '2026-10-15', startTime: '09:00 AM', endTime: '12:00 PM', maxMarks: 100, passingMarks: 33, status: 'Upcoming' },
+
   { id: 'sch-001', examId: 'exam-001', subject: 'Mathematics', className: '10-A', date: '2026-10-12', startTime: '09:00 AM', endTime: '12:00 PM', maxMarks: 100, passingMarks: 33, status: 'Scheduled' },
-  { id: 'sch-002', examId: 'exam-001', subject: 'English', className: '10-A', date: '2026-10-14', startTime: '09:00 AM', endTime: '12:00 PM', maxMarks: 100, passingMarks: 33, status: 'Scheduled' },
-  { id: 'sch-003', examId: 'exam-001', subject: 'Science', className: '10-A', date: '2026-10-16', startTime: '09:00 AM', endTime: '12:00 PM', maxMarks: 100, passingMarks: 33, status: 'Scheduled' },
-  { id: 'sch-004', examId: 'exam-001', subject: 'Hindi', className: '10-A', date: '2026-10-18', startTime: '09:00 AM', endTime: '12:00 PM', maxMarks: 100, passingMarks: 33, status: 'Scheduled' },
-  { id: 'sch-005', examId: 'exam-001', subject: 'Computer Science', className: '10-A', date: '2026-10-20', startTime: '09:00 AM', endTime: '12:00 PM', maxMarks: 100, passingMarks: 33, status: 'Scheduled' },
-  
-  { id: 'sch-006', examId: 'exam-002', subject: 'EVS', className: '1-A', date: '2026-09-15', startTime: '09:00 AM', endTime: '10:30 AM', maxMarks: 25, passingMarks: 9, status: 'Completed' },
-  { id: 'sch-007', examId: 'exam-002', subject: 'Mathematics', className: '1-A', date: '2026-09-17', startTime: '09:00 AM', endTime: '10:30 AM', maxMarks: 25, passingMarks: 9, status: 'Completed' },
-  { id: 'sch-008', examId: 'exam-002', subject: 'English', className: '1-A', date: '2026-09-19', startTime: '09:00 AM', endTime: '10:30 AM', maxMarks: 25, passingMarks: 9, status: 'Completed' },
 ];
 
 export const INITIAL_SCHEDULES = INITIAL_EXAM_SCHEDULES;
 
 export const INITIAL_MARKS_RECORDS = [
-  // Class 10-A Mid-Term Mathematics (exam-001)
-  { id: 'm-001', examId: 'exam-001', className: '10-A', subject: 'Mathematics', studentId: 'STU-2026-0015', studentName: 'Aditi Sharma', rollNumber: 1, maxMarks: 100, obtainedMarks: 82, isAbsent: false, status: 'Submitted', teacher: 'Deepak Kumar' },
-  { id: 'm-002', examId: 'exam-001', className: '10-A', subject: 'Mathematics', studentId: 'STU-2026-0001', studentName: 'Ayesha Abbasi', rollNumber: 2, maxMarks: 100, obtainedMarks: 74, isAbsent: false, status: 'Submitted', teacher: 'Deepak Kumar' },
-  { id: 'm-003', examId: 'exam-001', className: '10-A', subject: 'Mathematics', studentId: 'STU-2026-0002', studentName: 'Anas Kashyap', rollNumber: 3, maxMarks: 100, obtainedMarks: 89, isAbsent: false, status: 'Submitted', teacher: 'Deepak Kumar' },
-  { id: 'm-004', examId: 'exam-001', className: '10-A', subject: 'Mathematics', studentId: 'STU-2026-0003', studentName: 'Kabir Jain', rollNumber: 4, maxMarks: 100, obtainedMarks: 93, isAbsent: false, status: 'Submitted', teacher: 'Deepak Kumar' },
-  { id: 'm-005', examId: 'exam-001', className: '10-A', subject: 'Mathematics', studentId: 'STU-2026-0004', studentName: 'Kavya Sharma', rollNumber: 5, maxMarks: 100, obtainedMarks: 68, isAbsent: false, status: 'Submitted', teacher: 'Deepak Kumar' },
-  { id: 'm-006', examId: 'exam-001', className: '10-A', subject: 'Mathematics', studentId: 'STU-2026-0012', studentName: 'Rahul Kumar', rollNumber: 12, maxMarks: 100, obtainedMarks: 38, isAbsent: false, status: 'Submitted', teacher: 'Deepak Kumar' },
+  // Class 5-B Class Assessment Test 2 Mathematics (exam-503)
+  { id: 'm-501', examId: 'exam-503', className: '5-B', subject: 'Mathematics', studentId: 'STU-2026-0501', studentName: 'Marium Chauhan', rollNumber: 1, maxMarks: 50, obtainedMarks: 46, isAbsent: false, status: 'Submitted', teacher: 'Anjali Singh' },
+  { id: 'm-502', examId: 'exam-503', className: '5-B', subject: 'Mathematics', studentId: 'STU-2026-0502', studentName: 'Kabir Jain', rollNumber: 2, maxMarks: 50, obtainedMarks: 44, isAbsent: false, status: 'Submitted', teacher: 'Anjali Singh' },
+  { id: 'm-503', examId: 'exam-503', className: '5-B', subject: 'Mathematics', studentId: 'STU-2026-0503', studentName: 'Rohit Verma', rollNumber: 3, maxMarks: 50, obtainedMarks: 38, isAbsent: false, status: 'Submitted', teacher: 'Anjali Singh' },
+  { id: 'm-504', examId: 'exam-503', className: '5-B', subject: 'Mathematics', studentId: 'STU-2026-0504', studentName: 'Rohit Ahmad', rollNumber: 4, maxMarks: 50, obtainedMarks: 48, isAbsent: false, status: 'Submitted', teacher: 'Anjali Singh' },
+  { id: 'm-505', examId: 'exam-503', className: '5-B', subject: 'Mathematics', studentId: 'STU-2026-0505', studentName: 'Sneha Sharma', rollNumber: 5, maxMarks: 50, obtainedMarks: 49, isAbsent: false, status: 'Submitted', teacher: 'Anjali Singh' },
+  { id: 'm-506', examId: 'exam-503', className: '5-B', subject: 'Mathematics', studentId: 'STU-2026-0506', studentName: 'Saif Abbasi', rollNumber: 6, maxMarks: 50, obtainedMarks: 32, isAbsent: false, status: 'Draft', teacher: 'Anjali Singh' },
 
-  // Class 10-A Mid-Term English (exam-001)
-  { id: 'm-010', examId: 'exam-001', className: '10-A', subject: 'English', studentId: 'STU-2026-0015', studentName: 'Aditi Sharma', rollNumber: 1, maxMarks: 100, obtainedMarks: 91, isAbsent: false, status: 'Submitted', teacher: 'Aisha Siddiqui' },
-  { id: 'm-011', examId: 'exam-001', className: '10-A', subject: 'English', studentId: 'STU-2026-0001', studentName: 'Ayesha Abbasi', rollNumber: 2, maxMarks: 100, obtainedMarks: 85, isAbsent: false, status: 'Submitted', teacher: 'Aisha Siddiqui' },
-  { id: 'm-012', examId: 'exam-001', className: '10-A', subject: 'English', studentId: 'STU-2026-0002', studentName: 'Anas Kashyap', rollNumber: 3, maxMarks: 100, obtainedMarks: 78, isAbsent: false, status: 'Submitted', teacher: 'Aisha Siddiqui' },
-  { id: 'm-013', examId: 'exam-001', className: '10-A', subject: 'English', studentId: 'STU-2026-0003', studentName: 'Kabir Jain', rollNumber: 4, maxMarks: 100, obtainedMarks: 90, isAbsent: false, status: 'Submitted', teacher: 'Aisha Siddiqui' },
+  // Class 6-A Class Assessment Test 2 Science (exam-503)
+  { id: 'm-601', examId: 'exam-503', className: '6-A', subject: 'Science', studentId: 'STU-2026-0601', studentName: 'Owais Khan', rollNumber: 1, maxMarks: 50, obtainedMarks: 47, isAbsent: false, status: 'Submitted', teacher: 'Anjali Singh' },
+  { id: 'm-602', examId: 'exam-503', className: '6-A', subject: 'Science', studentId: 'STU-2026-0602', studentName: 'Sara Khan', rollNumber: 2, maxMarks: 50, obtainedMarks: 45, isAbsent: false, status: 'Submitted', teacher: 'Anjali Singh' },
+  { id: 'm-603', examId: 'exam-503', className: '6-A', subject: 'Science', studentId: 'STU-2026-0603', studentName: 'Aarav Mehta', rollNumber: 3, maxMarks: 50, obtainedMarks: 40, isAbsent: false, status: 'Submitted', teacher: 'Anjali Singh' },
+  { id: 'm-604', examId: 'exam-503', className: '6-A', subject: 'Science', studentId: 'STU-2026-0604', studentName: 'Ananya Gupta', rollNumber: 4, maxMarks: 50, obtainedMarks: 48, isAbsent: false, status: 'Submitted', teacher: 'Anjali Singh' },
+  { id: 'm-605', examId: 'exam-503', className: '6-A', subject: 'Science', studentId: 'STU-2026-0605', studentName: 'Rahul Singh', rollNumber: 5, maxMarks: 50, obtainedMarks: 42, isAbsent: false, status: 'Draft', teacher: 'Anjali Singh' },
 
-  // Class 10-A Mid-Term Science (exam-001)
-  { id: 'm-020', examId: 'exam-001', className: '10-A', subject: 'Science', studentId: 'STU-2026-0015', studentName: 'Aditi Sharma', rollNumber: 1, maxMarks: 100, obtainedMarks: 95, isAbsent: false, status: 'Submitted', teacher: 'Anjali Singh' },
-  { id: 'm-021', examId: 'exam-001', className: '10-A', subject: 'Science', studentId: 'STU-2026-0001', studentName: 'Ayesha Abbasi', rollNumber: 2, maxMarks: 100, obtainedMarks: 82, isAbsent: false, status: 'Submitted', teacher: 'Anjali Singh' },
-  { id: 'm-022', examId: 'exam-001', className: '10-A', subject: 'Science', studentId: 'STU-2026-0003', studentName: 'Kabir Jain', rollNumber: 4, maxMarks: 100, obtainedMarks: 88, isAbsent: false, status: 'Submitted', teacher: 'Anjali Singh' },
-
-  // Class 1-A Unit Test 1 EVS (exam-002)
-  { id: 'm-030', examId: 'exam-002', className: '1-A', subject: 'EVS', studentId: 'STU-2026-0001', studentName: 'Ayesha Abbasi', rollNumber: 1, maxMarks: 25, obtainedMarks: 22, isAbsent: false, status: 'Submitted', teacher: 'Sana Parveen' },
-  { id: 'm-031', examId: 'exam-002', className: '1-A', subject: 'EVS', studentId: 'STU-2026-0002', studentName: 'Anas Kashyap', rollNumber: 2, maxMarks: 25, obtainedMarks: 19, isAbsent: false, status: 'Submitted', teacher: 'Sana Parveen' },
+  // Unit Test 1 (exam-502)
+  { id: 'm-511', examId: 'exam-502', className: '5-B', subject: 'Mathematics', studentId: 'STU-2026-0501', studentName: 'Marium Chauhan', rollNumber: 1, maxMarks: 25, obtainedMarks: 24, isAbsent: false, status: 'Submitted', teacher: 'Anjali Singh' },
+  { id: 'm-611', examId: 'exam-502', className: '6-A', subject: 'Science', studentId: 'STU-2026-0601', studentName: 'Owais Khan', rollNumber: 1, maxMarks: 25, obtainedMarks: 23, isAbsent: false, status: 'Submitted', teacher: 'Anjali Singh' },
 ];

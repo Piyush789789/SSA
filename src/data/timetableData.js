@@ -136,38 +136,25 @@ export const INITIAL_TIMETABLE_ENTRIES = [
   { classId: '1-A', day: 'MONDAY', periodId: 'period-4', subjectId: 'evs', teacherName: 'Javed Akhtar', substituteTeacherName: null },
   { classId: '1-A', day: 'MONDAY', periodId: 'period-5', subjectId: 'cs', teacherName: 'Priya Verma', substituteTeacherName: null },
 
-  // TUESDAY
-  { classId: '1-A', day: 'TUESDAY', periodId: 'period-1', subjectId: 'evs', teacherName: 'Javed Akhtar', substituteTeacherName: null },
-  { classId: '1-A', day: 'TUESDAY', periodId: 'period-2', subjectId: 'cs', teacherName: 'Sunil Rathore', substituteTeacherName: null },
-  { classId: '1-A', day: 'TUESDAY', periodId: 'period-3', subjectId: 'art', teacherName: 'Rehana Begum', substituteTeacherName: null },
-  { classId: '1-A', day: 'TUESDAY', periodId: 'period-4', subjectId: 'gk', teacherName: 'Aisha Siddiqui', substituteTeacherName: null },
-  { classId: '1-A', day: 'TUESDAY', periodId: 'period-5', subjectId: 'isl', teacherName: 'Nazia Sultana', substituteTeacherName: null },
+  // CLASS 5-B & 6-A (Anjali Singh Schedule)
+  { classId: '5-B', day: 'MONDAY', periodId: 'period-1', subjectId: 'math', teacherName: 'Anjali Singh', room: 'Room 101', substituteTeacherName: null },
+  { classId: '6-A', day: 'MONDAY', periodId: 'period-2', subjectId: 'sci', teacherName: 'Anjali Singh', room: 'Room 204', substituteTeacherName: null },
+  { classId: '5-B', day: 'MONDAY', periodId: 'period-4', subjectId: 'math', teacherName: 'Anjali Singh', room: 'Room 101', substituteTeacherName: null },
 
-  // WEDNESDAY
-  { classId: '1-A', day: 'WEDNESDAY', periodId: 'period-1', subjectId: 'gk', teacherName: 'Sunil Rathore', substituteTeacherName: null },
-  { classId: '1-A', day: 'WEDNESDAY', periodId: 'period-2', subjectId: 'isl', teacherName: 'Nazia Sultana', substituteTeacherName: null },
-  { classId: '1-A', day: 'WEDNESDAY', periodId: 'period-3', subjectId: 'english', teacherName: 'Sana Parveen', substituteTeacherName: null },
-  { classId: '1-A', day: 'WEDNESDAY', periodId: 'period-4', subjectId: 'hindi', teacherName: 'Tabassum Bano', substituteTeacherName: null },
-  { classId: '1-A', day: 'WEDNESDAY', periodId: 'period-5', subjectId: 'math', teacherName: 'Deepak Kumar', substituteTeacherName: null },
+  { classId: '5-B', day: 'TUESDAY', periodId: 'period-1', subjectId: 'math', teacherName: 'Anjali Singh', room: 'Room 101', substituteTeacherName: null },
+  { classId: '6-A', day: 'TUESDAY', periodId: 'period-3', subjectId: 'sci', teacherName: 'Anjali Singh', room: 'Room 204', substituteTeacherName: null },
+  { classId: '6-A', day: 'TUESDAY', periodId: 'period-6', subjectId: 'sci', teacherName: 'Anjali Singh', room: 'Room 204', substituteTeacherName: null },
 
-  // THURSDAY
-  { classId: '1-A', day: 'THURSDAY', periodId: 'period-1', subjectId: 'hindi', teacherName: 'Farhat Jahan', substituteTeacherName: null },
-  { classId: '1-A', day: 'THURSDAY', periodId: 'period-2', subjectId: 'math', teacherName: 'Deepak Kumar', substituteTeacherName: null },
-  { classId: '1-A', day: 'THURSDAY', periodId: 'period-3', subjectId: 'evs', teacherName: 'Javed Akhtar', substituteTeacherName: null },
-  { classId: '1-A', day: 'THURSDAY', periodId: 'period-4', subjectId: 'cs', teacherName: 'Sunil Rathore', substituteTeacherName: null },
-  { classId: '1-A', day: 'THURSDAY', periodId: 'period-5', subjectId: 'art', teacherName: 'Rehana Begum', substituteTeacherName: null },
+  { classId: '5-B', day: 'WEDNESDAY', periodId: 'period-2', subjectId: 'math', teacherName: 'Anjali Singh', room: 'Room 101', substituteTeacherName: null },
+  { classId: '6-A', day: 'WEDNESDAY', periodId: 'period-4', subjectId: 'sci', teacherName: 'Anjali Singh', room: 'Room 204', substituteTeacherName: null },
 
-  // FRIDAY
-  { classId: '1-A', day: 'FRIDAY', periodId: 'period-1', subjectId: 'cs', teacherName: 'Sunil Rathore', substituteTeacherName: null },
-  { classId: '1-A', day: 'FRIDAY', periodId: 'period-2', subjectId: 'art', teacherName: 'Rehana Begum', substituteTeacherName: null },
-  { classId: '1-A', day: 'FRIDAY', periodId: 'period-3', subjectId: 'gk', teacherName: 'Mohd Arif Khan', substituteTeacherName: null },
-  { classId: '1-A', day: 'FRIDAY', periodId: 'period-4', subjectId: 'isl', teacherName: 'Nazia Sultana', substituteTeacherName: null },
-  { classId: '1-A', day: 'FRIDAY', periodId: 'period-5', subjectId: 'english', teacherName: 'Neha Gupta', substituteTeacherName: null },
+  { classId: '5-B', day: 'THURSDAY', periodId: 'period-1', subjectId: 'math', teacherName: 'Anjali Singh', room: 'Room 101', substituteTeacherName: null },
+  { classId: '6-A', day: 'THURSDAY', periodId: 'period-2', subjectId: 'sci', teacherName: 'Anjali Singh', room: 'Room 204', substituteTeacherName: null },
+  { classId: '5-B', day: 'THURSDAY', periodId: 'period-5', subjectId: 'math', teacherName: 'Anjali Singh', room: 'Room 101', substituteTeacherName: null },
 
-  // SATURDAY
-  { classId: '1-A', day: 'SATURDAY', periodId: 'period-1', subjectId: 'isl', teacherName: 'Nazia Sultana', substituteTeacherName: null },
-  { classId: '1-A', day: 'SATURDAY', periodId: 'period-2', subjectId: 'english', teacherName: 'Sana Parveen', substituteTeacherName: null },
-  { classId: '1-A', day: 'SATURDAY', periodId: 'period-3', subjectId: 'hindi', teacherName: 'Farhat Jahan', substituteTeacherName: null },
-  { classId: '1-A', day: 'SATURDAY', periodId: 'period-4', subjectId: 'math', teacherName: 'Deepak Kumar', substituteTeacherName: null },
-  { classId: '1-A', day: 'SATURDAY', periodId: 'period-5', subjectId: 'evs', teacherName: 'Javed Akhtar', substituteTeacherName: null },
+  { classId: '5-B', day: 'FRIDAY', periodId: 'period-3', subjectId: 'math', teacherName: 'Anjali Singh', room: 'Room 101', substituteTeacherName: null },
+  { classId: '6-A', day: 'FRIDAY', periodId: 'period-5', subjectId: 'sci', teacherName: 'Anjali Singh', room: 'Room 204', substituteTeacherName: null },
+
+  { classId: '5-B', day: 'SATURDAY', periodId: 'period-1', subjectId: 'math', teacherName: 'Anjali Singh', room: 'Room 101', substituteTeacherName: null },
+  { classId: '6-A', day: 'SATURDAY', periodId: 'period-2', subjectId: 'sci', teacherName: 'Anjali Singh', room: 'Room 204', substituteTeacherName: null },
 ];
