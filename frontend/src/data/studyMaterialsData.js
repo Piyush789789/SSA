@@ -1,0 +1,67 @@
+/**
+ * SSA SHIV SHANTI ADARSH ACADEMY — Student ERP
+ * Centralized Study Materials Mock Data
+ */
+
+export const INITIAL_STUDY_MATERIALS = [
+  {
+    id: 'MAT-001',
+    title: 'Chapter 4 — Fractions & Decimals Comprehensive Notes',
+    subject: 'Mathematics',
+    className: '5-B',
+    category: 'Notes',
+    uploadedDate: '2026-09-18',
+    fileType: 'PDF',
+    fileSize: '2.4 MB',
+    teacherId: 'TCH-2026-001',
+    teacherName: 'Anjali Singh',
+  },
+  {
+    id: 'MAT-002',
+    title: 'Cell Organelles & Functions Study Guide',
+    subject: 'Science',
+    className: '6-A',
+    category: 'Notes',
+    uploadedDate: '2026-09-20',
+    fileType: 'PDF',
+    fileSize: '3.1 MB',
+    teacherId: 'TCH-2026-001',
+    teacherName: 'Anjali Singh',
+  },
+  {
+    id: 'MAT-003',
+    title: 'Geometry Shapes & Angles Practice Worksheet Set 1',
+    subject: 'Mathematics',
+    className: '5-B',
+    category: 'Worksheets',
+    uploadedDate: '2026-09-22',
+    fileType: 'DOCX',
+    fileSize: '1.2 MB',
+    teacherId: 'TCH-2026-001',
+    teacherName: 'Anjali Singh',
+  },
+  {
+    id: 'MAT-004',
+    title: 'Light, Shadows & Reflection Reference Diagram Kit',
+    subject: 'Science',
+    className: '6-A',
+    category: 'Reference Material',
+    uploadedDate: '2026-09-24',
+    fileType: 'PDF',
+    fileSize: '4.8 MB',
+    teacherId: 'TCH-2026-001',
+    teacherName: 'Anjali Singh',
+  },
+  {
+    id: 'MAT-005',
+    title: 'Unit Test 1 Revision Question Bank — Math',
+    subject: 'Mathematics',
+    className: '5-B',
+    category: 'Assignments',
+    uploadedDate: '2026-09-12',
+    fileType: 'PDF',
+    fileSize: '1.8 MB',
+    teacherId: 'TCH-2026-001',
+    teacherName: 'Anjali Singh',
+  },
+];

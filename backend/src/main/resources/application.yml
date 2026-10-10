@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: ssa-school-erp
+
+  devtools:
+    restart:
+      enabled: true
+    livereload:
+      enabled: true
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+app:
+  cors:
+    frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  # "Today" for attendance, fees and exams is the school's local date.
+  timezone: ${APP_TIMEZONE:Asia/Kolkata}
+  auth:
+    session-ttl: ${SESSION_TTL:PT8H}
