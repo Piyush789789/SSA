@@ -1,4 +1,5 @@
 import { AlertCircle, Inbox, Loader2 } from 'lucide-react';
+import { useI18n } from '@/i18n/translate';
 
 /**
  * Renders the loading / error state of a useApi() result, otherwise its children.
@@ -21,14 +22,19 @@ export const AsyncState = ({ state, children, loadingText = 'Loading…' }) => {
   return Array.isArray(state) ? children(states.map((s) => s.data)) : children(state.data);
 };
 
-export const LoadingMessage = ({ text = 'Loading…' }) => (
-  <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-500">
-    <Loader2 className="h-5 w-5 animate-spin text-[#FF6B2C]" />
-    {text}
-  </div>
-);
+export const LoadingMessage = ({ text = 'Loading…' }) => {
+  const { tx } = useI18n();
+  return (
+    <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-500">
+      <Loader2 className="h-5 w-5 animate-spin text-[#FF6B2C]" />
+      {tx(text)}
+    </div>
+  );
+};
 
-export const ErrorMessage = ({ error, onRetry }) => (
+export const ErrorMessage = ({ error, onRetry }) => {
+  const { t } = useI18n();
+  return (
   <div className="flex flex-col items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center">
     <AlertCircle className="h-5 w-5 flex-shrink-0" />
     <span className="flex-1">{error?.message ?? 'Something went wrong.'}</span>
@@ -38,11 +44,12 @@ export const ErrorMessage = ({ error, onRetry }) => (
         onClick={onRetry}
         className="rounded-lg border border-red-200 bg-white px-3 py-1.5 font-semibold text-red-700 hover:bg-red-100"
       >
-        Try again
+        {t('common.tryAgain')}
       </button>
     ) : null}
   </div>
-);
+  );
+};
 
 export const EmptyMessage = ({ text }) => (
   <div className="flex flex-col items-center justify-center gap-2 py-10 text-sm text-slate-500">

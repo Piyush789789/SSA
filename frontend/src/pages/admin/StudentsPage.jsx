@@ -11,6 +11,7 @@ import { http, withQuery } from '@/api/http';
 import { addDays, todayIso } from '@/utils';
 import { groupBy, summarizeRecords } from '@/components/attendance/attendanceMath';
 import { ROUTES } from '@/constants/routes';
+import { useI18n } from '@/i18n/translate';
 
 const ATTENDANCE_DAYS = 30;
 
@@ -23,6 +24,7 @@ const feeStatusOf = (dues) => {
 };
 
 export const StudentsPage = () => {
+  const { tx } = useI18n();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [activeSidebarId, setActiveSidebarId] = useState('students');
@@ -116,7 +118,7 @@ export const StudentsPage = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                Students
+                {tx('Students')}
               </h1>
               <p className="text-xs sm:text-sm font-normal text-slate-500 mt-1">
                 {students.data
@@ -132,7 +134,7 @@ export const StudentsPage = () => {
               className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] active:bg-[#D94E13] text-white font-semibold text-xs sm:text-sm rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-all duration-200 cursor-pointer shrink-0 self-start sm:self-auto"
             >
               <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>Add Student</span>
+              <span>{tx('Add Student')}</span>
             </button>
           </div>
 

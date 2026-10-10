@@ -3,6 +3,7 @@ import { Megaphone, Calendar, Search, X } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
 import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { formatDate, formatDateTime } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 const PRIORITY_STYLES = {
   high: 'bg-rose-50 text-rose-700 border-rose-100',
@@ -11,6 +12,7 @@ const PRIORITY_STYLES = {
 };
 
 export const ParentNoticesPage = () => {
+  const { tx } = useI18n();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNotice, setSelectedNotice] = useState(null);
 
@@ -28,7 +30,7 @@ export const ParentNoticesPage = () => {
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
           <Megaphone className="w-7 h-7 text-[#FF6B2C]" />
-          School Notices & Circulars
+          {tx('School Notices & Circulars')}
         </h1>
         <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
           Official announcements, exam schedules, and circulars for parents.
@@ -131,7 +133,7 @@ export const ParentNoticesPage = () => {
                 onClick={() => setSelectedNotice(null)}
                 className="px-5 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
               >
-                Close
+                {tx('Close')}
               </button>
             </div>
           </div>

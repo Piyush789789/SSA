@@ -15,6 +15,7 @@ import {
   rupees,
   styles,
   useApi,
+  useT,
 } from '@ssa/shared';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -33,6 +34,8 @@ export default function Fees() {
   const deposits = useApi('/fees/deposits?status=PENDING');
   const dues = useApi(`/fees/dues?status=${status}`);
   const [busy, setBusy] = useState(null);
+  const [reminding, setReminding] = useState(false);
+  const t = useT();
 
   function reloadAll() {
     overview.reload();
@@ -70,6 +73,26 @@ export default function Fees() {
     );
   }
 
+  function sendReminders() {
+    Alert.alert(t('Send fee reminders now'), 'Remind every family with pending or overdue fees now? Each family gets at most one reminder a day (they also go out automatically at 9 AM).', [
+      { text: t('Cancel'), style: 'cancel' },
+      {
+        text: t('Send'),
+        onPress: async () => {
+          setReminding(true);
+          try {
+            const result = await api('/fee-reminders/send', { method: 'POST' });
+            Alert.alert('Reminders sent', `${result?.familiesReminded ?? 0} famil${result?.familiesReminded === 1 ? 'y' : 'ies'} reminded.`);
+          } catch (e) {
+            Alert.alert('Could not send reminders', e.message);
+          } finally {
+            setReminding(false);
+          }
+        },
+      },
+    ]);
+  }
+
   return (
     <Screen refreshing={overview.refreshing || dues.refreshing || deposits.refreshing} onRefresh={reloadAll}>
       <Loaded state={overview}>
@@ -82,6 +105,14 @@ export default function Fees() {
           </StatGrid>
         )}
       </Loaded>
+      <Button
+        title="Send fee reminders now"
+        icon="notifications-outline"
+        variant="secondary"
+        onPress={sendReminders}
+        loading={reminding}
+        style={{ marginBottom: 12 }}
+      />
 
       <SectionTitle>Deposits to verify</SectionTitle>
       <Loaded state={deposits}>

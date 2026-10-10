@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { CalendarCheck, ChevronLeft, ChevronRight, CheckCircle2, Save, UserCheck, UserX, Clock, CalendarDays } from 'lucide-react';
+import { CalendarCheck, ChevronLeft, ChevronRight, CheckCircle2, Save, UserCheck, UserX, Clock, CalendarDays, CalendarOff } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { http, withQuery } from '@/api/http';
 import { useApi } from '@/hooks/useApi';
 import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { addDays, formatDate, initialsOf, todayIso } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 const STATUS_BADGES = {
   present: { label: 'Present', className: 'bg-emerald-50 text-emerald-700 border-emerald-300', dot: 'bg-emerald-500' },
@@ -23,6 +24,7 @@ const ACTION_BUTTONS = [
 ];
 
 export const TeacherAttendancePage = () => {
+  const { tx } = useI18n();
   const [searchParams] = useSearchParams();
   const { currentUser } = useAuth();
   const assignedClasses = useMemo(() => currentUser?.assignedClasses ?? [], [currentUser]);
@@ -41,6 +43,8 @@ export const TeacherAttendancePage = () => {
   const today = todayIso();
   const roster = useApi(selectedClass ? `/classes/${encodeURIComponent(selectedClass)}/students` : null);
   const records = useApi(selectedClass ? withQuery('/attendance', { className: selectedClass, date: selectedDate }) : null);
+  const holidayCheck = useApi(withQuery('/calendar/check', { date: selectedDate }));
+  const isHoliday = Boolean(holidayCheck.data?.holiday);
 
   const existingMap = useMemo(() => {
     const map = {};
@@ -139,7 +143,7 @@ export const TeacherAttendancePage = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
             <CalendarCheck className="w-7 h-7 text-[#FF6B2C] stroke-[2]" />
-            <span>Attendance</span>
+            <span>{tx('Attendance')}</span>
           </h1>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
             Mark daily student attendance for your assigned classes
@@ -192,6 +196,19 @@ export const TeacherAttendancePage = () => {
         </div>
       </div>
 
+      {isHoliday ? (
+        <div className="bg-white rounded-2xl border border-rose-200 shadow-xs p-8 flex flex-col items-center text-center gap-3">
+          <div className="w-14 h-14 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center">
+            <CalendarOff className="w-7 h-7" />
+          </div>
+          <h3 className="text-lg font-extrabold text-slate-900">Holiday — no attendance</h3>
+          <p className="text-sm text-slate-500 max-w-md">
+            {formatDate(selectedDate)} is {holidayCheck.data.title ? `a holiday (${holidayCheck.data.title})` : 'a holiday'}.
+            Attendance cannot be marked on holidays or Sundays.
+          </p>
+        </div>
+      ) : (
+      <>
       {/* Summary Cards Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-emerald-50/80 border border-emerald-200/80 p-4 rounded-2xl flex items-center justify-between">
@@ -350,10 +367,12 @@ export const TeacherAttendancePage = () => {
             className="flex items-center justify-center gap-2 px-6 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save className="w-4 h-4 stroke-[2.2]" />
-            <span>{saving ? 'Saving…' : 'Save Attendance'}</span>
+            <span>{saving ? tx('Saving…') : tx('Save Attendance')}</span>
           </button>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 };

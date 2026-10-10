@@ -1,4 +1,5 @@
 import {
+  Badge,
   Button,
   Card,
   Chips,
@@ -46,7 +47,9 @@ export default function MarkAttendance() {
 
   const roster = useApi(className ? `/classes/${className}/students` : null);
   const records = useApi(className ? `/attendance?className=${className}&date=${date}` : null);
-  const state = combine(roster, records);
+  const dayCheck = useApi(`/calendar/check?date=${date}`);
+  const state = combine(roster, records, dayCheck);
+  const holiday = dayCheck.data?.holiday ? dayCheck.data : null;
 
   // Start from what is already saved for this class and day; keep unsaved edits when the tab refocuses.
   const key = `${className}|${date}`;
@@ -88,7 +91,7 @@ export default function MarkAttendance() {
           icon="save-outline"
           onPress={save}
           loading={saving}
-          disabled={students.length === 0 || unmarked === students.length}
+          disabled={!!holiday || students.length === 0 || unmarked === students.length}
         />
       }
     >
@@ -113,45 +116,53 @@ export default function MarkAttendance() {
       {error ? <ErrorBox error={error} /> : null}
 
       <Loaded state={state}>
-        {() => (
-          <>
-            <Button
-              title="Mark everyone present"
-              variant="secondary"
-              icon="checkmark-done-outline"
-              onPress={() => setMarks(Object.fromEntries(students.map((s) => [s.id, 'present'])))}
-              style={{ marginBottom: 12 }}
-            />
-            <Card>
-              {students.map((student, index) => (
-                <View key={student.id} style={[styles.row, { alignItems: 'center' }, index === students.length - 1 && { borderBottomWidth: 0 }]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.body}>{student.name}</Text>
-                    <Text style={styles.muted}>Roll {student.rollNumber}</Text>
-                  </View>
-                  <View style={local.statusRow}>
-                    {STATUSES.map((status) => {
-                      const selected = marks[student.id] === status.value;
-                      const tone = tones[status.tone];
-                      return (
-                        <Pressable
-                          key={status.value}
-                          onPress={() => setMarks((m) => ({ ...m, [student.id]: status.value }))}
-                          accessibilityRole="button"
-                          accessibilityLabel={`${student.name}: ${status.value}`}
-                          accessibilityState={{ selected }}
-                          style={[local.status, selected && { backgroundColor: tone.fg, borderColor: tone.fg }]}
-                        >
-                          <Text style={[local.statusText, selected && { color: '#fff' }]}>{status.label}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </View>
-              ))}
+        {() =>
+          holiday ? (
+            <Card title="Holiday — no attendance" right={<Badge label="Holiday" tone="neutral" />}>
+              <Text style={styles.muted}>
+                {formatDate(date)} is {holiday.title ? `a holiday: ${holiday.title}` : 'a holiday'}. Attendance is not taken on holidays and Sundays.
+              </Text>
             </Card>
-          </>
-        )}
+          ) : (
+            <>
+              <Button
+                title="Mark everyone present"
+                variant="secondary"
+                icon="checkmark-done-outline"
+                onPress={() => setMarks(Object.fromEntries(students.map((s) => [s.id, 'present'])))}
+                style={{ marginBottom: 12 }}
+              />
+              <Card>
+                {students.map((student, index) => (
+                  <View key={student.id} style={[styles.row, { alignItems: 'center' }, index === students.length - 1 && { borderBottomWidth: 0 }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.body}>{student.name}</Text>
+                      <Text style={styles.muted}>Roll {student.rollNumber}</Text>
+                    </View>
+                    <View style={local.statusRow}>
+                      {STATUSES.map((status) => {
+                        const selected = marks[student.id] === status.value;
+                        const tone = tones[status.tone];
+                        return (
+                          <Pressable
+                            key={status.value}
+                            onPress={() => setMarks((m) => ({ ...m, [student.id]: status.value }))}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${student.name}: ${status.value}`}
+                            accessibilityState={{ selected }}
+                            style={[local.status, selected && { backgroundColor: tone.fg, borderColor: tone.fg }]}
+                          >
+                            <Text style={[local.statusText, selected && { color: '#fff' }]}>{status.label}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))}
+              </Card>
+            </>
+          )
+        }
       </Loaded>
     </Screen>
   );

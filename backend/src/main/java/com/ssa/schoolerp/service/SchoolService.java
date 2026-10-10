@@ -37,11 +37,13 @@ public class SchoolService {
     private final DataStore store;
     private final AccessGuard guard;
     private final FeeService fees;
+    private final AccountService accounts;
 
-    public SchoolService(DataStore store, AccessGuard guard, FeeService fees) {
+    public SchoolService(DataStore store, AccessGuard guard, FeeService fees, AccountService accounts) {
         this.store = store;
         this.guard = guard;
         this.fees = fees;
+        this.accounts = accounts;
     }
 
     // ---------------------------------------------------------------- classes
@@ -106,7 +108,8 @@ public class SchoolService {
 
     // ---------------------------------------------------------------- students
 
-    public List<Student> students(User user, String className, String query) {
+    /** {@code status}: Active (default), Graduated, Left or "all". */
+    public List<Student> students(User user, String className, String query, String status) {
         if (className != null) {
             guard.checkClassAccess(user, className);
         }
@@ -117,6 +120,7 @@ public class SchoolService {
         return store.students.stream()
                 .filter(s -> readable.contains(s.id()))
                 .filter(s -> className == null || s.className().equals(className))
+                .filter(s -> "all".equalsIgnoreCase(status) || s.status().equalsIgnoreCase(status == null ? Student.ACTIVE : status))
                 .filter(s -> q == null || q.isEmpty() || s.name().toLowerCase(Locale.ROOT).contains(q)
                         || s.id().toLowerCase(Locale.ROOT).contains(q))
                 .sorted(Comparator.<Student>comparingInt(s -> grades.getOrDefault(s.className(), 0))
@@ -129,7 +133,7 @@ public class SchoolService {
         store.classes.getById(request.className());
         int roll = request.rollNumber() != null ? request.rollNumber() : nextRollNumber(request.className());
         checkRollNumberFree(request.className(), roll, null);
-        Student student = request.withIdAndRollNumber(store.nextId("STU-2026"), roll);
+        Student student = request.withIdAndRollNumber(store.nextId("STU-2026"), roll).withStatus(Student.ACTIVE);
         store.students.save(student);
         fees.billNewStudent(student);
         return student;
@@ -143,7 +147,10 @@ public class SchoolService {
             roll = nextRollNumber(request.className());
         }
         checkRollNumberFree(request.className(), roll, id);
-        return store.students.save(request.withIdAndRollNumber(id, roll));
+        Student saved = store.students.save(request.withIdAndRollNumber(id, roll).withStatus(existing.status())
+                .keepingRecordsOf(existing));
+        accounts.renameForProfile(id, saved.name());
+        return saved;
     }
 
     /** Removes the student and their records. Fee payments are kept as financial history. */
@@ -158,6 +165,7 @@ public class SchoolService {
             remaining.remove(id);
             store.parents.save(parent.withChildIds(remaining));
         }
+        accounts.deleteForProfile(id);
         store.students.deleteById(id);
     }
 
@@ -190,6 +198,7 @@ public class SchoolService {
         String previousName = store.teachers.getById(id).name();
         validateTeacher(request, id);
         Teacher updated = store.teachers.save(request.withId(id));
+        accounts.renameForProfile(id, updated.name());
         if (!Objects.equals(previousName, updated.name())) {
             store.timetable.findWhere(e -> id.equals(e.teacherId())).forEach(e -> store.timetable.save(
                     new TimetableEntry(e.id(), e.className(), e.day(), e.periodId(),
@@ -235,6 +244,7 @@ public class SchoolService {
         store.classes.findWhere(c -> id.equals(c.classTeacherId()))
                 .forEach(c -> store.classes.save(c.withClassTeacherId(null)));
         store.timetable.deleteWhere(e -> id.equals(e.teacherId()));
+        accounts.deleteForProfile(id);
         store.teachers.deleteById(id);
     }
 

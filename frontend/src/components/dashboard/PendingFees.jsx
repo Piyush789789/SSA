@@ -2,12 +2,14 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { formatCurrency, formatDate, initialsOf } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 const STATUS_ORDER = { Overdue: 0, Partial: 1, Pending: 2 };
 
 /** Unpaid fee dues (GET /fees/dues), overdue first. */
 export const PendingFees = ({ dues = [], studentsWithDues, depositsToVerify = 0, limit = 5 }) => {
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const unpaid = useMemo(
     () =>
@@ -26,7 +28,7 @@ export const PendingFees = ({ dues = [], studentsWithDues, depositsToVerify = 0,
       <div>
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-            Pending Fees
+            {t('dash.pendingFees')}
           </h3>
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-500 border border-red-100">
             {studentsWithDues ?? new Set(unpaid.map((d) => d.studentId)).size} students

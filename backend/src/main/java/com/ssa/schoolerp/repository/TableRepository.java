@@ -50,8 +50,16 @@ public class TableRepository<T extends Identifiable> {
      * The condition may end with an {@code order by} clause.
      */
     public List<T> where(String condition, Object... params) {
+        return whereLimited(0, condition, params);
+    }
+
+    /** Like {@link #where} but returns at most {@code limit} rows (0 = no limit). */
+    public List<T> whereLimited(int limit, String condition, Object... params) {
         TypedQuery<T> query = em.createQuery("select e from " + type.getSimpleName() + " e where " + condition, type);
         bind(query, params);
+        if (limit > 0) {
+            query.setMaxResults(limit);
+        }
         return query.getResultList();
     }
 
@@ -88,6 +96,21 @@ public class TableRepository<T extends Identifiable> {
     /** Inserts or replaces the row with this id. */
     public T save(T item) {
         return tx.execute(status -> em.merge(item));
+    }
+
+    /**
+     * Inserts many brand-new rows at once (no "does it exist?" lookups, unlike {@link #save}). Use only for rows
+     * with fresh ids, such as notifications.
+     */
+    public void insertAll(List<T> items) {
+        tx.executeWithoutResult(status -> {
+            for (int i = 0; i < items.size(); i++) {
+                em.persist(items.get(i));
+                if (i % 200 == 199) {
+                    em.flush();
+                }
+            }
+        });
     }
 
     public boolean deleteById(String id) {

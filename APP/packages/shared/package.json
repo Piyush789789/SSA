@@ -6,8 +6,12 @@
   "peerDependencies": {
     "@expo/vector-icons": "*",
     "expo-constants": "*",
+    "expo-device": "*",
+    "expo-image-picker": "*",
+    "expo-notifications": "*",
     "expo-router": "*",
     "expo-secure-store": "*",
+    "expo-web-browser": "*",
     "react": "*",
     "react-native": "*",
     "react-native-safe-area-context": "*"
@@ -15,8 +19,12 @@
   "peerDependenciesMeta": {
     "@expo/vector-icons": { "optional": true },
     "expo-constants": { "optional": true },
+    "expo-device": { "optional": true },
+    "expo-image-picker": { "optional": true },
+    "expo-notifications": { "optional": true },
     "expo-router": { "optional": true },
     "expo-secure-store": { "optional": true },
+    "expo-web-browser": { "optional": true },
     "react-native-safe-area-context": { "optional": true }
   }
 }

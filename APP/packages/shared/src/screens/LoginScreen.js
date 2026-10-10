@@ -45,14 +45,14 @@ export function LoginScreen({ appName, icon = 'school-outline', demo }) {
           {error ? <ErrorBox error={error} /> : null}
 
           <Field
-            label="Email"
+            label="Email or ID"
             value={email}
             onChangeText={setEmail}
-            placeholder="you@ssa.edu"
+            placeholder="Email, or ID like STU-2026-0503"
             autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            textContentType="emailAddress"
+            autoCorrect={false}
+            autoComplete="username"
+            textContentType="username"
           />
           <Field
             label="Password"

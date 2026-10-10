@@ -16,6 +16,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useApi } from '@/hooks/useApi';
 import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { formatCurrency, formatDate, formatDateTime, weekdayName } from '@/utils';
+import { useI18n } from '@/i18n/translate';
+import { MyBusCard } from '@/components/transport/MyBusCard';
 
 const DUE_STATUS_STYLES = {
   Paid: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
@@ -27,6 +29,7 @@ const DUE_STATUS_STYLES = {
 export const ParentDashboard = () => {
   const navigate = useNavigate();
   const { currentUser, selectedChild, switchChild } = useAuth();
+  const { tx } = useI18n();
   const linkedChildren = currentUser?.linkedChildren || [];
   const childId = selectedChild?.studentId ?? null;
 
@@ -47,7 +50,7 @@ export const ParentDashboard = () => {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Parent Dashboard
+            {tx('Parent Dashboard')}
           </h1>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
             Monitor your child's academic progress, attendance and school activities.
@@ -61,7 +64,7 @@ export const ParentDashboard = () => {
           </div>
           <div className="flex-1 pr-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-              Viewing Child
+              {tx('Viewing Child')}
             </span>
             <select
               value={selectedChild.studentId}
@@ -77,6 +80,9 @@ export const ParentDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* School bus of the selected child (shown only when the child uses school transport) */}
+      <MyBusCard key={childId} studentId={childId} hideWhenNone />
 
       <AsyncState state={dashboard} loadingText="Loading dashboard…">
         {(data) => {
@@ -104,7 +110,7 @@ export const ParentDashboard = () => {
                   className="bg-gradient-to-br from-cyan-400 via-cyan-500 to-teal-500 text-white p-6 rounded-3xl shadow-lg shadow-cyan-500/15 flex flex-col justify-between cursor-pointer hover:shadow-xl hover:scale-[1.02] transition-all"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-cyan-100 uppercase tracking-wider">Attendance</span>
+                    <span className="text-xs font-bold text-cyan-100 uppercase tracking-wider">{tx('Attendance')}</span>
                     <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
                       <CalendarCheck className="w-5 h-5 stroke-[2.2]" />
                     </div>
@@ -131,7 +137,7 @@ export const ParentDashboard = () => {
                   className="bg-gradient-to-br from-emerald-500 via-teal-500 to-emerald-600 text-white p-6 rounded-3xl shadow-lg shadow-emerald-500/15 flex flex-col justify-between cursor-pointer hover:shadow-xl hover:scale-[1.02] transition-all"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-emerald-100 uppercase tracking-wider">Total Fees</span>
+                    <span className="text-xs font-bold text-emerald-100 uppercase tracking-wider">{tx('Total Fees')}</span>
                     <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white font-bold text-sm">
                       ₹
                     </div>
@@ -150,7 +156,7 @@ export const ParentDashboard = () => {
                   className="bg-gradient-to-br from-orange-400 via-[#FF6B2C] to-amber-500 text-white p-6 rounded-3xl shadow-lg shadow-orange-500/15 flex flex-col justify-between cursor-pointer hover:shadow-xl hover:scale-[1.02] transition-all"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-orange-100 uppercase tracking-wider">Fee Pending</span>
+                    <span className="text-xs font-bold text-orange-100 uppercase tracking-wider">{tx('Fee Pending')}</span>
                     <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
                       <AlertCircle className="w-5 h-5 stroke-[2.2]" />
                     </div>
@@ -171,7 +177,7 @@ export const ParentDashboard = () => {
                   className="bg-gradient-to-br from-blue-500 via-indigo-600 to-indigo-700 text-white p-6 rounded-3xl shadow-lg shadow-indigo-500/15 flex flex-col justify-between cursor-pointer hover:shadow-xl hover:scale-[1.02] transition-all"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-indigo-100 uppercase tracking-wider">Overall Performance</span>
+                    <span className="text-xs font-bold text-indigo-100 uppercase tracking-wider">{tx('Overall Performance')}</span>
                     <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
                       <Award className="w-5 h-5 stroke-[2.2]" />
                     </div>
@@ -206,7 +212,7 @@ export const ParentDashboard = () => {
                   <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                     <Clock className="w-4 h-4 text-[#FF6B2C]" />
                     <span>
-                      Today's Timetable — {selectedChild.name} (Class {selectedChild.className})
+                      {tx("Today's Timetable")} — {selectedChild.name} ({tx('Class')} {selectedChild.className})
                     </span>
                   </h2>
                   <span className="text-xs font-semibold text-slate-400">
@@ -258,13 +264,13 @@ export const ParentDashboard = () => {
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                     <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                       <CreditCard className="w-4 h-4 text-[#FF6B2C]" />
-                      <span>Fee History</span>
+                      <span>{tx('Fee History')}</span>
                     </h3>
                     <button
                       onClick={() => navigate('/parent/fees')}
                       className="text-xs font-bold text-[#FF6B2C] hover:underline cursor-pointer"
                     >
-                      View All →
+                      {tx('View all')} →
                     </button>
                   </div>
 
@@ -306,7 +312,7 @@ export const ParentDashboard = () => {
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                     <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                       <BookOpen className="w-4 h-4 text-[#FF6B2C]" />
-                      <span>Upcoming Exams</span>
+                      <span>{tx('Upcoming Exams')}</span>
                     </h3>
                     <button
                       onClick={() => navigate('/parent/results')}
@@ -355,13 +361,13 @@ export const ParentDashboard = () => {
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                     <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                       <Megaphone className="w-4 h-4 text-[#FF6B2C]" />
-                      <span>School Notices</span>
+                      <span>{tx('School Notices')}</span>
                     </h3>
                     <button
                       onClick={() => navigate('/parent/notices')}
                       className="text-xs font-bold text-[#FF6B2C] hover:underline cursor-pointer"
                     >
-                      View All →
+                      {tx('View all')} →
                     </button>
                   </div>
 
@@ -410,13 +416,13 @@ export const ParentDashboard = () => {
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                     <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                       <TrendingUp className="w-4 h-4 text-[#FF6B2C]" />
-                      <span>Recent Results</span>
+                      <span>{tx('Recent Results')}</span>
                     </h3>
                     <button
                       onClick={() => navigate('/parent/results')}
                       className="text-xs font-bold text-[#FF6B2C] hover:underline cursor-pointer"
                     >
-                      View All →
+                      {tx('View all')} →
                     </button>
                   </div>
                   {recentResults.length === 0 ? (
@@ -458,7 +464,7 @@ export const ParentDashboard = () => {
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                     <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                       <ClipboardList className="w-4 h-4 text-[#FF6B2C]" />
-                      <span>Homework Due</span>
+                      <span>{tx('Homework Due')}</span>
                     </h3>
                   </div>
                   {homeworkDue.length === 0 ? (
@@ -500,7 +506,7 @@ export const ParentDashboard = () => {
                   <CreditCard className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">Fee Details</h3>
+                  <h3 className="text-base font-bold text-slate-900">{tx('Fee Details')}</h3>
                   <p className="text-xs font-mono font-bold text-[#FF6B2C]">{selectedFeeModal.id}</p>
                 </div>
               </div>
@@ -556,7 +562,7 @@ export const ParentDashboard = () => {
                 onClick={() => setSelectedFeeModal(null)}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
               >
-                Close
+                {tx('Close')}
               </button>
               <button
                 onClick={() => {
@@ -565,7 +571,7 @@ export const ParentDashboard = () => {
                 }}
                 className="px-4 py-2 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
               >
-                Go to Fee Ledger
+                {tx('Go to Fee Ledger')}
               </button>
             </div>
           </div>
@@ -622,7 +628,7 @@ export const ParentDashboard = () => {
                 onClick={() => setSelectedExamModal(null)}
                 className="w-full py-2 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
               >
-                Close
+                {tx('Close')}
               </button>
             </div>
           </div>
@@ -663,7 +669,7 @@ export const ParentDashboard = () => {
                 onClick={() => setSelectedNoticeModal(null)}
                 className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
               >
-                Close
+                {tx('Close')}
               </button>
             </div>
           </div>

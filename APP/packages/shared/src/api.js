@@ -16,6 +16,10 @@ export function setAuthToken(token) {
   authToken = token;
 }
 
+export function getAuthToken() {
+  return authToken;
+}
+
 /** Called when a signed-in request gets 401 (session expired or revoked). */
 export function setUnauthorizedHandler(handler) {
   onUnauthorized = handler;
@@ -25,13 +29,15 @@ export function setUnauthorizedHandler(handler) {
  * Calls the Spring Boot backend. Returns the `data` field of `{ success, message, data }` responses
  * (or the whole body for the few endpoints without one) and throws ApiError with the server's message.
  */
-export async function api(path, { method = 'GET', body } = {}) {
+export async function api(path, { method = 'GET', body, token } = {}) {
   const headers = { Accept: 'application/json' };
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
   }
-  if (authToken) {
-    headers.Authorization = `Bearer ${authToken}`;
+  // `token` sends a specific session's token (used while signing out, after the shared token is cleared).
+  const bearer = token ?? authToken;
+  if (bearer) {
+    headers.Authorization = `Bearer ${bearer}`;
   }
 
   const controller = new AbortController();
@@ -62,7 +68,7 @@ export async function api(path, { method = 'GET', body } = {}) {
   }
 
   if (!response.ok) {
-    if (response.status === 401 && headers.Authorization && onUnauthorized) {
+    if (response.status === 401 && headers.Authorization && !token && onUnauthorized) {
       onUnauthorized();
     }
     throw new ApiError(json?.message || `Request failed (${response.status})`, response.status);

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Building2, BookOpen } from 'lucide-react';
+import { useI18n } from '@/i18n/translate';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -39,6 +40,7 @@ export const TeacherFormModal = ({ isOpen, ...props }) => {
 };
 
 const TeacherForm = ({ teacherToEdit, subjectOptions, classOptions, optionsError, onClose, onSave }) => {
+  const { tx } = useI18n();
   const isEditing = Boolean(teacherToEdit);
   const [formData, setFormData] = useState(() => initialForm(teacherToEdit));
   const [errors, setErrors] = useState({});
@@ -121,7 +123,7 @@ const TeacherForm = ({ teacherToEdit, subjectOptions, classOptions, optionsError
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-4 shrink-0">
           <h2 className="text-xl font-extrabold text-slate-900">
-            {isEditing ? `Edit Teacher — ${teacherToEdit.id}` : 'Add New Teacher'}
+            {isEditing ? `Edit Teacher — ${teacherToEdit.id}` : tx('Add New Teacher')}
           </h2>
           <button
             type="button"
@@ -212,14 +214,14 @@ const TeacherForm = ({ teacherToEdit, subjectOptions, classOptions, optionsError
               onClick={onClose}
               className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-2xl transition-colors cursor-pointer"
             >
-              Cancel
+              {tx('Cancel')}
             </button>
             <button
               type="submit"
               disabled={saving}
               className="px-6 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] active:bg-[#D94E13] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-xs rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-colors cursor-pointer"
             >
-              {saving ? 'Saving…' : isEditing ? 'Save Changes' : 'Add Teacher'}
+              {saving ? tx('Saving…') : tx(isEditing ? 'Save Changes' : 'Add Teacher')}
             </button>
           </div>
         </form>

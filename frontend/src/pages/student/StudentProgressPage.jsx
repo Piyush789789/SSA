@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useApi } from '@/hooks/useApi';
 import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { bandFor, groupByExam } from './resultsUtils';
+import { useI18n } from '@/i18n/translate';
 
 const round1 = (n) => Math.round(n * 10) / 10;
 
@@ -24,6 +25,7 @@ const Change = ({ value, suffix = '' }) => {
 };
 
 export const StudentProgressPage = () => {
+  const { tx } = useI18n();
   const { currentUser } = useAuth();
   const studentId = currentUser?.studentId || currentUser?.id;
 
@@ -67,7 +69,7 @@ export const StudentProgressPage = () => {
       <div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
           <TrendingUp className="w-7 h-7 text-[#FF6B2C] stroke-[2]" />
-          <span>Academic Progress & Growth</span>
+          <span>{tx('Academic Progress & Growth')}</span>
         </h1>
         <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
           Trends calculated from {currentUser?.name ? `${currentUser.name}'s` : 'your'} published exam results

@@ -197,6 +197,9 @@ export function FeesScreen({ studentId, header, canDeposit = false }) {
   const payments = useApi(`/fees/payments?studentId=${studentId}`);
   const deposits = useApi(`/fees/deposits?studentId=${studentId}`);
   const state = combine(summary, payments, deposits);
+  // Kept out of `state`: if this check fails, the fees still show (just without "Pay online").
+  const online = useApi(canDeposit ? '/online-payments/status' : null);
+  const canPayOnline = canDeposit && online.data?.enabled === true;
 
   return (
     <Screen refreshing={state.refreshing} onRefresh={state.reload}>
@@ -226,6 +229,14 @@ export function FeesScreen({ studentId, header, canDeposit = false }) {
                     <Row label="Pending" value={rupees(due.pending)} />
                     {waiting > 0 ? <Row label="Awaiting verification" value={rupees(waiting)} /> : null}
                     <Row label="Due date" value={formatDate(due.dueDate)} last />
+                    {canPayOnline && payable > 0 ? (
+                      <Button
+                        title="Pay online"
+                        icon="flash-outline"
+                        style={{ marginTop: 10 }}
+                        onPress={() => router.push({ pathname: '/pay-online', params: { dueId: due.id, studentId } })}
+                      />
+                    ) : null}
                     {canDeposit && payable > 0 ? (
                       <Button
                         title={`Deposit fee (${rupees(payable)})`}
@@ -277,29 +288,68 @@ export function FeesScreen({ studentId, header, canDeposit = false }) {
 
 // ---------------------------------------------------------------- homework
 
-export function HomeworkScreen({ className, header }) {
-  const state = useApi(className ? `/homework?className=${encodeURIComponent(className)}` : '/homework');
+/**
+ * Homework for a class. With `studentId` (Student and Parent apps) each card shows that student's
+ * submission status and a "Submit" button opening /homework-submit.
+ */
+export function HomeworkScreen({ className, studentId, header }) {
+  const homework = useApi(className ? `/homework?className=${encodeURIComponent(className)}` : '/homework');
+  const submissions = useApi(studentId ? `/homework-submissions?studentId=${studentId}` : null);
+  const state = studentId ? combine(homework, submissions) : homework;
   const today = todayIso();
 
   return (
     <Screen refreshing={state.refreshing} onRefresh={state.reload}>
       {header}
       <Loaded state={state}>
-        {(list) =>
-          list.length === 0 ? (
+        {(data) => {
+          const [list, submitted] = studentId ? data : [data, []];
+          const byHomework = Object.fromEntries(submitted.map((s) => [s.homeworkId, s]));
+          return list.length === 0 ? (
             <Empty text="No homework assigned." icon="book-outline" />
           ) : (
-            list.map((hw) => <HomeworkCard key={hw.id} homework={hw} today={today} />)
-          )
-        }
+            list.map((hw) => (
+              <HomeworkCard
+                key={hw.id}
+                homework={hw}
+                today={today}
+                submission={studentId ? byHomework[hw.id] ?? null : undefined}
+                onSubmit={
+                  studentId && byHomework[hw.id]?.status !== 'REVIEWED'
+                    ? () => router.push({ pathname: '/homework-submit', params: { homeworkId: hw.id, studentId } })
+                    : undefined
+                }
+              />
+            ))
+          );
+        }}
       </Loaded>
     </Screen>
   );
 }
 
-export function HomeworkCard({ homework, today = todayIso(), onPress }) {
+const SUBMISSION_LOOK = {
+  SUBMITTED: { label: 'Submitted', tone: 'success' },
+  REVIEWED: { label: 'Checked', tone: 'success' },
+  REDO: { label: 'Redo', tone: 'danger' },
+};
+
+/** Submission status words for a homework card: "Submitted", "Checked (A)", "Redo". */
+export function submissionLabel(submission) {
+  if (!submission) return null;
+  const look = SUBMISSION_LOOK[submission.status] ?? { label: submission.status, tone: 'neutral' };
+  const label = submission.status === 'REVIEWED' && submission.grade ? `${look.label} (${submission.grade})` : look.label;
+  return { label: submission.late && submission.status === 'SUBMITTED' ? `${label} late` : label, tone: look.tone };
+}
+
+/**
+ * `submission` (undefined = not tracked, null = not submitted yet) adds a status line; `onSubmit` adds a
+ * Submit / Resubmit button.
+ */
+export function HomeworkCard({ homework, today = todayIso(), onPress, submission, onSubmit }) {
   const due = homework.dueDate < today ? 'Past due' : homework.dueDate === today ? 'Due today' : `Due ${formatDate(homework.dueDate)}`;
   const tone = homework.dueDate < today ? 'neutral' : homework.dueDate === today ? 'danger' : 'info';
+  const status = submissionLabel(submission);
   return (
     <Card title={homework.title} right={<Badge label={due} tone={tone} />} onPress={onPress}>
       <Text style={[styles.muted, { marginBottom: 6 }]}>
@@ -309,6 +359,22 @@ export function HomeworkCard({ homework, today = todayIso(), onPress }) {
       {homework.instructions ? <Text style={[styles.muted, { marginTop: 6 }]}>{homework.instructions}</Text> : null}
       {homework.attachments?.length ? (
         <Text style={[styles.muted, { marginTop: 6, color: colors.info }]}>📎 {homework.attachments.join(', ')}</Text>
+      ) : null}
+      {submission !== undefined ? (
+        <View style={local.submission}>
+          {status ? <Badge label={status.label} tone={status.tone} /> : <Badge label="Not submitted" tone="neutral" />}
+          {submission?.submittedAt ? <Text style={[styles.muted, { flex: 1 }]}>{formatDateTime(submission.submittedAt)}</Text> : <View style={{ flex: 1 }} />}
+        </View>
+      ) : null}
+      {submission?.feedback ? <Text style={[styles.muted, { marginTop: 6 }]}>Teacher: “{submission.feedback}”</Text> : null}
+      {onSubmit ? (
+        <Button
+          title={submission ? (submission.status === 'REDO' ? 'Submit again' : 'Edit submission') : 'Submit'}
+          icon="cloud-upload-outline"
+          variant={submission ? 'secondary' : 'primary'}
+          onPress={onSubmit}
+          style={{ marginTop: 10, paddingVertical: 10 }}
+        />
       ) : null}
     </Card>
   );
@@ -584,6 +650,7 @@ const local = StyleSheet.create({
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 10 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 10, height: 10, borderRadius: 3 },
+  submission: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
   slot: {
     flexDirection: 'row',
     alignItems: 'center',

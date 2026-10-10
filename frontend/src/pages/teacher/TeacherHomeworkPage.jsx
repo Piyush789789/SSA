@@ -4,7 +4,9 @@ import { useAuth } from '@/context/AuthContext';
 import { http } from '@/api/http';
 import { useApi } from '@/hooks/useApi';
 import { AsyncState } from '@/components/common/AsyncState';
+import { SubmissionsButton } from '@/components/homework/TeacherSubmissions';
 import { formatDate, todayIso } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 const emptyForm = (className, subject) => ({
   title: '',
@@ -17,6 +19,7 @@ const emptyForm = (className, subject) => ({
 });
 
 export const TeacherHomeworkPage = () => {
+  const { tx } = useI18n();
   const { currentUser } = useAuth();
   const homework = useApi('/homework');
 
@@ -156,7 +159,7 @@ export const TeacherHomeworkPage = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
             <BookOpenCheck className="w-7 h-7 text-[#FF6B2C] stroke-[2]" />
-            <span>Homework & Assignments</span>
+            <span>{tx('Homework & Assignments')}</span>
           </h1>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
             Create, track, and evaluate homework assigned to your classes
@@ -296,6 +299,7 @@ export const TeacherHomeworkPage = () => {
 
                     <td className="py-4 px-6 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        <SubmissionsButton homework={hw} />
                         <button
                           onClick={() => setViewingHomework(hw)}
                           className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
@@ -463,14 +467,14 @@ export const TeacherHomeworkPage = () => {
                   onClick={() => setIsAssignModalOpen(false)}
                   className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 cursor-pointer"
                 >
-                  Cancel
+                  {tx('Cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
                   className="disabled:opacity-50 px-5 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold rounded-2xl text-xs shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer"
                 >
-                  {saving ? 'Saving…' : editingHomework ? 'Save Changes' : 'Assign Homework'}
+                  {saving ? tx('Saving…') : tx(editingHomework ? 'Save Changes' : 'Assign Homework')}
                 </button>
               </div>
             </form>
@@ -508,7 +512,7 @@ export const TeacherHomeworkPage = () => {
                 onClick={() => setViewingHomework(null)}
                 className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer"
               >
-                Close
+                {tx('Close')}
               </button>
             </div>
           </div>

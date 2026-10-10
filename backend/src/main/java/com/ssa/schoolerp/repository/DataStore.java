@@ -11,6 +11,31 @@ import com.ssa.schoolerp.model.FeePayment;
 import com.ssa.schoolerp.model.Homework;
 import com.ssa.schoolerp.model.IdCounter;
 import com.ssa.schoolerp.model.Identifiable;
+import com.ssa.schoolerp.model.AuthSession;
+import com.ssa.schoolerp.model.UserAccount;
+import com.ssa.schoolerp.model.SchoolSettings;
+import com.ssa.schoolerp.model.AuditEvent;
+import com.ssa.schoolerp.model.Certificate;
+import com.ssa.schoolerp.model.ReportCardNote;
+import com.ssa.schoolerp.model.Notification;
+import com.ssa.schoolerp.model.PushToken;
+import com.ssa.schoolerp.model.OnlinePayment;
+import com.ssa.schoolerp.model.CalendarEvent;
+import com.ssa.schoolerp.model.LeaveRequest;
+import com.ssa.schoolerp.model.StaffAttendance;
+import com.ssa.schoolerp.model.Substitution;
+import com.ssa.schoolerp.model.StoredFile;
+import com.ssa.schoolerp.model.HomeworkSubmission;
+import com.ssa.schoolerp.model.ExamSeat;
+import com.ssa.schoolerp.model.AdmissionEnquiry;
+import com.ssa.schoolerp.model.TransportRoute;
+import com.ssa.schoolerp.model.TransportAssignment;
+import com.ssa.schoolerp.model.Book;
+import com.ssa.schoolerp.model.BookIssue;
+import com.ssa.schoolerp.model.PtmSlot;
+import com.ssa.schoolerp.model.Album;
+import com.ssa.schoolerp.model.HealthProfile;
+import com.ssa.schoolerp.model.HealthVisit;
 import com.ssa.schoolerp.model.MarksRecord;
 import com.ssa.schoolerp.model.Message;
 import com.ssa.schoolerp.model.Notice;
@@ -66,6 +91,31 @@ public class DataStore {
     public final TableRepository<Message> messages;
     public final TableRepository<TimetablePeriod> periods;
     public final TableRepository<TimetableEntry> timetable;
+    public final TableRepository<UserAccount> accounts;
+    public final TableRepository<AuthSession> sessions;
+    public final TableRepository<SchoolSettings> settings;
+    public final TableRepository<AuditEvent> audit;
+    public final TableRepository<Certificate> certificates;
+    public final TableRepository<ReportCardNote> reportCardNotes;
+    public final TableRepository<Notification> notifications;
+    public final TableRepository<PushToken> pushTokens;
+    public final TableRepository<OnlinePayment> onlinePayments;
+    public final TableRepository<CalendarEvent> calendar;
+    public final TableRepository<LeaveRequest> leaves;
+    public final TableRepository<StaffAttendance> staffAttendance;
+    public final TableRepository<Substitution> substitutions;
+    public final TableRepository<StoredFile> files;
+    public final TableRepository<HomeworkSubmission> submissions;
+    public final TableRepository<ExamSeat> examSeats;
+    public final TableRepository<AdmissionEnquiry> enquiries;
+    public final TableRepository<TransportRoute> routes;
+    public final TableRepository<TransportAssignment> transportAssignments;
+    public final TableRepository<Book> books;
+    public final TableRepository<BookIssue> bookIssues;
+    public final TableRepository<PtmSlot> ptmSlots;
+    public final TableRepository<Album> albums;
+    public final TableRepository<HealthProfile> healthProfiles;
+    public final TableRepository<HealthVisit> healthVisits;
     private final TableRepository<IdCounter> idCounters;
 
     private final EntityManager em;
@@ -99,6 +149,31 @@ public class DataStore {
         messages = table(Message.class, "Message");
         periods = table(TimetablePeriod.class, "Period");
         timetable = table(TimetableEntry.class, "Timetable entry");
+        accounts = table(UserAccount.class, "Account");
+        sessions = table(AuthSession.class, "Session");
+        settings = table(SchoolSettings.class, "Settings");
+        audit = table(AuditEvent.class, "Audit event");
+        certificates = table(Certificate.class, "Certificate");
+        reportCardNotes = table(ReportCardNote.class, "Report card note");
+        notifications = table(Notification.class, "Notification");
+        pushTokens = table(PushToken.class, "Push token");
+        onlinePayments = table(OnlinePayment.class, "Online payment");
+        calendar = table(CalendarEvent.class, "Calendar event");
+        leaves = table(LeaveRequest.class, "Leave request");
+        staffAttendance = table(StaffAttendance.class, "Staff attendance");
+        substitutions = table(Substitution.class, "Substitution");
+        files = table(StoredFile.class, "File");
+        submissions = table(HomeworkSubmission.class, "Homework submission");
+        examSeats = table(ExamSeat.class, "Exam seat");
+        enquiries = table(AdmissionEnquiry.class, "Enquiry");
+        routes = table(TransportRoute.class, "Route");
+        transportAssignments = table(TransportAssignment.class, "Transport assignment");
+        books = table(Book.class, "Book");
+        bookIssues = table(BookIssue.class, "Book issue");
+        ptmSlots = table(PtmSlot.class, "PTM slot");
+        albums = table(Album.class, "Album");
+        healthProfiles = table(HealthProfile.class, "Health profile");
+        healthVisits = table(HealthVisit.class, "Health visit");
         idCounters = table(IdCounter.class, "Id counter");
     }
 
@@ -112,6 +187,14 @@ public class DataStore {
             log.info("Empty database: loading demo data");
             reset();
         }
+        if (settings.count() == 0) {
+            tx.executeWithoutResult(status -> SeedData.seedSettings(this));
+        }
+        if (accounts.count() == 0) {
+            // The database was filled before login accounts existed: give everyone a login.
+            log.info("No login accounts yet: creating them for existing teachers, students and parents");
+            tx.executeWithoutResult(status -> SeedData.seedAccounts(this));
+        }
     }
 
     /** Wipes every table and reloads the demo data set. */
@@ -119,6 +202,8 @@ public class DataStore {
         tx.executeWithoutResult(status -> {
             List.of(classes, students, teachers, parents, attendance, exams, schedules, marks, feeHeads, feeDues,
                     payments, concessions, deposits, notices, homework, studyMaterials, messages, periods, timetable,
+                    accounts, settings, certificates, reportCardNotes, notifications, onlinePayments, calendar, leaves, staffAttendance, substitutions,
+                    files, submissions, examSeats, enquiries, routes, transportAssignments, books, bookIssues, ptmSlots, albums, healthProfiles, healthVisits,
                     idCounters).forEach(TableRepository::clear);
             em.flush();
             SeedData.populate(this, LocalDate.now(clock));
@@ -143,12 +228,13 @@ public class DataStore {
 
     /** The students of a class, in roll-number order. */
     public List<Student> studentsOf(String className) {
-        return students.where("e.className = ?1 order by e.rollNumber", className);
+        return students.where("e.className = ?1 and " + Student.ACTIVE_CONDITION + " order by e.rollNumber", className);
     }
 
     /** Number of students per class, counted by the database. */
     public Map<String, Integer> studentCountsByClass() {
-        return students.aggregate("select e.className, count(e) from %s e group by e.className").stream()
+        return students.aggregate("select e.className, count(e) from %s e where " + Student.ACTIVE_CONDITION
+                        + " group by e.className").stream()
                 .collect(Collectors.toMap(row -> (String) row[0], row -> ((Long) row[1]).intValue()));
     }
 }

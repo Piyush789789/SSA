@@ -61,7 +61,7 @@ public class SchoolController {
     @RequireRole({Role.ADMIN, Role.TEACHER})
     @GetMapping("/classes/{id}/students")
     public ApiResponse<List<Student>> classStudents(@CurrentUser User user, @PathVariable String id) {
-        return ApiResponse.of(school.students(user, id, null));
+        return ApiResponse.of(school.students(user, id, null, null));
     }
 
     @RequireRole(Role.ADMIN)
@@ -90,8 +90,9 @@ public class SchoolController {
     @GetMapping("/students")
     public ApiResponse<List<Student>> students(@CurrentUser User user,
                                                @RequestParam(required = false) String className,
-                                               @RequestParam(required = false) String q) {
-        return ApiResponse.of(school.students(user, className, q));
+                                               @RequestParam(required = false) String q,
+                                               @RequestParam(required = false) String status) {
+        return ApiResponse.of(school.students(user, className, q, status));
     }
 
     @GetMapping("/students/{id}")

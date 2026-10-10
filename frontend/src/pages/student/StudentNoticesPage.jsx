@@ -3,6 +3,7 @@ import { Megaphone, Calendar, User, Search } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
 import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { formatDateTime } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 const PRIORITY_STYLES = {
   high: 'bg-rose-100 text-rose-700',
@@ -11,6 +12,7 @@ const PRIORITY_STYLES = {
 };
 
 export const StudentNoticesPage = () => {
+  const { tx } = useI18n();
   const notices = useApi('/notices');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -26,7 +28,7 @@ export const StudentNoticesPage = () => {
       <div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
           <Megaphone className="w-7 h-7 text-[#FF6B2C] stroke-[2]" />
-          <span>School Notices & Circulars</span>
+          <span>{tx('School Notices & Circulars')}</span>
         </h1>
         <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
           Official school announcements, examination schedules, and holidays

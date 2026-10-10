@@ -10,6 +10,7 @@ import { useApi } from '@/hooks/useApi';
 import { withQuery } from '@/api/http';
 import { addDays, formatDate, initialsOf, parseIsoDate, todayIso, weekdayName } from '@/utils';
 import { formatRate, groupBy, summarizeRecords } from '@/components/attendance/attendanceMath';
+import { useI18n } from '@/i18n/translate';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -27,6 +28,7 @@ const CELL_STYLES = {
 const GRID_DAYS = 30;
 
 export const StudentAttendancePage = () => {
+  const { tx } = useI18n();
   const { studentId } = useParams();
   const navigate = useNavigate();
 
@@ -89,7 +91,7 @@ export const StudentAttendancePage = () => {
             className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-[#FF6B2C] transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Attendance Dashboard
+            {tx('Back to Attendance Dashboard')}
           </button>
 
           {isNotFound ? (

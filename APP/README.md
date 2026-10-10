@@ -50,6 +50,21 @@ Installed APKs are not connected to the dev server, so set `EXPO_PUBLIC_API_URL`
 to the backend's address before building. Plain `http://` is allowed (see `expo-build-properties` in
 `app.json`); use HTTPS before publishing to the Play Store.
 
+## Notifications, push and online payments
+
+- **In-app notifications** work everywhere (Expo Go included): the bell on the Home/Dashboard header shows the
+  unread count, and the list is under *More → Notifications*.
+- **Push notifications** (`expo-notifications`) are registered after sign-in and removed on sign-out. They need:
+  - a **development build or an installed APK** on Android — push is not available in Expo Go on Android
+    (since SDK 53), so the app skips registration there without any error;
+  - a real device (not an emulator/simulator) and the user allowing notifications;
+  - an EAS project id: run `npx eas-cli@latest init` in the app folder once (it adds `extra.eas.projectId` to
+    the app config), and for Android set up FCM credentials (`npx eas-cli@latest credentials`).
+  If any of this is missing the app silently carries on without push. Tapping a push opens the linked screen.
+- **Pay online** appears on fee cards only when the school has enabled Razorpay (`/online-payments/status`).
+  It opens the school's checkout page in the phone's browser (`expo-web-browser`) and refreshes the fees when you
+  come back. Works in Expo Go. "Deposit fee" (report a UPI/bank payment) is still available.
+
 ## Demo accounts
 
 | Role | Email | Password |

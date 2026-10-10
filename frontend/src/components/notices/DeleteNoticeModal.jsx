@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
+import { useI18n } from '@/i18n/translate';
 
 /** `onConfirm(notice)` returns a promise (DELETE /notices/{id}); its error message is shown here. */
 export const DeleteNoticeModal = ({ isOpen, notice, onClose, onConfirm }) => {
@@ -8,6 +9,7 @@ export const DeleteNoticeModal = ({ isOpen, notice, onClose, onConfirm }) => {
 };
 
 const DeleteNoticeContent = ({ notice, onClose, onConfirm }) => {
+  const { tx } = useI18n();
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
 
@@ -41,7 +43,7 @@ const DeleteNoticeContent = ({ notice, onClose, onConfirm }) => {
             <AlertTriangle className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-slate-900">Delete Notice?</h3>
+            <h3 className="text-lg font-bold text-slate-900">{tx('Delete Notice?')}</h3>
             <p className="text-xs text-slate-500 mt-0.5">
               Are you sure you want to delete this notice? This action cannot be undone.
             </p>
@@ -64,7 +66,7 @@ const DeleteNoticeContent = ({ notice, onClose, onConfirm }) => {
             onClick={onClose}
             className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-2xl transition-colors cursor-pointer"
           >
-            Cancel
+            {tx('Cancel')}
           </button>
           <button
             type="button"
@@ -73,7 +75,7 @@ const DeleteNoticeContent = ({ notice, onClose, onConfirm }) => {
             aria-label="Delete notice"
             className="disabled:opacity-60 disabled:cursor-not-allowed px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs rounded-2xl shadow-md shadow-rose-600/20 transition-colors cursor-pointer"
           >
-            {deleting ? 'Deleting…' : 'Delete Notice'}
+            {deleting ? tx('Deleting…') : tx('Delete Notice')}
           </button>
         </div>
       </div>

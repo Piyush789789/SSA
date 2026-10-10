@@ -11,6 +11,7 @@ import com.ssa.schoolerp.security.CurrentUser;
 import com.ssa.schoolerp.service.AttendanceService;
 import com.ssa.schoolerp.service.DashboardService;
 import com.ssa.schoolerp.service.Grading;
+import com.ssa.schoolerp.service.SettingsService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,9 +29,12 @@ public class DashboardController {
     private final DashboardService dashboard;
     private final DataStore store;
     private final String depositInstructions;
+    private final SettingsService settings;
 
     public DashboardController(DashboardService dashboard, DataStore store,
-                               @Value("${app.fees.deposit-instructions}") String depositInstructions) {
+                               @Value("${app.fees.deposit-instructions}") String depositInstructions,
+                               SettingsService settings) {
+        this.settings = settings;
         this.dashboard = dashboard;
         this.store = store;
         this.depositInstructions = depositInstructions;
@@ -46,7 +50,7 @@ public class DashboardController {
     @GetMapping("/meta")
     public ApiResponse<Map<String, Object>> meta() {
         Map<String, Object> meta = new LinkedHashMap<>();
-        meta.put("academicYear", ReferenceData.ACADEMIC_YEAR);
+        meta.put("academicYear", settings.currentAcademicYear());
         meta.put("classes", store.classes.stream()
                 .sorted(Comparator.comparingInt(SchoolClass::grade).thenComparing(SchoolClass::section))
                 .map(SchoolClass::id)

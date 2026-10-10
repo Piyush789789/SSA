@@ -1,9 +1,12 @@
 import React from 'react';
-import { User, BookOpen, GraduationCap, Heart, ShieldCheck, Printer, CreditCard, Info } from 'lucide-react';
+import { User, BookOpen, GraduationCap, Heart, ShieldCheck, Printer, CreditCard, Info, FileBadge } from 'lucide-react';
+import { CertificatesList } from '@/components/common/CertificatesList';
 import { StudentContactEditor } from '@/components/common/ContactEditors';
+import { ChangePasswordButton } from '@/components/common/ChangePassword';
 import { useAuth } from '@/context/AuthContext';
 import { useApi } from '@/hooks/useApi';
 import { formatCurrency, formatDate, initialsOf } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 const Row = ({ label, children, last = false, valueClass = 'text-slate-800' }) => (
   <div className={`flex justify-between gap-3 py-1.5 ${last ? '' : 'border-b border-slate-50'}`}>
@@ -13,6 +16,7 @@ const Row = ({ label, children, last = false, valueClass = 'text-slate-800' }) =
 );
 
 export const StudentProfilePage = () => {
+  const { tx } = useI18n();
   const { currentUser, refreshSession } = useAuth();
 
   const studentId = currentUser?.studentId || currentUser?.id;
@@ -24,6 +28,7 @@ export const StudentProfilePage = () => {
   const attendance = useApi(studentId ? `/attendance/students/${studentId}/stats` : null);
   const results = useApi(studentId ? `/results/students/${studentId}` : null);
   const fees = useApi(studentId ? `/fees/students/${studentId}/summary` : null);
+  const certificates = useApi(studentId ? `/students/${encodeURIComponent(studentId)}/certificates` : null);
 
   const nextDue = (fees.data?.dues || [])
     .filter((d) => d.pending > 0)
@@ -39,7 +44,7 @@ export const StudentProfilePage = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
             <User className="w-7 h-7 text-[#FF6B2C]" />
-            Student Profile
+            {tx('Student Profile')}
           </h1>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
             Personal, academic, and guardian records for {currentUser?.name}.
@@ -138,7 +143,10 @@ export const StudentProfilePage = () => {
               {currentUser?.address}
             </Row>
           </div>
-          {currentUser ? <StudentContactEditor student={currentUser} onSaved={refreshSession} /> : null}
+          <div className="flex flex-wrap items-start gap-2">
+            {currentUser ? <StudentContactEditor student={currentUser} onSaved={refreshSession} /> : null}
+            <ChangePasswordButton />
+          </div>
           <p className="flex items-start gap-1.5 text-[11px] text-slate-400 pt-1">
             <Info className="w-3.5 h-3.5 shrink-0 mt-px" />
             You can update the address and guardian phone/email. For other changes, contact the school office.
@@ -180,6 +188,18 @@ export const StudentProfilePage = () => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Certificates */}
+      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center gap-2.5 text-slate-900 font-bold">
+          <FileBadge className="w-5 h-5 text-[#FF6B2C]" />
+          <h3>My Certificates</h3>
+        </div>
+        <CertificatesList
+          state={certificates}
+          emptyText="No certificates have been issued to you. Ask the school office for a bonafide certificate if you need one."
+        />
       </div>
     </div>
   );

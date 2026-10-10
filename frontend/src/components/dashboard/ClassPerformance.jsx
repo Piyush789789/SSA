@@ -9,12 +9,14 @@ import {
   Tooltip,
 } from 'recharts';
 import { groupBy, summarizeRecords } from '@/components/attendance/attendanceMath';
+import { useI18n } from '@/i18n/translate';
 
 /**
  * Attendance rate per class, worked out from the attendance records passed in (the dashboard
  * loads the last 30 days). Classes with no marked days are left out.
  */
 export const ClassPerformance = ({ records = [], periodLabel = 'Last 30 days' }) => {
+  const { t, tx } = useI18n();
   const chartData = useMemo(() => {
     const byClass = groupBy(records, (r) => r.className);
     return [...byClass.entries()]
@@ -28,12 +30,12 @@ export const ClassPerformance = ({ records = [], periodLabel = 'Last 30 days' })
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-            Class Attendance
+            {t('dash.classAttendance')}
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">Attendance rate by class (late counts as attended)</p>
         </div>
         <span className="text-xs font-semibold text-[#FF6B2C] bg-[#FFF5F0] px-2.5 py-1 rounded-lg border border-[#FF6B2C]/20">
-          {periodLabel}
+          {tx(periodLabel)}
         </span>
       </div>
 

@@ -7,8 +7,10 @@ import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { useApi } from '@/hooks/useApi';
 import { formatCurrency } from '@/utils';
 import { formatRate, groupBy } from '@/components/attendance/attendanceMath';
+import { useI18n } from '@/i18n/translate';
 
 export const ClassesListPage = () => {
+  const { tx } = useI18n();
   const navigate = useNavigate();
   const [activeSidebarId, setActiveSidebarId] = useState('classes');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -83,7 +85,7 @@ export const ClassesListPage = () => {
               </div>
               <div>
                 <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                  Class Overview &amp; Management
+                  {tx('Class Overview & Management')}
                 </h1>
                 <p className="text-xs sm:text-sm font-semibold text-slate-400 mt-0.5">
                   {classes.data ? `Complete overview of all ${classes.data.length} school classes` : 'Loading classes…'}

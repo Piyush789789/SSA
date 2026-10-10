@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useApi } from '@/hooks/useApi';
 import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { todayIso, weekdayName } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 const dayLabel = (day) => day.charAt(0) + day.slice(1).toLowerCase();
@@ -24,6 +25,7 @@ const colorFor = (subject = '') => {
 };
 
 export const TeacherTimetablePage = () => {
+  const { tx } = useI18n();
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('Week'); // 'Week' | 'Day'
   const [selectedDay, setSelectedDay] = useState(() => {
@@ -44,7 +46,7 @@ export const TeacherTimetablePage = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
             <Calendar className="w-7 h-7 text-[#FF6B2C] stroke-[2]" />
-            <span>My Schedule & Timetable</span>
+            <span>{tx('My Schedule & Timetable')}</span>
           </h1>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
             Weekly teaching schedule for {currentUser?.name} across assigned classes

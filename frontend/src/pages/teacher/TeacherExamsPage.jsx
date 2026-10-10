@@ -5,8 +5,10 @@ import { useAuth } from '@/context/AuthContext';
 import { useApi } from '@/hooks/useApi';
 import { AsyncState } from '@/components/common/AsyncState';
 import { formatDate } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 export const TeacherExamsPage = () => {
+  const { tx } = useI18n();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const schedules = useApi('/exam-schedules');
@@ -45,7 +47,7 @@ export const TeacherExamsPage = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
             <FileCheck className="w-7 h-7 text-[#FF6B2C] stroke-[2]" />
-            <span>Tests & Examinations</span>
+            <span>{tx('Tests & Examinations')}</span>
           </h1>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
             Manage test schedules and evaluate student marks for your assigned classes

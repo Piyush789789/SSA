@@ -31,6 +31,12 @@ class SchoolApiTest extends ApiTestSupport {
         return LocalDate.now(ZoneId.of("Asia/Kolkata"));
     }
 
+    /** Today, or yesterday on a Sunday (no attendance is taken on Sundays). */
+    private LocalDate schoolDay() {
+        LocalDate today = today();
+        return today.getDayOfWeek() == java.time.DayOfWeek.SUNDAY ? today.minusDays(1) : today;
+    }
+
     // ---------------------------------------------------------------- authentication and access
 
     @Test
@@ -113,7 +119,7 @@ class SchoolApiTest extends ApiTestSupport {
     @Test
     void remarkingADayOverwritesInsteadOfDuplicating() throws Exception {
         String token = teacher();
-        String date = today().toString();
+        String date = schoolDay().toString();
         Map<String, Object> request = Map.of("className", "5-B", "date", date,
                 "entries", List.of(Map.of("studentId", ROHIT, "status", "absent")));
         putAs(token, "/api/attendance", request).andExpect(status().isOk());
@@ -130,7 +136,7 @@ class SchoolApiTest extends ApiTestSupport {
         String token = teacher();
         putAs(token, "/api/attendance", Map.of("className", "5-B", "date", today().plusDays(1).toString(),
                 "entries", List.of(Map.of("studentId", ROHIT, "status", "present")))).andExpect(status().isBadRequest());
-        putAs(token, "/api/attendance", Map.of("className", "5-B", "date", today().toString(),
+        putAs(token, "/api/attendance", Map.of("className", "5-B", "date", schoolDay().toString(),
                 "entries", List.of(Map.of("studentId", "STU-2026-0601", "status", "present")))).andExpect(status().isBadRequest());
     }
 
@@ -351,6 +357,74 @@ class SchoolApiTest extends ApiTestSupport {
                         .header("Authorization", "Bearer " + admin()))
                 .andExpect(status().isOk());
         assertThat(store.feeDues.getById(due.id()).pending()).isEqualTo(due.pending());
+    }
+
+    // ---------------------------------------------------------------- login accounts
+
+    @Test
+    void studentsCanLogInWithTheirAdmissionNumber() throws Exception {
+        assertThat(login("STU-2026-0503", "student123", "STUDENT")).isNotBlank();
+        assertThat(login("stu-2026-0601", "student123", "STUDENT")).isNotBlank(); // every seeded student has a login
+    }
+
+    @Test
+    void adminCreatesAParentLoginThatMustChangeItsPassword() throws Exception {
+        String admin = admin();
+        JsonNode parent = data(postAs(admin, "/api/parents", Map.of("name", "Imran Chauhan", "email", "imran@example.com",
+                "phone", "+91 90000 11111", "relation", "Father", "childIds", List.of("STU-2026-0501")))
+                .andExpect(status().isCreated()));
+        JsonNode created = data(postAs(admin, "/api/accounts", Map.of("role", "PARENT", "profileId", parent.get("id").asText()))
+                .andExpect(status().isCreated()));
+        String temporary = created.get("temporaryPassword").asText();
+        assertThat(temporary).hasSize(10);
+
+        JsonNode login = objectMapper.readTree(mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", "imran@example.com",
+                                "password", temporary, "role", "PARENT"))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+        assertThat(login.get("user").get("mustChangePassword").asBoolean()).isTrue();
+        String token = login.get("token").asText();
+
+        postAs(token, "/api/auth/change-password", Map.of("currentPassword", temporary, "newPassword", "short"))
+                .andExpect(status().isBadRequest());
+        postAs(token, "/api/auth/change-password", Map.of("currentPassword", temporary, "newPassword", "NewPass2026"))
+                .andExpect(status().isOk());
+        assertThat(login("imran@example.com", "NewPass2026", "PARENT")).isNotBlank();
+        getAs(token, "/api/students").andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value("STU-2026-0501"));
+    }
+
+    @Test
+    void fiveWrongPasswordsLockTheAccount() throws Exception {
+        Map<String, Object> wrong = Map.of("email", "teacher@ssa.edu", "password", "nope", "role", "TEACHER");
+        for (int i = 0; i < 5; i++) {
+            mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(wrong))).andExpect(status().isUnauthorized());
+        }
+        mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", "teacher@ssa.edu",
+                                "password", "teacher123", "role", "TEACHER"))))
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    void disablingAnAccountSignsItOutAndBlocksLogin() throws Exception {
+        String studentToken = student();
+        putAs(admin(), "/api/accounts/student-001/active", Map.of("active", false)).andExpect(status().isOk());
+        getAs(studentToken, "/api/dashboard").andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", "student@ssa.edu",
+                                "password", "student123", "role", "STUDENT"))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void onlyAdminsManageAccounts() throws Exception {
+        getAs(teacher(), "/api/accounts").andExpect(status().isForbidden());
+        JsonNode list = data(getAs(admin(), "/api/accounts?role=TEACHER").andExpect(status().isOk()));
+        assertThat(list).hasSize(8);
     }
 
     // ---------------------------------------------------------------- daily schedule

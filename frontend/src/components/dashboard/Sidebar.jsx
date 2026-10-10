@@ -4,9 +4,16 @@ import { GraduationCap, X } from 'lucide-react';
 import { SIDEBAR_ITEMS } from '@/constants/sidebar';
 import { APP_CONFIG } from '@/config/env';
 import { ROUTES } from '@/constants/routes';
+import { useAuth } from '@/context/AuthContext';
+import { useI18n } from '@/i18n/translate';
 
 export const Sidebar = ({ activeItemId = 'dashboard', onItemSelect, isOpen, onClose }) => {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const { t } = useI18n();
+  // Limited staff logins (some permissions) cannot open Settings, Logins, Promotion, Backups or Audit.
+  const isLimitedStaff = (currentUser?.permissions?.length ?? 0) > 0;
+  const visibleItems = SIDEBAR_ITEMS.filter((item) => !(isLimitedStaff && item.fullAdminOnly));
 
   const handleNavigation = (itemId) => {
     let targetRoute = null;
@@ -29,8 +36,12 @@ export const Sidebar = ({ activeItemId = 'dashboard', onItemSelect, isOpen, onCl
       targetRoute = ROUTES.ADMIN_NOTICES;
     } else if (itemId === 'exams' || itemId === 'tests-exams') {
       targetRoute = ROUTES.ADMIN_EXAMS;
+    } else if (itemId === 'accounts') {
+      targetRoute = ROUTES.ADMIN_ACCOUNTS;
     } else if (itemId === 'roles-permissions' || itemId === 'roles') {
       targetRoute = ROUTES.ADMIN_ROLES_PERMISSIONS;
+    } else {
+      targetRoute = SIDEBAR_ITEMS.find((item) => item.id === itemId)?.route ?? null;
     }
 
     if (onClose) onClose();
@@ -72,7 +83,7 @@ export const Sidebar = ({ activeItemId = 'dashboard', onItemSelect, isOpen, onCl
                 ADARSH ACADEMY
               </p>
               <span className="text-[11px] font-medium text-slate-400 block mt-0.5">
-                School Admin
+                {currentUser?.staffTitle || t(isLimitedStaff ? 'portal.staff' : 'portal.admin')}
               </span>
             </div>
           </div>
@@ -89,10 +100,10 @@ export const Sidebar = ({ activeItemId = 'dashboard', onItemSelect, isOpen, onCl
         {/* Navigation List */}
         <div className="flex-1 overflow-y-auto px-4 py-5 space-y-1 custom-scrollbar">
           <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3 mb-3">
-            NAVIGATION
+            {t('common.navigation')}
           </div>
 
-          {SIDEBAR_ITEMS.map((item) => {
+          {visibleItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeItemId === item.id;
 
@@ -111,7 +122,7 @@ export const Sidebar = ({ activeItemId = 'dashboard', onItemSelect, isOpen, onCl
                     isActive ? 'text-[#FF6B2C]' : 'text-slate-400 group-hover:text-slate-600'
                   }`}
                 />
-                <span className="truncate">{item.label}</span>
+                <span className="truncate">{t(item.labelKey, null, item.label)}</span>
               </button>
             );
           })}

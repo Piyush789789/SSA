@@ -15,6 +15,9 @@ import { useApi } from '@/hooks/useApi';
 import { withQuery } from '@/api/http';
 import { addDays, formatCurrency, todayIso } from '@/utils';
 import { formatRate } from '@/components/attendance/attendanceMath';
+import { AtRiskSummaryCard } from '@/components/insights/AtRisk';
+import { ROUTES } from '@/constants/routes';
+import { useI18n } from '@/i18n/translate';
 
 const Card = ({ children }) => (
   <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs h-full">{children}</div>
@@ -23,6 +26,7 @@ const Card = ({ children }) => (
 export const AdminDashboard = () => {
   const [activeSidebarId, setActiveSidebarId] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { t, tx } = useI18n();
 
   const [today] = useState(todayIso);
   const dashboard = useApi('/dashboard');
@@ -87,10 +91,10 @@ export const AdminDashboard = () => {
           {/* Dashboard Title & Welcome Banner */}
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Dashboard
+              {tx('Dashboard')}
             </h1>
             <p className="text-xs sm:text-sm font-normal text-slate-500 mt-1">
-              Welcome back! Here's what's happening today.
+              {t('dash.welcomeToday')}
             </p>
           </div>
 
@@ -104,6 +108,9 @@ export const AdminDashboard = () => {
               </div>
             )}
           </AsyncState>
+
+          {/* Early warning: students needing attention */}
+          <AtRiskSummaryCard linkTo={ROUTES.ADMIN_AT_RISK} profileBase="/admin/students" />
 
           {/* 2. Middle Row: Attendance Overview (60%) & Fee Collection Chart (40%) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">

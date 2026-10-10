@@ -12,7 +12,8 @@ import java.time.LocalDate;
 @Entity
 @Table(indexes = {
         @Index(name = "idx_attendance_student", columnList = "studentId"),
-        @Index(name = "idx_attendance_class_date", columnList = "className, date")})
+        @Index(name = "idx_attendance_class_date", columnList = "className, date"),
+        @Index(name = "idx_attendance_date", columnList = "date")})
 @JsonFields
 public class AttendanceRecord implements Identifiable {
 

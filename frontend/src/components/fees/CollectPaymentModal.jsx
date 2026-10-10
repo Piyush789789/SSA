@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, CheckCircle, CreditCard } from 'lucide-react';
 import { http } from '@/api/http';
 import { formatCurrency } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 const NONE = [];
 
@@ -10,6 +11,7 @@ const NONE = [];
  * number — to `onPaid`. `feeDue` is a Due from the API; `paymentModes` come from GET /meta.
  */
 export const CollectPaymentModal = ({ isOpen, feeDue, paymentModes = NONE, onClose, onPaid }) => {
+  const { tx } = useI18n();
   const [amount, setAmount] = useState('');
   const [paymentMode, setPaymentMode] = useState('');
   const [remarks, setRemarks] = useState('');
@@ -157,7 +159,7 @@ export const CollectPaymentModal = ({ isOpen, feeDue, paymentModes = NONE, onClo
               onClick={onClose}
               className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-2xl transition-colors cursor-pointer"
             >
-              Cancel
+              {tx('Cancel')}
             </button>
             <button
               type="submit"

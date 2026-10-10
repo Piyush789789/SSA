@@ -8,7 +8,12 @@ import {
   RefreshCw,
   CheckCircle2,
   BadgeCheck,
+  BellRing,
 } from 'lucide-react';
+import { http } from '@/api/http';
+import { ConfirmDialog } from '@/components/fees/ConfirmDialog';
+import { useI18n } from '@/i18n/translate';
+import { formatDateTime } from '@/utils';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { useApi } from '@/hooks/useApi';
@@ -52,6 +57,15 @@ export const FeesPage = () => {
     setTimeout(() => setToastMessage(''), 3000);
   };
 
+  const { t } = useI18n();
+  const [isRemindOpen, setIsRemindOpen] = useState(false);
+  // Fee reminders also run automatically every day at 9 AM; each family gets at most one a day.
+  const sendRemindersNow = async () => {
+    const run = await http.post('/fee-reminders/send');
+    setIsRemindOpen(false);
+    triggerToast(t('fees.remindersSent', { n: run?.familiesReminded ?? 0, at: formatDateTime(run?.at) }));
+  };
+
   const handleRefresh = () => {
     setRefreshKey((k) => k + 1);
     metaApi.reload();
@@ -85,20 +99,30 @@ export const FeesPage = () => {
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] w-full mx-auto pb-16">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Fee Management</h1>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">{t('fees.title')}</h1>
               <p className="text-xs sm:text-sm font-normal text-slate-500 mt-1">
                 Class-wise fee structure, collection & reports
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={handleRefresh}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs sm:text-sm rounded-2xl shadow-xs transition-all duration-200 cursor-pointer shrink-0 self-start sm:self-auto"
-            >
-              <RefreshCw className="w-4 h-4 text-slate-500" />
-              <span>Refresh</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setIsRemindOpen(true)}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-semibold text-xs sm:text-sm rounded-2xl shadow-xs transition-all duration-200 cursor-pointer shrink-0"
+              >
+                <BellRing className="w-4 h-4" />
+                <span>{t('fees.sendReminders')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleRefresh}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs sm:text-sm rounded-2xl shadow-xs transition-all duration-200 cursor-pointer shrink-0"
+              >
+                <RefreshCw className="w-4 h-4 text-slate-500" />
+                <span>{t('common.refresh')}</span>
+              </button>
+            </div>
           </div>
 
           <div className="bg-[#FFF5F0] p-1.5 rounded-3xl inline-flex flex-wrap gap-1.5 border border-orange-100 shadow-xs">
@@ -117,7 +141,7 @@ export const FeesPage = () => {
                   }`}
                 >
                   <Icon className={`w-4 h-4 stroke-[2.2] ${isActive ? 'text-[#FF6B2C]' : 'text-slate-400'}`} />
-                  <span>{tab.label}</span>
+                  <span>{t(`fees.tab.${tab.id}`, null, tab.label)}</span>
                 </button>
               );
             })}
@@ -166,6 +190,16 @@ export const FeesPage = () => {
           </div>
         </main>
       </div>
+      <ConfirmDialog
+        isOpen={isRemindOpen}
+        tone="success"
+        title={t('fees.sendReminders')}
+        message={t('fees.remindersMessage')}
+        detail={t('fees.remindersDetail')}
+        confirmLabel={t('fees.sendNow')}
+        onClose={() => setIsRemindOpen(false)}
+        onConfirm={sendRemindersNow}
+      />
     </div>
   );
 };

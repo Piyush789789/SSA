@@ -16,9 +16,12 @@ import { useApi } from '@/hooks/useApi';
 import { withQuery } from '@/api/http';
 import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { formatDate, todayIso } from '@/utils';
+import { AdmitCardLinks } from '@/components/exams/AdmitCardLinks';
+import { useI18n } from '@/i18n/translate';
 import { aggregateBySubject, gradeFor, groupByExam } from './resultsUtils';
 
 export const StudentExamsPage = () => {
+  const { tx } = useI18n();
   const { currentUser } = useAuth();
   const [searchParams] = useSearchParams();
 
@@ -95,7 +98,7 @@ export const StudentExamsPage = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
             <FileCheck className="w-7 h-7 text-[#FF6B2C]" />
-            Tests & Examinations
+            {tx('Tests & Examinations')}
           </h1>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
             Published results and upcoming papers for {currentUser?.name}
@@ -122,6 +125,8 @@ export const StudentExamsPage = () => {
           </button>
         </div>
       </div>
+
+      <AdmitCardLinks student={currentUser} />
 
       {activeTab === 'COMPLETED' ? (
         <AsyncState state={results} loadingText="Loading your results…">

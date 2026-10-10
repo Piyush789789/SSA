@@ -4,6 +4,7 @@ import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { useApi } from '@/hooks/useApi';
 import { http, withQuery } from '@/api/http';
 import { formatDate, todayIso } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 const STATUSES = ['present', 'absent', 'late', 'leave'];
 const ACTIVE_STYLES = {
@@ -20,6 +21,7 @@ const ACTIVE_STYLES = {
  * Mounted only while open.
  */
 export const MarkAttendanceModal = ({ classOptions = [], initialClass = '', initialDate, onClose, onSaved }) => {
+  const { tx } = useI18n();
   const today = todayIso();
   const [selectedClass, setSelectedClass] = useState(initialClass || classOptions[0] || '');
   const [selectedDate, setSelectedDate] = useState(initialDate || today);
@@ -79,7 +81,7 @@ export const MarkAttendanceModal = ({ classOptions = [], initialClass = '', init
               <CheckCircle2 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-extrabold text-slate-900 text-lg">Mark Class Attendance</h3>
+              <h3 className="font-extrabold text-slate-900 text-lg">{tx('Mark Class Attendance')}</h3>
               <p className="text-xs text-slate-400">Select class and date, then mark each student</p>
             </div>
           </div>
@@ -196,7 +198,7 @@ export const MarkAttendanceModal = ({ classOptions = [], initialClass = '', init
             onClick={onClose}
             className="px-5 py-2.5 rounded-2xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs transition-colors cursor-pointer"
           >
-            Cancel
+            {tx('Cancel')}
           </button>
           <button
             type="button"
@@ -204,7 +206,7 @@ export const MarkAttendanceModal = ({ classOptions = [], initialClass = '', init
             disabled={saving || !roster.data?.length}
             className="px-5 py-2.5 rounded-2xl bg-[#FF6B2C] hover:bg-[#e85a1c] disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold text-xs transition-all shadow-md shadow-[#FF6B2C]/20 cursor-pointer"
           >
-            {saving ? 'Saving…' : 'Save Attendance'}
+            {saving ? tx('Saving…') : tx('Save Attendance')}
           </button>
         </div>
       </div>

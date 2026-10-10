@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 import { addDays, parseIsoDate } from '@/utils';
 import { ATTENDED } from '@/components/attendance/attendanceMath';
+import { useI18n } from '@/i18n/translate';
 
 const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -18,6 +19,7 @@ const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
  * `records` = attendance records covering at least the last 7 days up to `today`.
  */
 export const AttendanceOverview = ({ records = [], today }) => {
+  const { t } = useI18n();
   const chartData = useMemo(() => {
     const byDate = new Map();
     records.forEach((r) => {
@@ -43,10 +45,10 @@ export const AttendanceOverview = ({ records = [], today }) => {
     <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-          Attendance Overview
+          {t('dash.attendanceOverview')}
         </h3>
         <span className="text-xs font-semibold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/60">
-          Last 7 days
+          {t('dash.last7Days')}
         </span>
       </div>
 

@@ -28,11 +28,13 @@ public class ClassContentService {
     private final DataStore store;
     private final AccessGuard guard;
     private final Clock clock;
+    private final NotificationService notifications;
 
-    public ClassContentService(DataStore store, AccessGuard guard, Clock clock) {
+    public ClassContentService(DataStore store, AccessGuard guard, Clock clock, NotificationService notifications) {
         this.store = store;
         this.guard = guard;
         this.clock = clock;
+        this.notifications = notifications;
     }
 
     // ---------------------------------------------------------------- homework
@@ -53,7 +55,10 @@ public class ClassContentService {
         Homework homework = new Homework(store.nextId("HW"), request.title(), request.description(), request.subject(),
                 request.className(), assigned, request.dueDate(), request.instructions(), attachmentsOf(request),
                 user.actorId(), user.getName());
-        return store.homework.save(homework);
+        Homework saved = store.homework.save(homework);
+        notifications.notifyClassFamilies(List.of(saved.className()), "New homework: " + saved.subject(),
+                saved.title() + " (due " + saved.dueDate() + ")", NotificationService.HOMEWORK, "/homework");
+        return saved;
     }
 
     public Homework updateHomework(User user, String id, Homework request) {
@@ -70,6 +75,7 @@ public class ClassContentService {
 
     public void deleteHomework(User user, String id) {
         checkOwner(user, store.homework.getById(id).teacherId());
+        store.submissions.where("e.homeworkId = ?1", id).forEach(s -> store.submissions.deleteById(s.id()));
         store.homework.deleteById(id);
     }
 

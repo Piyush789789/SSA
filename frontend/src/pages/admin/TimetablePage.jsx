@@ -10,8 +10,10 @@ import { ManagePeriodsModal } from '@/components/timetable/ManagePeriodsModal';
 import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { useApi } from '@/hooks/useApi';
 import { http, withQuery } from '@/api/http';
+import { useI18n } from '@/i18n/translate';
 
 export const TimetablePage = () => {
+  const { tx } = useI18n();
   const [searchParams] = useSearchParams();
   const [activeSidebarId, setActiveSidebarId] = useState('timetable');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -103,7 +105,7 @@ export const TimetablePage = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                Weekly Timetable
+                {tx('Weekly Timetable')}
               </h1>
               <p className="text-xs sm:text-sm font-normal text-slate-500 mt-1">
                 View and manage class schedules. Click a cell to add or change a lesson.

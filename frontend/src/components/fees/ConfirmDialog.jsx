@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
+import { useI18n } from '@/i18n/translate';
 
 /**
  * Generic "are you sure?" dialog. `onConfirm(note)` may be async; while it runs the buttons are disabled and
@@ -20,6 +21,7 @@ export const ConfirmDialog = ({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
+  const { tx } = useI18n();
 
   useEffect(() => {
     if (isOpen) {
@@ -69,7 +71,7 @@ export const ConfirmDialog = ({
             <AlertTriangle className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+            <h3 className="text-lg font-bold text-slate-900">{tx(title)}</h3>
             {message && <p className="text-xs text-slate-500 mt-0.5">{message}</p>}
           </div>
         </div>
@@ -99,7 +101,7 @@ export const ConfirmDialog = ({
             disabled={busy}
             className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-2xl transition-colors cursor-pointer disabled:opacity-60"
           >
-            Cancel
+            {tx('Cancel')}
           </button>
           <button
             type="button"
@@ -107,7 +109,7 @@ export const ConfirmDialog = ({
             disabled={busy}
             className={`px-5 py-2.5 text-white font-semibold text-xs rounded-2xl shadow-md transition-colors cursor-pointer disabled:opacity-60 ${confirmClass}`}
           >
-            {busy ? 'Please wait…' : confirmLabel}
+            {busy ? tx('Please wait…') : tx(confirmLabel)}
           </button>
         </div>
       </div>

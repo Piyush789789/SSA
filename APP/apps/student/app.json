@@ -38,6 +38,21 @@
             "usesCleartextTraffic": true
           }
         }
+      ],
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "color": "#FF6B2C"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow SSA to use your photos to submit homework.",
+          "cameraPermission": "Allow SSA to use the camera to photograph homework.",
+          "microphonePermission": false
+        }
       ]
     ]
   }

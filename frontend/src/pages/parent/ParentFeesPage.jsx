@@ -17,6 +17,9 @@ import { useApi } from '@/hooks/useApi';
 import { http, withQuery } from '@/api/http';
 import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { formatCurrency, formatDate, formatDateTime, todayIso } from '@/utils';
+import { OnlinePayButton } from '@/components/fees/OnlinePayButton';
+import { OnlinePaymentReceipt } from '@/components/fees/OnlinePaymentReceipt';
+import { useI18n } from '@/i18n/translate';
 
 const STATUS_FILTERS = ['ALL', 'Pending', 'Overdue', 'Partial', 'Paid'];
 
@@ -55,6 +58,7 @@ const inputClass =
   'w-full h-11 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 px-4 focus:outline-none focus:border-[#FF6B2C] focus:bg-white transition-all';
 
 export const ParentFeesPage = () => {
+  const { tx } = useI18n();
   const { currentUser, selectedChild, switchChild } = useAuth();
   const [searchParams] = useSearchParams();
   const linkedChildren = currentUser?.linkedChildren || [];
@@ -64,6 +68,16 @@ export const ParentFeesPage = () => {
   const payments = useApi(childId ? withQuery('/fees/payments', { studentId: childId }) : null);
   const deposits = useApi(childId ? withQuery('/fees/deposits', { studentId: childId }) : null);
   const meta = useApi('/meta');
+  const onlineStatus = useApi('/online-payments/status');
+  const onlineEnabled = onlineStatus.data?.enabled === true;
+  const [paidOnline, setPaidOnline] = useState(null);
+
+  const handlePaidOnline = (payment) => {
+    setPaidOnline(payment);
+    summary.reload();
+    payments.reload();
+    deposits.reload();
+  };
 
   const urlFilter = searchParams.get('filter');
   const [statusFilter, setStatusFilter] = useState(urlFilter?.toLowerCase() === 'pending' ? 'Pending' : 'ALL');
@@ -186,7 +200,7 @@ export const ParentFeesPage = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
             <CreditCard className="w-7 h-7 text-[#FF6B2C]" />
-            Fee Ledger & Receipts
+            {tx('Fee Ledger & Receipts')}
           </h1>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
             Fee dues, payments and deposits for {selectedChild.name} (Class {selectedChild.className}).
@@ -324,6 +338,11 @@ export const ParentFeesPage = () => {
         </div>
       </div>
 
+      <OnlinePaymentReceipt
+        payment={paidOnline?.studentId === childId ? paidOnline : null}
+        onClose={() => setPaidOnline(null)}
+      />
+
       {/* Fee Dues Table */}
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="p-5 sm:p-6 border-b border-slate-100">
@@ -396,6 +415,13 @@ export const ParentFeesPage = () => {
                                 <Eye className="w-3.5 h-3.5 text-slate-500" />
                                 Details
                               </button>
+                              {due.pending - awaiting > 0 && onlineEnabled && deposits.data && (
+                                <OnlinePayButton
+                                  due={due}
+                                  amount={due.pending - awaiting}
+                                  onPaid={handlePaidOnline}
+                                />
+                              )}
                               {due.pending - awaiting > 0 && (
                                 <button
                                   onClick={() => openDepositForm(due)}
@@ -617,7 +643,7 @@ export const ParentFeesPage = () => {
                 onClick={() => setSelectedDue(null)}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
               >
-                Close
+                {tx('Close')}
               </button>
               {maxDepositFor(selectedDue.id) > 0 && (
                 <button
@@ -768,7 +794,7 @@ export const ParentFeesPage = () => {
                 onClick={() => setDepositForm(null)}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
               >
-                Cancel
+                {tx('Cancel')}
               </button>
               <button
                 type="submit"
@@ -776,7 +802,7 @@ export const ParentFeesPage = () => {
                 className="px-5 py-2 bg-[#FF6B2C] hover:bg-[#F25A1B] disabled:opacity-60 text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
               >
                 {savingDeposit ? <Clock className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                {savingDeposit ? 'Submitting…' : 'Submit for verification'}
+                {savingDeposit ? tx('Submitting…') : tx('Submit for verification')}
               </button>
             </div>
           </form>
@@ -884,7 +910,7 @@ export const ParentFeesPage = () => {
                 onClick={() => setReceiptToPrint(null)}
                 className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs font-bold transition-colors cursor-pointer"
               >
-                Close
+                {tx('Close')}
               </button>
               <button
                 onClick={() => window.print()}

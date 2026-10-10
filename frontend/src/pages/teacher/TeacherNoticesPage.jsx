@@ -5,12 +5,14 @@ import { http } from '@/api/http';
 import { useApi } from '@/hooks/useApi';
 import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { formatDateTime } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 const AUDIENCE_LABELS = { ALL: 'Everyone', STAFF: 'Staff', STUDENTS: 'Students', PARENTS: 'Parents' };
 
 const blankNotice = (audience = 'ALL') => ({ title: '', description: '', priority: 'medium', audience });
 
 export const TeacherNoticesPage = () => {
+  const { tx } = useI18n();
   const { currentUser } = useAuth();
   const notices = useApi('/notices');
   const meta = useApi('/meta');
@@ -97,7 +99,7 @@ export const TeacherNoticesPage = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
             <Megaphone className="w-7 h-7 text-[#FF6B2C] stroke-[2]" />
-            <span>Notice Board</span>
+            <span>{tx('Notice Board')}</span>
           </h1>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
             School-wide announcements, circulars, and class notices
@@ -295,14 +297,14 @@ export const TeacherNoticesPage = () => {
                   onClick={() => setIsPostModalOpen(false)}
                   className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700"
                 >
-                  Cancel
+                  {tx('Cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
                   className="px-5 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold rounded-2xl text-xs shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer disabled:opacity-50"
                 >
-                  {saving ? 'Saving…' : editingNotice ? 'Save Changes' : 'Publish Notice'}
+                  {saving ? tx('Saving…') : tx(editingNotice ? 'Save Changes' : 'Publish Notice')}
                 </button>
               </div>
             </form>

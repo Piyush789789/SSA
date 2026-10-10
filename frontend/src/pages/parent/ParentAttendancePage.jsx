@@ -5,6 +5,7 @@ import { useApi } from '@/hooks/useApi';
 import { withQuery } from '@/api/http';
 import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { addDays, formatDate, parseIsoDate, todayIso, weekdayName } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 const STATUS_META = {
   present: { label: 'Present', symbol: '✓', cell: 'bg-emerald-500 hover:bg-emerald-600 text-white', badge: 'bg-emerald-100 text-emerald-800', icon: 'bg-emerald-500 text-white' },
@@ -22,6 +23,7 @@ const RANGES = {
 const shortDate = (iso) => formatDate(iso).split(' ').slice(0, 2).join(' ');
 
 export const ParentAttendancePage = () => {
+  const { tx } = useI18n();
   const { currentUser, selectedChild, switchChild } = useAuth();
   const linkedChildren = currentUser?.linkedChildren || [];
   const childId = selectedChild?.studentId ?? null;
@@ -76,7 +78,7 @@ export const ParentAttendancePage = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
             <CalendarCheck className="w-7 h-7 text-[#FF6B2C]" />
-            Child Attendance Report
+            {tx('Child Attendance Report')}
           </h1>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
             Daily attendance for {selectedChild.name} (Class {selectedChild.className}), {formatDate(from)} –{' '}
@@ -346,7 +348,7 @@ export const ParentAttendancePage = () => {
                 onClick={() => setSelectedCell(null)}
                 className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
               >
-                Close
+                {tx('Close')}
               </button>
             </div>
           </div>

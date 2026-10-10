@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n } from '@/i18n/translate';
 import { Users, GraduationCap, CalendarCheck, IndianRupee } from 'lucide-react';
 
 const ICON_MAP = {
@@ -9,6 +10,7 @@ const ICON_MAP = {
 };
 
 export const StatCard = ({ stat }) => {
+  const { tx } = useI18n();
   const Icon = ICON_MAP[stat.type] || Users;
 
   return (
@@ -17,7 +19,7 @@ export const StatCard = ({ stat }) => {
     >
       <div className="relative z-10">
         <span className="text-xs sm:text-sm font-medium text-white/90 block mb-1">
-          {stat.title}
+          {tx(stat.title)}
         </span>
         <div className="text-2xl sm:text-3xl font-extrabold tracking-tight">
           {stat.value}

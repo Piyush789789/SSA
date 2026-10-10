@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FileText, Calendar } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
 import { formatDate, parseIsoDate } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 const daysUntil = (today, date) =>
   Math.round((parseIsoDate(date) - parseIsoDate(today)) / (24 * 60 * 60 * 1000));
@@ -16,20 +17,21 @@ const daysLabel = (days) => {
 /** Upcoming exam papers from GET /dashboard (UpcomingPaper list). */
 export const UpcomingExams = ({ papers = [], today, limit = 5 }) => {
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs h-full flex flex-col justify-between">
       <div>
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-            Upcoming Exams
+            {t('dash.upcomingExams')}
           </h3>
           <button
             type="button"
             onClick={() => navigate(ROUTES.ADMIN_EXAMS)}
             className="text-xs font-semibold text-slate-400 hover:text-slate-600 cursor-pointer"
           >
-            View All
+            {t('common.viewAll')}
           </button>
         </div>
 

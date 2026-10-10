@@ -1,4 +1,5 @@
 import {
+  AtRiskSummary,
   Badge,
   Card,
   Empty,
@@ -10,24 +11,34 @@ import {
   formatDate,
   percent,
   styles,
+  todayIso,
   useApi,
   useAuth,
+  useT,
 } from '@ssa/shared';
 import { router } from 'expo-router';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
+
+import { CheckInCard } from '../../staff';
 
 export default function Home() {
   const { profile } = useAuth();
+  const t = useT();
   const state = useApi('/dashboard');
+  const today = useApi(`/timetable/teacher-day?date=${todayIso()}`);
 
   return (
-    <Screen refreshing={state.refreshing} onRefresh={state.reload}>
+    <Screen refreshing={state.refreshing || today.refreshing} onRefresh={() => [state, today].forEach((s) => s.reload())}>
       <Card>
-        <Text style={[styles.cardTitle, { fontSize: 20 }]}>Hello, {profile?.name?.split(' ')[0]} 👋</Text>
+        <Text style={[styles.cardTitle, { fontSize: 20 }]}>{t('Hello')}, {profile?.name?.split(' ')[0]} 👋</Text>
         <Text style={styles.muted}>
           {profile?.subjects?.join(', ')} · Classes {profile?.assignedClasses?.join(', ')}
         </Text>
       </Card>
+      <CheckInCard />
+      <AtRiskSummary />
+      <SectionTitle>Today’s schedule</SectionTitle>
+      <Loaded state={today}>{(periods) => <TodaySchedule periods={periods} />}</Loaded>
       <Loaded state={state}>
         {(d) => (
           <>
@@ -51,22 +62,6 @@ export default function Home() {
                 </Text>
               </Card>
             ))}
-
-            <SectionTitle>Today’s classes</SectionTitle>
-            {d.todaysTimetable.length === 0 ? (
-              <Empty text="No classes scheduled today." icon="cafe-outline" />
-            ) : (
-              <Card>
-                {d.todaysTimetable.map((e, i) => (
-                  <Row
-                    key={e.id}
-                    label={e.periodId.replace('period-', 'Period ')}
-                    value={`${e.subject} · ${e.className} · ${e.room}`}
-                    last={i === d.todaysTimetable.length - 1}
-                  />
-                ))}
-              </Card>
-            )}
 
             <SectionTitle>Marks to enter</SectionTitle>
             {d.pendingMarksEntry.length === 0 ? (
@@ -118,5 +113,41 @@ export default function Home() {
         )}
       </Loaded>
     </Screen>
+  );
+}
+
+/** The teacher's periods today, including classes they cover for absent colleagues. */
+function TodaySchedule({ periods }) {
+  if (periods.length === 0) {
+    return <Empty text="No classes scheduled today." icon="cafe-outline" />;
+  }
+  return (
+    <Card>
+      {periods.map((p, i) => (
+        <View
+          key={`${p.periodId}-${p.className}`}
+          style={[styles.row, { alignItems: 'center' }, i === periods.length - 1 && { borderBottomWidth: 0 }]}
+        >
+          <View style={{ width: 52 }}>
+            <Text style={[styles.body, { fontWeight: '700', fontSize: 14 }]}>{p.startTime}</Text>
+            <Text style={styles.muted}>{p.endTime}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.body, { fontWeight: '600' }]}>
+              {p.subject ?? 'Class'} · {p.className}
+            </Text>
+            <Text style={styles.muted}>
+              {p.label}
+              {p.room ? ` · ${p.room}` : ''}
+            </Text>
+            {p.substitution ? (
+              <View style={{ marginTop: 4 }}>
+                <Badge label={p.coveringFor ? `Covering for ${p.coveringFor}` : 'Substitution'} tone="warning" />
+              </View>
+            ) : null}
+          </View>
+        </View>
+      ))}
+    </Card>
   );
 }

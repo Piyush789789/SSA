@@ -11,6 +11,12 @@ spring:
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:}
 
+  servlet:
+    multipart:
+      # Homework photos and PDFs (the app limits them to 5 MB).
+      max-file-size: 6MB
+      max-request-size: 7MB
+
   jpa:
     # Creates and updates tables from the entity classes. Fine for development; switch to Flyway
     # migrations before production so schema changes are versioned.
@@ -43,6 +49,28 @@ app:
   timezone: ${APP_TIMEZONE:Asia/Kolkata}
   auth:
     session-ttl: ${SESSION_TTL:PT8H}
+  payments:
+    # Online fee payment. Leave empty to keep it switched off. Keys come from the Razorpay dashboard.
+    razorpay:
+      key-id: ${RAZORPAY_KEY_ID:}
+      key-secret: ${RAZORPAY_KEY_SECRET:}
+      webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+  notify:
+    push:
+      enabled: ${NOTIFY_PUSH_ENABLED:true}
+    # SMS/WhatsApp for absences and fee reminders. "log" = only written to the server log (nothing sent or paid).
+    sms:
+      provider: ${NOTIFY_SMS_PROVIDER:log}
+      channel: ${NOTIFY_SMS_CHANNEL:sms}
+      twilio:
+        account-sid: ${TWILIO_ACCOUNT_SID:}
+        auth-token: ${TWILIO_AUTH_TOKEN:}
+        from: ${TWILIO_FROM:}
+  backup:
+    # Nightly pg_dump into backend/backups (keeps the newest 14). Restore with pg_restore.
+    dir: ${BACKUP_DIR:backups}
+    keep: ${BACKUP_KEEP:14}
+    pg-dump: ${PG_DUMP_PATH:}
   fees:
     # Shown in the apps above the "Deposit fee" form. Put the school's real UPI ID / bank details here.
     deposit-instructions: ${FEE_DEPOSIT_INSTRUCTIONS:Pay by UPI, bank transfer, cheque or DD using the school's account details from the fee office. Then enter the transaction or cheque number below. The office will verify it and issue a receipt.}

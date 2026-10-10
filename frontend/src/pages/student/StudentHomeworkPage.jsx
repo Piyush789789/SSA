@@ -1,16 +1,34 @@
 import React, { useState, useMemo } from 'react';
-import { BookOpenCheck, Clock, Paperclip, Search, AlertCircle } from 'lucide-react';
+import { BookOpenCheck, CheckCircle2, Clock, Paperclip, Search, AlertCircle, Upload } from 'lucide-react';
+import { HomeworkSubmitModal, SubmissionChip, SubmissionFeedback } from '@/components/homework/Submissions';
 import { useAuth } from '@/context/AuthContext';
 import { useApi } from '@/hooks/useApi';
 import { withQuery } from '@/api/http';
 import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { formatDate, todayIso } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
+/** /student/homework and /parent/homework (for the selected child): homework list and hand-in. */
 export const StudentHomeworkPage = () => {
-  const { currentUser } = useAuth();
-  const className = currentUser?.className;
+  const { currentUser, role, selectedChild } = useAuth();
+  const { tx } = useI18n();
+  const isParent = role === 'parent';
+  const student = isParent ? selectedChild : currentUser;
+  const className = student?.className;
+  const studentId = student?.studentId;
 
   const homework = useApi(className ? withQuery('/homework', { className }) : null);
+  const submissions = useApi(studentId ? withQuery('/homework-submissions', { studentId }) : null);
+  const [submitting, setSubmitting] = useState(null); // homework being handed in
+  const [toast, setToast] = useState('');
+
+  const submissionByHomework = useMemo(() => {
+    const map = {};
+    (submissions.data ?? []).forEach((s) => {
+      map[s.homeworkId] = s;
+    });
+    return map;
+  }, [submissions.data]);
 
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [subjectFilter, setSubjectFilter] = useState('ALL');
@@ -46,12 +64,24 @@ export const StudentHomeworkPage = () => {
       <div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
           <BookOpenCheck className="w-7 h-7 text-[#FF6B2C] stroke-[2]" />
-          <span>My Homework & Assignments</span>
+          <span>{tx(isParent ? 'Homework' : 'My Homework & Assignments')}</span>
         </h1>
         <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
-          Homework and due dates{className ? ` for Class ${className}` : ''}
+          Homework and due dates{isParent && student ? ` for ${student.name}` : ''}
+          {className ? ` (Class ${className})` : ''}. Use “Submit” to hand in work with photos.
         </p>
       </div>
+
+      {toast && (
+        <p className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-700">
+          <CheckCircle2 className="h-4 w-4 shrink-0" /> {toast}
+        </p>
+      )}
+      {submissions.error && (
+        <p className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700">
+          <AlertCircle className="h-4 w-4 shrink-0" /> Could not load submissions: {submissions.error.message}
+        </p>
+      )}
 
       <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
@@ -106,6 +136,9 @@ export const StudentHomeworkPage = () => {
               {filteredList.map((hw) => {
                 const isPast = hw.dueDate < today;
                 const isToday = hw.dueDate === today;
+                const submission = submissionByHomework[hw.id];
+                // Once checked it is final (the backend answers 409); "Redo" asks for a new submission.
+                const canSubmit = !submissions.loading && (!submission || submission.status !== 'REVIEWED');
                 return (
                   <div
                     key={hw.id}
@@ -154,9 +187,25 @@ export const StudentHomeworkPage = () => {
                       )}
                     </div>
 
-                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold text-slate-400">
-                      <span>Teacher: {hw.teacherName || '—'}</span>
-                      <span>Assigned {formatDate(hw.assignedDate)}</span>
+                    {submission && <SubmissionFeedback submission={submission} />}
+
+                    <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[11px] font-semibold text-slate-400">
+                      <span>
+                        Teacher: {hw.teacherName || '—'} · Assigned {formatDate(hw.assignedDate)}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <SubmissionChip submission={submission} />
+                        {canSubmit && (
+                          <button
+                            type="button"
+                            onClick={() => setSubmitting(hw)}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-[#FF6B2C] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#F25A1B] cursor-pointer"
+                          >
+                            <Upload className="w-3.5 h-3.5" />
+                            {tx(submission ? 'Submit again' : 'Submit')}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -165,6 +214,21 @@ export const StudentHomeworkPage = () => {
           )
         }
       </AsyncState>
+
+      {submitting && (
+        <HomeworkSubmitModal
+          homework={submitting}
+          studentId={isParent ? studentId : undefined}
+          existing={submissionByHomework[submitting.id]}
+          onClose={() => setSubmitting(null)}
+          onSubmitted={() => {
+            setSubmitting(null);
+            submissions.reload();
+            setToast('Homework submitted.');
+            setTimeout(() => setToast(''), 3000);
+          }}
+        />
+      )}
     </div>
   );
 };

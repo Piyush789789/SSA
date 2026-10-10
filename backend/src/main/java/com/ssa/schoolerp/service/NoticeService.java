@@ -20,10 +20,12 @@ public class NoticeService {
 
     private final DataStore store;
     private final Clock clock;
+    private final NotificationService notifications;
 
-    public NoticeService(DataStore store, Clock clock) {
+    public NoticeService(DataStore store, Clock clock, NotificationService notifications) {
         this.store = store;
         this.clock = clock;
+        this.notifications = notifications;
     }
 
     /** Notices for the user's audience, newest first. Admins and authors see their notices regardless. */
@@ -39,7 +41,16 @@ public class NoticeService {
         LocalDate today = LocalDate.now(clock);
         Notice notice = new Notice(store.nextId("NTC"), request.title(), request.description(), priorityOf(request),
                 audienceOf(request), author.actorId(), author.getName(), today, today);
-        return store.notices.save(notice);
+        Notice saved = store.notices.save(notice);
+        List<Role> roles = switch (saved.audience()) {
+            case ALL -> List.of(Role.STUDENT, Role.PARENT, Role.TEACHER);
+            case STAFF -> List.of(Role.TEACHER, Role.ADMIN);
+            case STUDENTS -> List.of(Role.STUDENT);
+            case PARENTS -> List.of(Role.PARENT);
+        };
+        String text = saved.description().length() > 140 ? saved.description().substring(0, 137) + "..." : saved.description();
+        notifications.notifyRoles(roles, "Notice: " + saved.title(), text, NotificationService.NOTICE, "/notices");
+        return saved;
     }
 
     public Notice update(User user, String id, Notice request) {

@@ -38,6 +38,21 @@
             "usesCleartextTraffic": true
           }
         }
+      ],
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "color": "#FF6B2C"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow SSA to use your photos to upload pictures to the school gallery.",
+          "cameraPermission": "Allow SSA to use the camera to take photos for the school gallery.",
+          "microphonePermission": false
+        }
       ]
     ]
   }

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Calendar } from 'lucide-react';
 import { http } from '@/api/http';
+import { useI18n } from '@/i18n/translate';
 
 const NONE = [];
 
@@ -29,6 +30,7 @@ const to12h = (value) => {
  * `exam` gives the id and the classes the paper may be for; `subjects` come from GET /meta.
  */
 export const AddExamScheduleModal = ({ isOpen, onClose, onSaved, exam, subjects = NONE, scheduleToEdit = null }) => {
+  const { tx } = useI18n();
   const isEditing = Boolean(scheduleToEdit);
   const examClasses = exam?.classes || NONE;
 
@@ -232,14 +234,14 @@ export const AddExamScheduleModal = ({ isOpen, onClose, onSaved, exam, subjects 
               onClick={onClose}
               className="px-5 py-2.5 rounded-2xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs transition-colors cursor-pointer"
             >
-              Cancel
+              {tx('Cancel')}
             </button>
             <button
               type="submit"
               disabled={saving}
               className="px-5 py-2.5 rounded-2xl bg-[#FF6B2C] hover:bg-[#e85a1c] text-white font-bold text-xs transition-all shadow-md shadow-[#FF6B2C]/20 cursor-pointer disabled:opacity-60"
             >
-              {saving ? 'Saving…' : 'Save Schedule'}
+              {saving ? tx('Saving…') : tx('Save Schedule')}
             </button>
           </div>
         </form>

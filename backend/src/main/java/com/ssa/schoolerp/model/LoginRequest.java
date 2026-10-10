@@ -1,12 +1,11 @@
 package com.ssa.schoolerp.model;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
 public class LoginRequest {
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Invalid email format")
+    /** Email or login ID (e.g. a student's admission number). Kept as "email" for existing clients. */
+    @NotBlank(message = "Email or ID is required")
     private String email;
 
     @NotBlank(message = "Password is required")

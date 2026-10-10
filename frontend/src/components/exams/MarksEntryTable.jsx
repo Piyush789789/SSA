@@ -5,6 +5,7 @@ import { useApi } from '@/hooks/useApi';
 import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { formatDate } from '@/utils';
 import { gradeFor } from './grading';
+import { useI18n } from '@/i18n/translate';
 
 const NONE = [];
 
@@ -13,6 +14,7 @@ const NONE = [];
  * GET /exam-schedules/{id}/marks (every student of the class) and save with PUT.
  */
 export const MarksEntryTable = ({ exams, selectedExamId, onExamChange, gradeBands = NONE, onSaved }) => {
+  const { tx } = useI18n();
   const currentExam = exams.find((e) => e.id === selectedExamId) || exams[0];
   const examClasses = currentExam?.classes || NONE;
 
@@ -290,7 +292,7 @@ export const MarksEntryTable = ({ exams, selectedExamId, onExamChange, gradeBand
                       className="inline-flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-2xl border border-slate-200 transition-all cursor-pointer disabled:opacity-60"
                     >
                       <Save className="w-4 h-4 text-slate-400" />
-                      <span>{saving ? 'Saving…' : 'Save Draft'}</span>
+                      <span>{saving ? tx('Saving…') : tx('Save Draft')}</span>
                     </button>
 
                     <button

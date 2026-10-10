@@ -1,20 +1,24 @@
 import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Mail, Phone, MapPin, User, Edit } from 'lucide-react';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { ChevronLeft, Mail, Phone, MapPin, User, Edit, Award } from 'lucide-react';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { ProfileAcademic } from '@/components/students/profile/ProfileAcademic';
 import { ProfileFinance } from '@/components/students/profile/ProfileFinance';
 import { ProfileCommunication } from '@/components/students/profile/ProfileCommunication';
-import { ProfileDocuments } from '@/components/students/profile/ProfileDocuments';
+import { ProfileCertificates } from '@/components/students/profile/ProfileCertificates';
 import { AsyncState, ErrorMessage, LoadingMessage } from '@/components/common/AsyncState';
 import { NotFoundCard } from '@/components/students/NotFoundCard';
 import { useApi } from '@/hooks/useApi';
-import { formatDate, initialsOf } from '@/utils';
+import { formatDate } from '@/utils';
+import { HealthPanel } from '@/components/health/HealthPanel';
+import { GovernmentRecords, StudentPhoto } from '@/components/students/GovernmentRecords';
+import { useI18n } from '@/i18n/translate';
 import { formatRate } from '@/components/attendance/attendanceMath';
 import { ROUTES } from '@/constants/routes';
+import { WhatsAppButton } from '@/components/whatsapp/WhatsAppComposer';
 
-const TABS = ['Overview', 'Academic', 'Attendance', 'Finance', 'Communication', 'Documents'];
+const TABS = ['Overview', 'Academic', 'Attendance', 'Health', 'Finance', 'Communication', 'Certificates'];
 
 const AttendanceStatsBlock = ({ stats }) => (
   <AsyncState state={stats}>
@@ -53,6 +57,7 @@ export const StudentProfile = () => {
   const [activeSidebarId, setActiveSidebarId] = useState('students');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('Overview');
+  const { t } = useI18n();
 
   const studentState = useApi(`/students/${encodeURIComponent(studentId)}`);
   const student = studentState.data;
@@ -100,9 +105,7 @@ export const StudentProfile = () => {
               {/* Student Profile Header Card */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col md:flex-row gap-6 md:items-center justify-between">
                 <div className="flex items-center gap-6">
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl sm:text-3xl font-bold shadow-inner">
-                    {initialsOf(student.name)}
-                  </div>
+                  <StudentPhoto student={student} />
                   <div>
                     <h1 className="text-2xl font-bold text-slate-900">{student.name}</h1>
                     <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-slate-500">
@@ -111,10 +114,22 @@ export const StudentProfile = () => {
                       <span className="font-medium text-slate-700">Class {student.className}</span>
                       <span className="w-1 h-1 rounded-full bg-slate-300"></span>
                       <span>Roll No: {student.rollNumber ?? '—'}</span>
+                      {student.status && student.status !== 'Active' && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                          {student.status}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 self-start md:self-auto">
+                <div className="flex flex-wrap items-center gap-3 self-start md:self-auto">
+                  <WhatsAppButton student={student} />
+                  <Link
+                    to={`/report-card/${encodeURIComponent(student.id)}`}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 text-[#FF6B2C] text-sm font-medium rounded-lg transition-colors"
+                  >
+                    <Award className="w-4 h-4" /> View Report Card
+                  </Link>
                   <button
                     type="button"
                     title="Edit student"
@@ -140,7 +155,7 @@ export const StudentProfile = () => {
                           : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}
                       `}
                     >
-                      {tab}
+                      {t(`profile.tab.${tab}`, null, tab)}
                     </button>
                   ))}
                 </nav>
@@ -214,6 +229,9 @@ export const StudentProfile = () => {
                           <p className="text-sm text-slate-400">No guardian details recorded.</p>
                         )}
                       </div>
+
+                      {/* Government records (UDISE+ / APAAR / RTE) */}
+                      <GovernmentRecords student={student} />
                     </div>
 
                     {/* Right Column */}
@@ -278,9 +296,14 @@ export const StudentProfile = () => {
                   </div>
                 )}
 
+                {activeTab === 'Health' && (
+                  <HealthPanel studentId={student.id} studentName={student.name} mode="staff" />
+                )}
                 {activeTab === 'Finance' && <ProfileFinance student={student} />}
                 {activeTab === 'Communication' && <ProfileCommunication student={student} />}
-                {activeTab === 'Documents' && <ProfileDocuments student={student} />}
+                {activeTab === 'Certificates' && (
+                  <ProfileCertificates student={student} onStudentChanged={studentState.reload} />
+                )}
               </div>
             </>
           )}

@@ -1,7 +1,9 @@
 import * as SecureStore from 'expo-secure-store';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 
-import { api, setAuthToken, setUnauthorizedHandler } from './api';
+import { api, getAuthToken, setAuthToken, setUnauthorizedHandler } from './api';
+import { getExpoPushToken } from './push';
 
 const AuthContext = createContext(null);
 
@@ -13,11 +15,19 @@ export function AuthProvider({ role, children }) {
   const storageKey = `ssa_token_${role.toLowerCase()}`;
   const [session, setSession] = useState(null); // { token, user, profile, children }
   const [isLoading, setLoading] = useState(true);
+  const pushTokenRef = useRef(null); // this phone's Expo push token, once registered for the signed-in user
 
   const signOut = useCallback(
     async ({ remote = true } = {}) => {
-      if (remote) {
-        api('/auth/logout', { method: 'POST' }).catch(() => {});
+      // Stop push notifications to this phone, then end the session (in that order, with the old token).
+      const sessionToken = getAuthToken();
+      const pushToken = pushTokenRef.current;
+      pushTokenRef.current = null;
+      const unregister = pushToken
+        ? api(`/me/push-token?token=${encodeURIComponent(pushToken)}`, { method: 'DELETE', token: sessionToken }).catch(() => {})
+        : Promise.resolve();
+      if (remote && sessionToken) {
+        unregister.then(() => api('/auth/logout', { method: 'POST', token: sessionToken })).catch(() => {});
       }
       setAuthToken(null);
       setSession(null);
@@ -72,6 +82,27 @@ export function AuthProvider({ role, children }) {
     },
     [role, storageKey, loadSession],
   );
+
+  // Register this phone for push notifications once signed in. Silently does nothing where push is
+  // unavailable (Expo Go on Android, emulators, permission denied, no EAS project id).
+  const sessionToken = session?.token;
+  useEffect(() => {
+    if (!sessionToken) return undefined;
+    let cancelled = false;
+    (async () => {
+      const pushToken = await getExpoPushToken();
+      if (!pushToken || cancelled) return;
+      try {
+        await api('/me/push-token', { method: 'POST', body: { token: pushToken, platform: Platform.OS }, token: sessionToken });
+        if (!cancelled) pushTokenRef.current = pushToken;
+      } catch {
+        // push is optional
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionToken]);
 
   /** Re-reads the profile, e.g. after it was edited. */
   const refreshSession = useCallback(async () => {

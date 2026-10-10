@@ -1,5 +1,6 @@
 package com.ssa.schoolerp.controller;
 
+import com.ssa.schoolerp.dto.AccountDtos.ChangePasswordRequest;
 import com.ssa.schoolerp.dto.ApiResponse;
 import com.ssa.schoolerp.dto.LoginResponse;
 import com.ssa.schoolerp.model.LoginRequest;
@@ -52,6 +53,15 @@ public class AuthController {
             }
         }
         return ResponseEntity.ok(response);
+    }
+
+    /** Any signed-in user; also how a temporary password is replaced at first login. */
+    @PostMapping("/change-password")
+    public ResponseEntity<ApiResponse<Void>> changePassword(@CurrentUser User user,
+                                                            @Valid @RequestBody ChangePasswordRequest request,
+                                                            @RequestHeader("Authorization") String authHeader) {
+        authService.changePassword(user, request.currentPassword(), request.newPassword(), authHeader);
+        return ResponseEntity.ok(ApiResponse.success("Password changed"));
     }
 
     @PublicEndpoint

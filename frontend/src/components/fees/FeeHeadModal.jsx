@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { http } from '@/api/http';
 import { todayIso } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 const NONE = [];
 
@@ -18,6 +19,7 @@ export const FeeHeadModal = ({
   onClose,
   onSaved,
 }) => {
+  const { tx } = useI18n();
   const isEditing = Boolean(feeHeadToEdit);
 
   const [formData, setFormData] = useState({
@@ -112,7 +114,7 @@ export const FeeHeadModal = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in">
       <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-100 relative space-y-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-          <h3 className="text-lg font-extrabold text-slate-900">{isEditing ? 'Edit Fee Head' : 'Add Fee Head'}</h3>
+          <h3 className="text-lg font-extrabold text-slate-900">{tx(isEditing ? 'Edit Fee Head' : 'Add Fee Head')}</h3>
           <button
             type="button"
             onClick={onClose}
@@ -229,14 +231,14 @@ export const FeeHeadModal = ({
               onClick={onClose}
               className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-2xl transition-colors cursor-pointer"
             >
-              Cancel
+              {tx('Cancel')}
             </button>
             <button
               type="submit"
               disabled={saving}
               className="px-6 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] active:bg-[#D94E13] text-white font-semibold text-xs rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-colors cursor-pointer disabled:opacity-60"
             >
-              {saving ? 'Saving…' : isEditing ? 'Save Changes' : 'Add Fee Head'}
+              {saving ? tx('Saving…') : tx(isEditing ? 'Save Changes' : 'Add Fee Head')}
             </button>
           </div>
         </form>

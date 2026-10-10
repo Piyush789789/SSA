@@ -5,6 +5,7 @@ import { useApi } from '@/hooks/useApi';
 import { http } from '@/api/http';
 import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { formatDateTime, initialsOf } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 const CATEGORY_LABELS = {
   CLASS: 'Class Announcement',
@@ -13,6 +14,7 @@ const CATEGORY_LABELS = {
 };
 
 export const ParentCommunicationPage = () => {
+  const { tx } = useI18n();
   const { currentUser, selectedChild, switchChild } = useAuth();
   const linkedChildren = currentUser?.linkedChildren || [];
   const childId = selectedChild?.studentId ?? null;
@@ -116,7 +118,7 @@ export const ParentCommunicationPage = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
             <MessageSquare className="w-7 h-7 text-[#FF6B2C]" />
-            Parent–Teacher Communication
+            {tx('Parent–Teacher Communication')}
           </h1>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
             Connect directly with the teachers of {selectedChild.name} (Class {className}).
@@ -240,7 +242,7 @@ export const ParentCommunicationPage = () => {
                       onClick={() => setActiveTab('INBOX')}
                       className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-2xl text-xs sm:text-sm transition-all cursor-pointer"
                     >
-                      Cancel
+                      {tx('Cancel')}
                     </button>
                     <button
                       type="submit"

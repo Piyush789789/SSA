@@ -18,8 +18,11 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { withQuery } from '@/api/http';
 import { useApi } from '@/hooks/useApi';
-import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
+import { AsyncState, EmptyMessage, ErrorMessage, LoadingMessage } from '@/components/common/AsyncState';
+import { CheckInCard } from '@/components/staff/CheckInCard';
+import { AtRiskSummaryCard } from '@/components/insights/AtRisk';
 import { addDays, formatDate, formatDateTime, initialsOf, todayIso, weekdayName } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 /** Attendance rate as the backend computes it: (present + late) / (present + absent + late + leave). */
 const rateOf = ({ present, absent, late, leave }) => {
@@ -44,9 +47,10 @@ const greeting = () => {
 export const TeacherDashboard = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const { tx } = useI18n();
 
   const dashboard = useApi('/dashboard');
-  const periods = useApi('/timetable/periods');
+  const teacherDay = useApi(withQuery('/timetable/teacher-day', { date: todayIso() }));
 
   const assignedClasses = useMemo(() => currentUser?.assignedClasses ?? [], [currentUser]);
   const teacherName = currentUser?.name ?? '';
@@ -99,32 +103,23 @@ export const TeacherDashboard = () => {
 
   const trendAverage = trend.length ? Math.round((trend.reduce((sum, d) => sum + d.rate, 0) / trend.length) * 10) / 10 : null;
 
-  const periodsById = useMemo(() => {
-    const map = {};
-    (periods.data ?? []).forEach((p) => {
-      map[p.id] = p;
-    });
-    return map;
-  }, [periods.data]);
-
+  // Today's periods including covers for absent colleagues (substitution periods may be in other classes).
   const now = nowHHmm();
-  const todaySchedule = (data?.todaysTimetable ?? [])
-      .filter((entry) => inScope(entry.className))
-      .map((entry) => {
-        const period = periodsById[entry.periodId];
-        let status = '';
-        if (period) {
-          if (now >= period.endTime) status = 'Completed';
-          else if (now >= period.startTime) status = 'NOW';
-          else status = 'Upcoming';
-        }
-        return {
-          ...entry,
-          time: period ? `${period.startTime} – ${period.endTime}` : entry.periodId,
-          label: period?.label,
-          status,
-        };
-      });
+  const todaySchedule = (teacherDay.data ?? [])
+    .filter((entry) => selectedClass === 'ALL' || entry.className === selectedClass)
+    .map((entry) => {
+      let status = '';
+      if (entry.startTime && entry.endTime) {
+        if (now >= entry.endTime) status = 'Completed';
+        else if (now >= entry.startTime) status = 'NOW';
+        else status = 'Upcoming';
+      }
+      return {
+        ...entry,
+        time: entry.startTime ? `${entry.startTime} – ${entry.endTime}` : entry.periodId,
+        status,
+      };
+    });
 
   const upcomingExams = (data?.upcomingExams ?? []).filter((p) => inScope(p.className));
   const pendingMarks = (data?.pendingMarksEntry ?? []).filter((p) => inScope(p.className));
@@ -155,7 +150,7 @@ export const TeacherDashboard = () => {
               {weekdayName(today)}, {formatDate(today)}
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Teacher Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">{tx('Teacher Dashboard')}</h1>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
             {greeting()}, {teacherName.split(' ')[0]} • Your classes, attendance, and assignments overview.
           </p>
@@ -164,14 +159,14 @@ export const TeacherDashboard = () => {
         <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 p-1.5 rounded-2xl shrink-0">
           <label className="text-xs font-bold text-slate-500 pl-2 flex items-center gap-1.5">
             <Building2 className="w-4 h-4 text-[#FF6B2C]" />
-            <span>Class:</span>
+            <span>{tx('Class')}:</span>
           </label>
           <select
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
             className="h-9 px-3.5 bg-white border border-slate-200/80 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-[#FF6B2C] focus:ring-2 focus:ring-[#FF6B2C]/20 shadow-xs cursor-pointer"
           >
-            <option value="ALL">All Classes{assignedClasses.length ? ` (${assignedClasses.join(' & ')})` : ''}</option>
+            <option value="ALL">{tx('All Classes')}{assignedClasses.length ? ` (${assignedClasses.join(' & ')})` : ''}</option>
             {assignedClasses.map((cls) => (
               <option key={cls} value={cls}>
                 Class {cls}
@@ -188,7 +183,7 @@ export const TeacherDashboard = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-indigo-700 text-white p-6 rounded-3xl shadow-lg shadow-indigo-500/15 flex flex-col justify-between relative overflow-hidden group">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-indigo-100 uppercase tracking-wider">My Classes</span>
+                  <span className="text-xs font-bold text-indigo-100 uppercase tracking-wider">{tx('My Classes')}</span>
                   <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
                     <BookOpen className="w-5 h-5 stroke-[2.2]" />
                   </div>
@@ -212,7 +207,7 @@ export const TeacherDashboard = () => {
 
               <div className="bg-gradient-to-br from-[#FF6B2C] via-orange-500 to-amber-500 text-white p-6 rounded-3xl shadow-lg shadow-orange-500/15 flex flex-col justify-between relative overflow-hidden group">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-orange-100 uppercase tracking-wider">Total Students</span>
+                  <span className="text-xs font-bold text-orange-100 uppercase tracking-wider">{tx('Total Students')}</span>
                   <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
                     <Users className="w-5 h-5 stroke-[2.2]" />
                   </div>
@@ -232,7 +227,7 @@ export const TeacherDashboard = () => {
 
               <div className="bg-gradient-to-br from-cyan-500 via-teal-500 to-emerald-600 text-white p-6 rounded-3xl shadow-lg shadow-teal-500/15 flex flex-col justify-between relative overflow-hidden group">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-teal-100 uppercase tracking-wider">Today's Attendance</span>
+                  <span className="text-xs font-bold text-teal-100 uppercase tracking-wider">{tx("Today's Attendance")}</span>
                   <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
                     <CalendarCheck className="w-5 h-5 stroke-[2.2]" />
                   </div>
@@ -250,7 +245,7 @@ export const TeacherDashboard = () => {
 
               <div className="bg-gradient-to-br from-rose-500 via-pink-600 to-orange-500 text-white p-6 rounded-3xl shadow-lg shadow-rose-500/15 flex flex-col justify-between relative overflow-hidden group">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-rose-100 uppercase tracking-wider">Homework Due</span>
+                  <span className="text-xs font-bold text-rose-100 uppercase tracking-wider">{tx('Homework Due')}</span>
                   <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
                     <FileCheck className="w-5 h-5 stroke-[2.2]" />
                   </div>
@@ -273,7 +268,7 @@ export const TeacherDashboard = () => {
                   <div className="flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-[#FF6B2C]" />
                     <h2 className="text-base font-bold text-slate-900">
-                      Attendance — Last 7 Days — {selectedClass === 'ALL' ? 'All Classes' : `Class ${selectedClass}`}
+                      {tx('Attendance — Last 7 Days')} — {selectedClass === 'ALL' ? tx('All Classes') : `${tx('Class')} ${selectedClass}`}
                     </h2>
                   </div>
                   <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
@@ -329,7 +324,7 @@ export const TeacherDashboard = () => {
 
               <div className="lg:col-span-5 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col space-y-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-base font-bold text-slate-900">Marks Entry Progress</h2>
+                  <h2 className="text-base font-bold text-slate-900">{tx('Marks Entry Progress')}</h2>
                   <span className="text-xs font-bold text-slate-500">{pendingMarks.length} pending</span>
                 </div>
 
@@ -369,13 +364,19 @@ export const TeacherDashboard = () => {
               </div>
             </div>
 
+            {/* STAFF CHECK-IN / CHECK-OUT */}
+            <CheckInCard />
+
+            {/* EARLY WARNING: STUDENTS NEEDING ATTENTION IN MY CLASSES */}
+            <AtRiskSummaryCard linkTo="/teacher/at-risk" profileBase="/teacher/students" />
+
             {/* TODAY'S CLASS SCHEDULE */}
             <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-5">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                     <Clock className="w-5 h-5 text-[#FF6B2C]" />
-                    <span>Today's Schedule — {weekdayName(today)}</span>
+                    <span>{tx("Today's Schedule")} — {weekdayName(today)}</span>
                   </h2>
                   <p className="text-xs text-slate-500">
                     Periods scheduled today for {teacherName} {selectedClass !== 'ALL' && `(Class ${selectedClass})`}
@@ -386,12 +387,16 @@ export const TeacherDashboard = () => {
                   onClick={() => navigate('/teacher/timetable')}
                   className="text-xs font-bold text-[#FF6B2C] hover:underline flex items-center gap-1 cursor-pointer"
                 >
-                  <span>Full Timetable</span>
+                  <span>{tx('Full Timetable')}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
 
-              {todaySchedule.length === 0 ? (
+              {teacherDay.error && !teacherDay.data ? (
+                <ErrorMessage error={teacherDay.error} onRetry={teacherDay.reload} />
+              ) : teacherDay.loading ? (
+                <LoadingMessage text="Loading today's periods…" />
+              ) : todaySchedule.length === 0 ? (
                 <EmptyMessage text="No periods scheduled for you today." />
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -399,7 +404,7 @@ export const TeacherDashboard = () => {
                     const isNow = item.status === 'NOW';
                     return (
                       <div
-                        key={item.id}
+                        key={`${item.periodId}-${item.className}`}
                         className={`p-5 rounded-2xl border transition-all flex flex-col justify-between space-y-3 ${
                           isNow
                             ? 'bg-[#FFF5F0] border-[#FF6B2C] ring-2 ring-[#FF6B2C]/20 shadow-md'
@@ -420,6 +425,11 @@ export const TeacherDashboard = () => {
                         </div>
 
                         <div>
+                          {item.substitution && (
+                            <span className="inline-block mb-1.5 px-2 py-0.5 bg-violet-50 border border-violet-200 text-violet-700 rounded-md text-[10px] font-bold">
+                              Covering for {item.coveringFor || 'a colleague'}
+                            </span>
+                          )}
                           <h4 className="text-base font-extrabold text-slate-900">{item.subject}</h4>
                           <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mt-1">
                             <span className="text-slate-800 font-bold">Class {item.className}</span>
@@ -443,7 +453,7 @@ export const TeacherDashboard = () => {
               <div className="lg:col-span-6 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div>
-                    <h2 className="text-base font-bold text-slate-900">Class Attendance Overview</h2>
+                    <h2 className="text-base font-bold text-slate-900">{tx('Class Attendance Overview')}</h2>
                     <p className="text-xs text-slate-500">Attendance status for today</p>
                   </div>
 
@@ -451,7 +461,7 @@ export const TeacherDashboard = () => {
                     onClick={() => navigate(attendanceLink)}
                     className="px-4 py-2 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold rounded-xl text-xs shadow-sm transition-colors cursor-pointer"
                   >
-                    Mark Attendance
+                    {tx('Mark Attendance')}
                   </button>
                 </div>
 
@@ -500,7 +510,7 @@ export const TeacherDashboard = () => {
                   <div>
                     <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                       <AlertTriangle className="w-4 h-4 text-amber-500" />
-                      <span>Students Needing Attention</span>
+                      <span>{tx('Students Needing Attention')}</span>
                     </h2>
                     <p className="text-xs text-slate-500">Students below the school's attendance threshold</p>
                   </div>
@@ -545,11 +555,11 @@ export const TeacherDashboard = () => {
               <div className="lg:col-span-7 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div>
-                    <h2 className="text-base font-bold text-slate-900">Upcoming Tests & Exams</h2>
+                    <h2 className="text-base font-bold text-slate-900">{tx('Upcoming Tests & Exams')}</h2>
                     <p className="text-xs text-slate-500">Papers of your subjects in your classes</p>
                   </div>
                   <button onClick={() => navigate('/teacher/exams')} className="text-xs font-bold text-[#FF6B2C] hover:underline">
-                    View All
+                    {tx('View all')}
                   </button>
                 </div>
 
@@ -582,7 +592,7 @@ export const TeacherDashboard = () => {
                             onClick={() => navigate(`/teacher/exams/${encodeURIComponent(exam.scheduleId)}/marks`)}
                             className="px-3.5 py-1.5 bg-[#FFF5F0] hover:bg-[#FF6B2C] text-[#FF6B2C] hover:text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
                           >
-                            Marks Sheet
+                            {tx('Marks Sheet')}
                           </button>
                         </div>
                       </div>
@@ -593,7 +603,7 @@ export const TeacherDashboard = () => {
 
               <div className="lg:col-span-5 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
                 <div className="border-b border-slate-100 pb-3">
-                  <h2 className="text-base font-bold text-slate-900">At a Glance</h2>
+                  <h2 className="text-base font-bold text-slate-900">{tx('At a Glance')}</h2>
                   <p className="text-xs text-slate-500">Things that need your attention</p>
                 </div>
 
@@ -602,7 +612,7 @@ export const TeacherDashboard = () => {
                     onClick={() => navigate('/teacher/exams')}
                     className="p-4 bg-amber-50/80 border border-amber-200 rounded-2xl cursor-pointer hover:bg-amber-100 transition-colors"
                   >
-                    <span className="text-xs font-bold text-amber-800">Pending Marks</span>
+                    <span className="text-xs font-bold text-amber-800">{tx('Pending Marks')}</span>
                     <h3 className="text-2xl font-black text-amber-900 mt-1">{pendingMarks.length}</h3>
                     <p className="text-[10px] text-amber-700 mt-0.5">Papers awaiting marks</p>
                   </div>
@@ -611,7 +621,7 @@ export const TeacherDashboard = () => {
                     onClick={() => navigate('/teacher/exams')}
                     className="p-4 bg-blue-50/80 border border-blue-200 rounded-2xl cursor-pointer hover:bg-blue-100 transition-colors"
                   >
-                    <span className="text-xs font-bold text-blue-800">Upcoming Papers</span>
+                    <span className="text-xs font-bold text-blue-800">{tx('Upcoming Papers')}</span>
                     <h3 className="text-2xl font-black text-blue-900 mt-1">{upcomingExams.length}</h3>
                     <p className="text-[10px] text-blue-700 mt-0.5">Next scheduled papers</p>
                   </div>
@@ -620,7 +630,7 @@ export const TeacherDashboard = () => {
                     onClick={() => navigate('/teacher/homework')}
                     className="p-4 bg-purple-50/80 border border-purple-200 rounded-2xl cursor-pointer hover:bg-purple-100 transition-colors"
                   >
-                    <span className="text-xs font-bold text-purple-800">Homework Due</span>
+                    <span className="text-xs font-bold text-purple-800">{tx('Homework Due')}</span>
                     <h3 className="text-2xl font-black text-purple-900 mt-1">{homeworkDue.length}</h3>
                     <p className="text-[10px] text-purple-700 mt-0.5">Due today or later</p>
                   </div>
@@ -629,7 +639,7 @@ export const TeacherDashboard = () => {
                     onClick={() => navigate(attendanceLink)}
                     className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-2xl cursor-pointer hover:bg-emerald-100 transition-colors"
                   >
-                    <span className="text-xs font-bold text-emerald-800">Not Marked Today</span>
+                    <span className="text-xs font-bold text-emerald-800">{tx('Not Marked Today')}</span>
                     <h3 className="text-2xl font-black text-emerald-900 mt-1">{todayTotals.notMarked}</h3>
                     <p className="text-[10px] text-emerald-700 mt-0.5">Students without attendance</p>
                   </div>
@@ -642,11 +652,11 @@ export const TeacherDashboard = () => {
               <div className="lg:col-span-6 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div>
-                    <h2 className="text-base font-bold text-slate-900">Active Homework</h2>
+                    <h2 className="text-base font-bold text-slate-900">{tx('Active Homework')}</h2>
                     <p className="text-xs text-slate-500">Your homework that is due today or later</p>
                   </div>
                   <button onClick={() => navigate('/teacher/homework')} className="text-xs font-bold text-[#FF6B2C] hover:underline">
-                    View All
+                    {tx('View all')}
                   </button>
                 </div>
 
@@ -687,11 +697,11 @@ export const TeacherDashboard = () => {
                 <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <div>
-                      <h2 className="text-base font-bold text-slate-900">Recent Notices</h2>
+                      <h2 className="text-base font-bold text-slate-900">{tx('Recent Notices')}</h2>
                       <p className="text-xs text-slate-500">Latest announcements</p>
                     </div>
                     <button onClick={() => navigate('/teacher/notices')} className="text-xs font-bold text-[#FF6B2C] hover:underline">
-                      View All
+                      {tx('View all')}
                     </button>
                   </div>
 
@@ -719,7 +729,7 @@ export const TeacherDashboard = () => {
 
                 {/* Quick Actions Bar */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
-                  <h2 className="text-base font-bold text-slate-900">Quick Actions</h2>
+                  <h2 className="text-base font-bold text-slate-900">{tx('Quick Actions')}</h2>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {[
                       ['Mark Attendance', attendanceLink],
@@ -733,7 +743,7 @@ export const TeacherDashboard = () => {
                         onClick={() => navigate(route)}
                         className="p-3 bg-slate-50 hover:bg-[#FFF5F0] hover:text-[#FF6B2C] border border-slate-200/80 rounded-2xl text-left text-xs font-bold text-slate-700 transition-colors cursor-pointer"
                       >
-                        {label}
+                        {tx(label)}
                       </button>
                     ))}
                     <button
@@ -741,7 +751,7 @@ export const TeacherDashboard = () => {
                       className="p-3 bg-[#FFF5F0] border border-[#FF6B2C]/30 text-[#FF6B2C] rounded-2xl text-left text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
-                      <span>AI Assistant</span>
+                      <span>{tx('AI Assistant')}</span>
                     </button>
                   </div>
                 </div>

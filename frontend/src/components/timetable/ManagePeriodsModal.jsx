@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Trash2, Plus, AlertCircle, Clock } from 'lucide-react';
+import { useI18n } from '@/i18n/translate';
 
 export const ManagePeriodsModal = ({
   isOpen,
@@ -8,6 +9,7 @@ export const ManagePeriodsModal = ({
   onAddPeriod,
   onDeletePeriod,
 }) => {
+  const { tx } = useI18n();
   const [label, setLabel] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
@@ -93,7 +95,7 @@ export const ManagePeriodsModal = ({
               <Clock className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-extrabold text-slate-900">Manage Periods</h3>
+              <h3 className="text-lg font-extrabold text-slate-900">{tx('Manage Periods')}</h3>
               <p className="text-xs text-slate-500">Configure timetable rows and time slots</p>
             </div>
           </div>
@@ -167,7 +169,7 @@ export const ManagePeriodsModal = ({
                   onClick={() => setPeriodToDelete(null)}
                   className="px-3 py-1.5 bg-white text-slate-700 text-xs font-semibold rounded-xl border border-slate-200"
                 >
-                  Cancel
+                  {tx('Cancel')}
                 </button>
                 <button
                   type="button"
@@ -177,7 +179,7 @@ export const ManagePeriodsModal = ({
                   }}
                   className="px-3.5 py-1.5 bg-rose-600 disabled:opacity-60 text-white text-xs font-bold rounded-xl shadow-xs"
                 >
-                  {saving ? 'Deleting…' : 'Delete Period'}
+                  {saving ? tx('Deleting…') : tx('Delete Period')}
                 </button>
               </div>
             </div>
@@ -252,7 +254,7 @@ export const ManagePeriodsModal = ({
                 className="disabled:opacity-60 disabled:cursor-not-allowed w-full inline-flex items-center justify-center gap-2 py-3 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold text-xs rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer"
               >
                 <Plus className="w-4 h-4 stroke-[2.5]" />
-                <span>{saving ? 'Saving…' : 'Add Period'}</span>
+                <span>{saving ? tx('Saving…') : tx('Add Period')}</span>
               </button>
             </form>
           </div>

@@ -1,16 +1,19 @@
+import { router } from 'expo-router';
 import { Alert } from 'react-native';
 
 import { useAuth } from '../auth';
 import { capitalize, formatDate } from '../format';
-import { Button, Card, Row, Screen } from '../ui';
+import { useT } from '../i18n';
+import { Button, Card, LanguageSwitch, Row, Screen } from '../ui';
 
 export function ProfileScreen() {
   const { user, profile, children, role, signOut } = useAuth();
+  const t = useT();
 
   function confirmSignOut() {
-    Alert.alert('Sign out', 'Do you want to sign out of this app?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: () => signOut() },
+    Alert.alert(t('Sign out'), t('Do you want to sign out of this app?'), [
+      { text: t('Cancel'), style: 'cancel' },
+      { text: t('Sign out'), style: 'destructive', onPress: () => signOut() },
     ]);
   }
 
@@ -36,6 +39,14 @@ export function ProfileScreen() {
           </>
         ) : null}
       </Card>
+      <LanguageSwitch />
+      <Button
+        title="Change password"
+        variant="secondary"
+        icon="key-outline"
+        onPress={() => router.push('/change-password')}
+        style={{ marginBottom: 10 }}
+      />
       <Button title="Sign out" variant="danger" icon="log-out-outline" onPress={confirmSignOut} />
     </Screen>
   );

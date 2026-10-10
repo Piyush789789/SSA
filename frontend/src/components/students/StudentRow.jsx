@@ -4,10 +4,15 @@ import { MoreHorizontal, Eye, Edit3, Trash2 } from 'lucide-react';
 import { StudentStatusBadge } from './StudentStatusBadge';
 import { ROUTES } from '@/constants/routes';
 import { initialsOf } from '@/utils';
+import { MessageCircle } from 'lucide-react';
+import { WhatsAppComposer } from '@/components/whatsapp/WhatsAppComposer';
+import { useI18n } from '@/i18n/translate';
 
 /** `student.attendance` is a rate (number), null when no days are marked, undefined while loading. */
 export const StudentRow = ({ student, onDelete }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
+  const { t } = useI18n();
   const menuRef = useRef(null);
   const navigate = useNavigate();
 
@@ -123,6 +128,16 @@ export const StudentRow = ({ student, onDelete }) => {
               <span>Edit Student</span>
             </button>
             <button
+              onClick={() => {
+                setIsMenuOpen(false);
+                setIsWhatsAppOpen(true);
+              }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-emerald-50 text-emerald-700 cursor-pointer"
+            >
+              <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+              <span>{t('wa.button')}</span>
+            </button>
+            <button
               onClick={handleDeleteStudent}
               className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-red-50 text-red-600 cursor-pointer"
             >
@@ -131,6 +146,7 @@ export const StudentRow = ({ student, onDelete }) => {
             </button>
           </div>
         )}
+        {isWhatsAppOpen && <WhatsAppComposer student={student} onClose={() => setIsWhatsAppOpen(false)} />}
       </td>
     </tr>
   );

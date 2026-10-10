@@ -44,7 +44,8 @@ export function useApi(path) {
   return {
     data: current.data,
     error: current.error,
-    loading: path != null && current.data == null && current.error == null,
+    // Loaded once a response for this path arrived, even when its data is null (e.g. "no bus assigned").
+    loading: path != null && result.path !== path,
     refreshing,
     reload,
   };

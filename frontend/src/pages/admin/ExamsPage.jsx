@@ -24,6 +24,7 @@ import { CreateExamModal } from '@/components/exams/CreateExamModal';
 import { MarksEntryTable } from '@/components/exams/MarksEntryTable';
 import { ReportCardPreviewModal } from '@/components/exams/ReportCardPreviewModal';
 import { ConfirmDialog } from '@/components/fees/ConfirmDialog';
+import { useI18n } from '@/i18n/translate';
 
 const NONE = [];
 const TABS = ['Overview', 'Exams', 'Marks Entry', 'Results', 'Report Cards'];
@@ -41,6 +42,7 @@ const statusBadge = (status) =>
 const pct = (value) => (value == null ? '—' : `${value}%`);
 
 export const ExamsPage = () => {
+  const { tx } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
   const [activeSidebarId, setActiveSidebarId] = useState('exams');
@@ -215,7 +217,7 @@ export const ExamsPage = () => {
               </div>
               <div>
                 <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                  Exams &amp; Results Management
+                  {tx('Exams & Results Management')}
                 </h1>
                 <p className="text-xs sm:text-sm font-semibold text-slate-400 mt-0.5">
                   Manage examinations, schedule tests, enter marks, and generate report cards
@@ -229,7 +231,7 @@ export const ExamsPage = () => {
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FF6B2C] hover:bg-[#e85a1c] text-white font-bold text-xs rounded-2xl transition-all shadow-md shadow-[#FF6B2C]/20 cursor-pointer self-start sm:self-auto"
             >
               <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>Create Exam</span>
+              <span>{tx('Create Exam')}</span>
             </button>
           </div>
 
@@ -247,7 +249,7 @@ export const ExamsPage = () => {
                       : 'border-transparent text-slate-400 hover:text-slate-700'
                   }`}
                 >
-                  {tab}
+                  {tx(tab)}
                 </button>
               ))}
             </nav>

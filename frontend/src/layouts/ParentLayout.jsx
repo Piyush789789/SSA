@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
+import { LoadingMessage } from '@/components/common/AsyncState';
 import { Navigate, Outlet } from 'react-router-dom';
 import { ParentSidebar } from '@/components/parent/ParentSidebar';
 import { ParentHeader } from '@/components/parent/ParentHeader';
@@ -26,7 +27,9 @@ export const ParentLayout = () => {
         <ParentHeader onToggleSidebar={() => setIsSidebarOpen(true)} />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 max-w-[1600px] w-full mx-auto pb-16">
-          <Outlet />
+          <Suspense fallback={<LoadingMessage />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>

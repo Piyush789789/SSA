@@ -13,6 +13,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useApi } from '@/hooks/useApi';
 import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { formatDate, formatCurrency, todayIso } from '@/utils';
+import { useI18n } from '@/i18n/translate';
+import { MyBusCard } from '@/components/transport/MyBusCard';
 
 /** "HH:mm" of the current local time. */
 const nowHHmm = () => {
@@ -22,6 +24,7 @@ const nowHHmm = () => {
 
 export const StudentDashboard = () => {
   const { currentUser } = useAuth();
+  const { t, tx } = useI18n();
   const dashboard = useApi('/dashboard');
 
   const [showToast, setShowToast] = useState(true);
@@ -49,7 +52,7 @@ export const StudentDashboard = () => {
           </div>
           <div>
             <h4 className="text-xs font-bold text-slate-900">
-              Welcome back{currentUser?.name ? `, ${currentUser.name.split(' ')[0]}` : ''}!
+              {t('common.welcomeBack')}{currentUser?.name ? `, ${currentUser.name.split(' ')[0]}` : ''}!
             </h4>
             <p className="text-[11px] text-slate-500">Logged in as Student.</p>
           </div>
@@ -58,12 +61,15 @@ export const StudentDashboard = () => {
 
       <div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-          Student Dashboard
+          {tx('Student Dashboard')}
         </h1>
         <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
           Your academic progress and daily activities.
         </p>
       </div>
+
+      {/* School bus (shown only when the student uses school transport) */}
+      <MyBusCard studentId={currentUser?.studentId} hideWhenNone />
 
       <AsyncState state={dashboard} loadingText="Loading your dashboard…">
         {(data) => <DashboardBody data={data} className={currentUser?.className} clock={clock} />}
@@ -74,6 +80,7 @@ export const StudentDashboard = () => {
 
 const DashboardBody = ({ data, className, clock }) => {
   const navigate = useNavigate();
+  const { tx } = useI18n();
   const attendance = data.attendance || {};
   const fees = data.fees || { total: 0, paid: 0, pending: 0, overdue: 0 };
   const upcomingExamsList = data.upcomingExams || [];
@@ -94,7 +101,7 @@ const DashboardBody = ({ data, className, clock }) => {
           className="bg-gradient-to-br from-cyan-400 via-cyan-500 to-teal-500 text-white p-6 rounded-3xl shadow-lg shadow-cyan-500/15 flex flex-col justify-between cursor-pointer hover:shadow-xl transition-all"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-cyan-100 uppercase tracking-wider">Attendance</span>
+            <span className="text-xs font-bold text-cyan-100 uppercase tracking-wider">{tx('Attendance')}</span>
             <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
               <CalendarCheck className="w-5 h-5 stroke-[2.2]" />
             </div>
@@ -119,7 +126,7 @@ const DashboardBody = ({ data, className, clock }) => {
           className="bg-gradient-to-br from-emerald-500 via-teal-500 to-emerald-600 text-white p-6 rounded-3xl shadow-lg shadow-emerald-500/15 flex flex-col justify-between cursor-pointer hover:shadow-xl hover:scale-[1.02] transition-all"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-emerald-100 uppercase tracking-wider">Total Fees</span>
+            <span className="text-xs font-bold text-emerald-100 uppercase tracking-wider">{tx('Total Fees')}</span>
             <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white font-bold text-sm">
               ₹
             </div>
@@ -138,7 +145,7 @@ const DashboardBody = ({ data, className, clock }) => {
           className="bg-gradient-to-br from-orange-400 via-[#FF6B2C] to-amber-500 text-white p-6 rounded-3xl shadow-lg shadow-orange-500/15 flex flex-col justify-between cursor-pointer hover:shadow-xl hover:scale-[1.02] transition-all"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-orange-100 uppercase tracking-wider">Fee Pending</span>
+            <span className="text-xs font-bold text-orange-100 uppercase tracking-wider">{tx('Fee Pending')}</span>
             <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
               <AlertCircle className="w-5 h-5 stroke-[2.2]" />
             </div>
@@ -164,7 +171,7 @@ const DashboardBody = ({ data, className, clock }) => {
           className="bg-gradient-to-br from-blue-500 via-indigo-600 to-indigo-700 text-white p-6 rounded-3xl shadow-lg shadow-indigo-500/15 flex flex-col justify-between cursor-pointer hover:shadow-xl hover:scale-[1.02] transition-all"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-indigo-100 uppercase tracking-wider">Upcoming Exams</span>
+            <span className="text-xs font-bold text-indigo-100 uppercase tracking-wider">{tx('Upcoming Exams')}</span>
             <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
               <FileText className="w-5 h-5 stroke-[2.2]" />
             </div>
@@ -187,7 +194,7 @@ const DashboardBody = ({ data, className, clock }) => {
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <Clock className="w-4 h-4 text-[#FF6B2C]" />
-              <span>Today's Timetable</span>
+              <span>{tx("Today's Timetable")}</span>
             </h2>
             <span className="text-xs font-semibold text-slate-400">
               {className ? `Class ${className} • ` : ''}
@@ -248,12 +255,12 @@ const DashboardBody = ({ data, className, clock }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Homework Due</h3>
+                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">{tx('Homework Due')}</h3>
                 <button
                   onClick={() => navigate('/student/homework')}
                   className="text-[11px] font-bold text-[#FF6B2C] hover:underline"
                 >
-                  View All
+                  {tx('View all')}
                 </button>
               </div>
               {homeworkDue.length === 0 ? (
@@ -271,12 +278,12 @@ const DashboardBody = ({ data, className, clock }) => {
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Recent Results</h3>
+                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">{tx('Recent Results')}</h3>
                 <button
                   onClick={() => navigate('/student/report-card')}
                   className="text-[11px] font-bold text-[#FF6B2C] hover:underline"
                 >
-                  View All
+                  {tx('View all')}
                 </button>
               </div>
               {recentResults.length === 0 ? (
@@ -308,13 +315,13 @@ const DashboardBody = ({ data, className, clock }) => {
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-[#FF6B2C]" />
-                <span>Upcoming Exams</span>
+                <span>{tx('Upcoming Exams')}</span>
               </h2>
               <button
                 onClick={() => navigate('/student/exams')}
                 className="text-xs font-bold text-[#FF6B2C] hover:underline"
               >
-                View All
+                {tx('View all')}
               </button>
             </div>
 
@@ -344,13 +351,13 @@ const DashboardBody = ({ data, className, clock }) => {
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <Megaphone className="w-4 h-4 text-[#FF6B2C]" />
-                <span>Notices</span>
+                <span>{tx('Notices')}</span>
               </h2>
               <button
                 onClick={() => navigate('/student/notices')}
                 className="text-xs font-bold text-[#FF6B2C] hover:underline"
               >
-                View All
+                {tx('View all')}
               </button>
             </div>
 

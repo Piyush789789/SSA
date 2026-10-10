@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { UserPlus, UserCheck, CreditCard, Bell, CheckCircle2 } from 'lucide-react';
 import { formatCurrency, formatDate, formatDateTime } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 const getActivityIcon = (type) => {
   switch (type) {
@@ -20,6 +21,7 @@ const getActivityIcon = (type) => {
 
 /** Latest fee payments (GET /fees/payments) and notices (GET /notices), newest first. */
 export const RecentActivity = ({ payments = [], notices = [], limit = 6 }) => {
+  const { t } = useI18n();
   const activities = useMemo(() => {
     const items = [
       ...payments.map((p) => ({
@@ -47,7 +49,7 @@ export const RecentActivity = ({ payments = [], notices = [], limit = 6 }) => {
       <div>
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-            Recent Activity
+            {t('dash.recentActivity')}
           </h3>
         </div>
 

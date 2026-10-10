@@ -17,6 +17,7 @@ import { useApi } from '@/hooks/useApi';
 import { withQuery } from '@/api/http';
 import { addDays, formatDate, parseIsoDate, todayIso } from '@/utils';
 import { groupBy, summarizeRecords } from '@/components/attendance/attendanceMath';
+import { useI18n } from '@/i18n/translate';
 
 /** Monday of the week containing `iso`. */
 const mondayOf = (iso) => addDays(iso, -((parseIsoDate(iso).getDay() + 6) % 7));
@@ -41,6 +42,7 @@ const defaultFilters = (selectedClass = 'ALL') => {
 };
 
 export const AttendancePage = () => {
+  const { tx } = useI18n();
   const [searchParams] = useSearchParams();
   const [activeSidebarId, setActiveSidebarId] = useState('attendance');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -275,7 +277,7 @@ export const AttendancePage = () => {
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                Attendance Management
+                {tx('Attendance Management')}
               </h1>
               <p className="text-xs sm:text-sm font-semibold text-slate-400 mt-0.5">
                 Track and manage daily student attendance at school, class, and student levels

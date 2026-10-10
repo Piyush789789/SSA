@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { User, Mail, Phone, CheckCircle2, Users, Info, Calendar, Droplet, MapPin } from 'lucide-react';
 import { ParentContactEditor, StudentContactEditor } from '@/components/common/ContactEditors';
+import { ChangePasswordButton } from '@/components/common/ChangePassword';
 import { useAuth } from '@/context/AuthContext';
 import { useApi } from '@/hooks/useApi';
 import { formatCurrency, formatDate } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 export const ParentProfilePage = () => {
+  const { tx } = useI18n();
   const { currentUser, selectedChild, switchChild, refreshSession } = useAuth();
   const linkedChildren = currentUser?.linkedChildren || [];
 
@@ -41,7 +44,7 @@ export const ParentProfilePage = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
             <User className="w-7 h-7 text-[#FF6B2C]" />
-            Parent Account & Profile
+            {tx('Parent Account & Profile')}
           </h1>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
             Guardian records and enrolled children summary.
@@ -91,7 +94,10 @@ export const ParentProfilePage = () => {
       </div>
 
       <div className="space-y-3">
-        {currentUser ? <ParentContactEditor parent={currentUser} onSaved={refreshSession} /> : null}
+        <div className="flex flex-wrap items-start gap-2">
+          {currentUser ? <ParentContactEditor parent={currentUser} onSaved={refreshSession} /> : null}
+          <ChangePasswordButton />
+        </div>
         <div className="flex items-start gap-2 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-xs text-sky-800">
           <Info className="w-4 h-4 shrink-0 mt-0.5" />
           <p>

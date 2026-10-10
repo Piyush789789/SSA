@@ -21,6 +21,7 @@ import { withQuery } from '@/api/http';
 import { addDays, formatCurrency, formatDate, todayIso } from '@/utils';
 import { formatRate, groupBy, summarizeRecords } from '@/components/attendance/attendanceMath';
 import { ROUTES } from '@/constants/routes';
+import { useI18n } from '@/i18n/translate';
 
 const TABS = [
   'Overview',
@@ -64,6 +65,7 @@ const summarizeResults = (rows = []) => {
 };
 
 export const ClassDetailPage = () => {
+  const { tx } = useI18n();
   const { classId } = useParams();
   const navigate = useNavigate();
 
@@ -245,7 +247,7 @@ export const ClassDetailPage = () => {
             className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-[#FF6B2C] transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Classes Overview
+            {tx('Back to Classes Overview')}
           </button>
 
           {classState.error?.status === 404 ? (
@@ -269,7 +271,7 @@ export const ClassDetailPage = () => {
                   </div>
                   <div>
                     <div className="flex items-center gap-3">
-                      <h1 className="text-2xl font-black text-slate-900 tracking-tight">Class {cls.id}</h1>
+                      <h1 className="text-2xl font-black text-slate-900 tracking-tight">{tx('Class')} {cls.id}</h1>
                       <span className="px-3 py-1 rounded-full bg-orange-50 text-[#FF6B2C] font-extrabold text-xs border border-orange-100">
                         Section {cls.section}
                       </span>
@@ -335,7 +337,7 @@ export const ClassDetailPage = () => {
                           : 'border-transparent text-slate-400 hover:text-slate-700'
                       }`}
                     >
-                      {tab}
+                      {tx(tab)}
                     </button>
                   ))}
                 </nav>

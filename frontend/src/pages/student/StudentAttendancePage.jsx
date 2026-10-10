@@ -5,6 +5,7 @@ import { useApi } from '@/hooks/useApi';
 import { withQuery } from '@/api/http';
 import { AsyncState } from '@/components/common/AsyncState';
 import { addDays, formatDate, parseIsoDate, todayIso, weekdayName } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 const RANGE_LABELS = {
   LAST_30: 'Last 30 Days',
@@ -31,6 +32,7 @@ const rangeFor = (mode) => {
 };
 
 export const StudentAttendancePage = () => {
+  const { tx } = useI18n();
   const { currentUser } = useAuth();
   const studentId = currentUser?.studentId || currentUser?.id;
 
@@ -50,7 +52,7 @@ export const StudentAttendancePage = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
             <CalendarCheck className="w-7 h-7 text-[#FF6B2C]" />
-            Attendance
+            {tx('Attendance')}
           </h1>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
             Daily attendance for {currentUser?.name}
@@ -247,7 +249,7 @@ export const StudentAttendancePage = () => {
                 onClick={() => setSelectedDay(null)}
                 className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
               >
-                Close
+                {tx('Close')}
               </button>
             </div>
           </div>

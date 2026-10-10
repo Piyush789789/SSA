@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Sparkles, Send, Bot, User, BookOpen, Lightbulb, CheckCircle2, HelpCircle, RefreshCw, Copy, Check } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useI18n } from '@/i18n/translate';
 
 export const StudentAIAssistantPage = () => {
+  const { tx } = useI18n();
   const { currentUser } = useAuth();
   const studentName = currentUser?.name || 'Rohit Verma';
   const className = currentUser?.className || '5-B';
@@ -81,7 +83,7 @@ export const StudentAIAssistantPage = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
             <Sparkles className="w-7 h-7 text-[#FF6B2C]" />
-            AI Study Tutor
+            {tx('AI Study Tutor')}
           </h1>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
             Your personalized learning assistant for homework help, revision quizzes, and concept explanations.

@@ -3,12 +3,14 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { GraduationCap, X, LogOut, BookOpen } from 'lucide-react';
 import { TEACHER_SIDEBAR_ITEMS } from '@/constants/sidebar';
 import { useAuth } from '@/context/AuthContext';
+import { useI18n } from '@/i18n/translate';
 import { initialsOf } from '@/utils';
 
 export const TeacherSidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser, logout } = useAuth();
+  const { t } = useI18n();
 
   const handleNavigation = (route) => {
     if (onClose) onClose();
@@ -57,7 +59,7 @@ export const TeacherSidebar = ({ isOpen, onClose }) => {
                 ADARSH ACADEMY
               </p>
               <span className="text-[10px] font-bold text-[#FF6B2C] block mt-0.5">
-                Teacher Portal
+                {t('portal.teacher')}
               </span>
             </div>
           </div>
@@ -75,7 +77,7 @@ export const TeacherSidebar = ({ isOpen, onClose }) => {
         {/* Navigation List */}
         <div className="flex-1 overflow-y-auto px-4 py-5 space-y-1.5 custom-scrollbar">
           <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3 mb-2">
-            NAVIGATION
+            {t('common.navigation')}
           </div>
 
           {TEACHER_SIDEBAR_ITEMS.map((item) => {
@@ -101,7 +103,7 @@ export const TeacherSidebar = ({ isOpen, onClose }) => {
                     isActive ? 'text-[#FF6B2C]' : 'text-slate-400 group-hover:text-slate-600'
                   }`}
                 />
-                <span className="truncate">{item.label}</span>
+                <span className="truncate">{t(item.labelKey, null, item.label)}</span>
               </button>
             );
           })}
@@ -130,7 +132,7 @@ export const TeacherSidebar = ({ isOpen, onClose }) => {
             <button
               onClick={handleLogout}
               className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors shrink-0 cursor-pointer"
-              title="Logout"
+              title={t('common.logout')}
             >
               <LogOut className="w-4 h-4 stroke-[2]" />
             </button>

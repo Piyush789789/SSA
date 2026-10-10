@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Megaphone } from 'lucide-react';
+import { useI18n } from '@/i18n/translate';
 
 const DEFAULT_AUDIENCES = ['ALL', 'STAFF', 'STUDENTS', 'PARENTS'];
 const AUDIENCE_LABELS = {
@@ -19,6 +20,7 @@ export const NoticeFormModal = ({ isOpen, ...props }) => {
 };
 
 const NoticeForm = ({ noticeToEdit, audiences, onClose, onSave }) => {
+  const { tx } = useI18n();
   const isEditing = Boolean(noticeToEdit);
   const [formData, setFormData] = useState(() => ({
     title: noticeToEdit?.title || '',
@@ -75,7 +77,7 @@ const NoticeForm = ({ noticeToEdit, audiences, onClose, onSave }) => {
               <Megaphone className="w-5 h-5" />
             </div>
             <h2 className="text-lg font-extrabold text-slate-900">
-              {isEditing ? 'Edit Notice' : 'Create New Notice'}
+              {tx(isEditing ? 'Edit Notice' : 'Create New Notice')}
             </h2>
           </div>
           <button
@@ -176,14 +178,14 @@ const NoticeForm = ({ noticeToEdit, audiences, onClose, onSave }) => {
               onClick={onClose}
               className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-2xl transition-colors cursor-pointer"
             >
-              Cancel
+              {tx('Cancel')}
             </button>
             <button
               type="submit"
               disabled={saving}
               className="px-6 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] active:bg-[#D94E13] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-xs rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-colors cursor-pointer"
             >
-              {saving ? 'Saving…' : isEditing ? 'Save Changes' : 'Publish Notice'}
+              {saving ? tx('Saving…') : tx(isEditing ? 'Save Changes' : 'Publish Notice')}
             </button>
           </div>
         </form>

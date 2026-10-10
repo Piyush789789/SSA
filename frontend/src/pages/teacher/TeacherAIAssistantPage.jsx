@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Sparkles, Send, Bot, User, BookOpen, Lightbulb, FileText, CheckCircle2, HelpCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useI18n } from '@/i18n/translate';
 
 export const TeacherAIAssistantPage = () => {
+  const { tx } = useI18n();
   const { currentUser } = useAuth();
   const teacherName = currentUser?.name || 'Anjali Singh';
 
@@ -60,7 +62,7 @@ export const TeacherAIAssistantPage = () => {
       <div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
           <Sparkles className="w-7 h-7 text-[#FF6B2C] stroke-[2]" />
-          <span>AI Assistant</span>
+          <span>{tx('AI Assistant')}</span>
         </h1>
         <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
           Your teaching assistant — generate lesson plans, quizzes, homework, and student feedback instantly
@@ -146,7 +148,7 @@ export const TeacherAIAssistantPage = () => {
               className="h-11 px-5 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold rounded-2xl shadow-md shadow-[#FF6B2C]/20 flex items-center gap-2 transition-all cursor-pointer shrink-0"
             >
               <Send className="w-4 h-4 stroke-[2]" />
-              <span className="hidden sm:inline text-xs">Send</span>
+              <span className="hidden sm:inline text-xs">{tx('Send')}</span>
             </button>
           </form>
         </div>

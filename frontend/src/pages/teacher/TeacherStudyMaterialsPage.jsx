@@ -5,6 +5,7 @@ import { http } from '@/api/http';
 import { useApi } from '@/hooks/useApi';
 import { AsyncState } from '@/components/common/AsyncState';
 import { formatDate } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 const formatBytes = (bytes) => {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -12,6 +13,7 @@ const formatBytes = (bytes) => {
 };
 
 export const TeacherStudyMaterialsPage = () => {
+  const { tx } = useI18n();
   const { currentUser } = useAuth();
   const materials = useApi('/study-materials');
   const meta = useApi('/meta');
@@ -134,7 +136,7 @@ export const TeacherStudyMaterialsPage = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
             <Library className="w-7 h-7 text-[#FF6B2C] stroke-[2]" />
-            <span>Study Materials</span>
+            <span>{tx('Study Materials')}</span>
           </h1>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
             Upload and share class notes, worksheets, and reference guides
@@ -368,14 +370,14 @@ export const TeacherStudyMaterialsPage = () => {
                   onClick={() => setIsUploadModalOpen(false)}
                   className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700"
                 >
-                  Cancel
+                  {tx('Cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
                   className="disabled:opacity-50 px-5 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold rounded-2xl text-xs shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer"
                 >
-                  {saving ? 'Saving…' : 'Add Material'}
+                  {saving ? tx('Saving…') : tx('Add Material')}
                 </button>
               </div>
             </form>

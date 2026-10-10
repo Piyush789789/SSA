@@ -22,6 +22,7 @@ import { AsyncState, EmptyMessage } from "@/components/common/AsyncState";
 import { formatDate, todayIso } from "@/utils";
 import { AddExamScheduleModal } from "@/components/exams/AddExamScheduleModal";
 import { ConfirmDialog } from "@/components/fees/ConfirmDialog";
+import { SeatingPlanSection } from "@/components/exams/SeatingPlanSection";
 
 const NONE = [];
 
@@ -400,6 +401,9 @@ export const ExamDetailPage = () => {
                         </AsyncState>
                       </div>
                     </div>
+
+                    {/* Seating plan & admit cards */}
+                    <SeatingPlanSection exam={ex} />
                   </>
                 )}
               </AsyncState>

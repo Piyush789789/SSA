@@ -1,4 +1,5 @@
 import {
+  AtRiskSummary,
   Badge,
   Card,
   Empty,
@@ -58,6 +59,8 @@ export default function Dashboard() {
               <Row label="Pending" value={rupees(d.fees.pending)} />
               <Row label="Overdue" value={rupees(d.fees.overdue)} last />
             </Card>
+
+            <AtRiskSummary />
 
             <SectionTitle>Low attendance (below 75%)</SectionTitle>
             {d.lowAttendance.length === 0 ? (

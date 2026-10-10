@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertCircle, Edit3, Loader2 } from 'lucide-react';
 import { http } from '@/api/http';
+import { useI18n } from '@/i18n/translate';
 
 /**
  * Small inline "Edit" forms for contact details people may change themselves. Everything else
@@ -41,6 +42,7 @@ export const ParentContactEditor = ({ parent, onSaved }) => (
 );
 
 const InlineEditForm = ({ buttonLabel, fields, initialValues, save, onSaved }) => {
+  const { tx } = useI18n();
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState(initialValues);
   const [saving, setSaving] = useState(false);
@@ -104,7 +106,7 @@ const InlineEditForm = ({ buttonLabel, fields, initialValues, save, onSaved }) =
           onClick={() => setOpen(false)}
           className="px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-700"
         >
-          Cancel
+          {tx('Cancel')}
         </button>
         <button
           type="submit"
@@ -112,7 +114,7 @@ const InlineEditForm = ({ buttonLabel, fields, initialValues, save, onSaved }) =
           className="inline-flex items-center gap-1.5 rounded-xl bg-[#FF6B2C] px-4 py-2 text-xs font-bold text-white hover:bg-[#F25A1B] disabled:opacity-60"
         >
           {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-          {saving ? 'Saving…' : 'Save'}
+          {saving ? tx('Saving…') : tx('Save')}
         </button>
       </div>
     </form>

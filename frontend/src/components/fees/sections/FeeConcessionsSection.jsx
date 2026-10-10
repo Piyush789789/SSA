@@ -6,9 +6,11 @@ import { AsyncState } from '@/components/common/AsyncState';
 import { formatCurrency, formatDate } from '@/utils';
 import { ConcessionModal } from '@/components/fees/ConcessionModal';
 import { ConfirmDialog } from '@/components/fees/ConfirmDialog';
+import { useI18n } from '@/i18n/translate';
 
 /** Concessions granted so far (GET /fees/concessions); new ones lower what is owed on a due. */
 export const FeeConcessionsSection = ({ classes = [], meta, onToast }) => {
+  const { tx } = useI18n();
   const concessions = useApi('/fees/concessions');
   const studentsApi = useApi('/students');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -92,7 +94,7 @@ export const FeeConcessionsSection = ({ classes = [], meta, onToast }) => {
                               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-bold text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                             >
                               <Undo2 className="h-3.5 w-3.5" />
-                              Withdraw
+                              {tx('Withdraw')}
                             </button>
                           </td>
                         </tr>

@@ -43,11 +43,15 @@ public class ExamService {
     private final DataStore store;
     private final AccessGuard guard;
     private final Clock clock;
+    private final NotificationService notifications;
+    private final SettingsService settings;
 
-    public ExamService(DataStore store, AccessGuard guard, Clock clock) {
+    public ExamService(DataStore store, AccessGuard guard, Clock clock, SettingsService settings, NotificationService notifications) {
         this.store = store;
         this.guard = guard;
         this.clock = clock;
+        this.notifications = notifications;
+        this.settings = settings;
     }
 
     // ---------------------------------------------------------------- exams
@@ -73,7 +77,7 @@ public class ExamService {
 
     public Exam createExam(Exam request) {
         validateExam(request);
-        Exam exam = new Exam(store.nextId("EXM"), request.name(), request.type(), academicYearOr(request.academicYear()),
+        Exam exam = new Exam(store.nextId("EXM"), request.name(), request.type(), settings.yearOr(request.academicYear()),
                 request.startDate(), request.endDate(), List.copyOf(request.classes()), request.description(), null,
                 Exam.RESULTS_DRAFT);
         return withLiveStatus(store.exams.save(exam));
@@ -89,7 +93,7 @@ public class ExamService {
         if (papersOutside) {
             throw ApiErrors.conflict("Some papers of this exam fall outside the new classes or dates; update them first");
         }
-        Exam exam = new Exam(id, request.name(), request.type(), academicYearOr(request.academicYear()),
+        Exam exam = new Exam(id, request.name(), request.type(), settings.yearOr(request.academicYear()),
                 request.startDate(), request.endDate(), List.copyOf(request.classes()), request.description(), null,
                 existing.resultsStatus());
         return withLiveStatus(store.exams.save(exam));
@@ -105,8 +109,14 @@ public class ExamService {
 
     public Exam setResultsPublished(String id, boolean published) {
         Exam exam = store.exams.getById(id);
+        boolean wasPublished = exam.isPublished();
         Exam updated = exam.withResultsStatus(published ? Exam.RESULTS_PUBLISHED : Exam.RESULTS_DRAFT);
-        return withLiveStatus(store.exams.save(updated));
+        Exam saved = store.exams.save(updated);
+        if (published && !wasPublished) {
+            notifications.notifyClassFamilies(saved.classes(), "Results published",
+                    saved.name() + " results are now available.", NotificationService.RESULTS, "/results");
+        }
+        return withLiveStatus(saved);
     }
 
     private void validateExam(Exam exam) {
@@ -213,14 +223,21 @@ public class ExamService {
     public List<PendingMarksEntry> pendingMarksEntry(Teacher teacher) {
         LocalDate today = LocalDate.now(clock);
         Map<String, Exam> exams = examsById();
+        Map<String, Integer> entered = marksCountBySchedule();
+        Map<String, Integer> classSizes = store.studentCountsByClass();
         return store.schedules.stream()
                 .filter(s -> teacher.teaches(s.className(), s.subject()) && !s.date().isAfter(today))
                 .map(s -> new PendingMarksEntry(s.id(), exams.get(s.examId()).name(), s.subject(), s.className(),
-                        s.date(), (int) store.marks.stream().filter(m -> m.scheduleId().equals(s.id())).count(),
-                        store.studentsOf(s.className()).size()))
+                        s.date(), entered.getOrDefault(s.id(), 0), classSizes.getOrDefault(s.className(), 0)))
                 .filter(p -> p.entered() < p.totalStudents())
                 .sorted(Comparator.comparing(PendingMarksEntry::date))
                 .toList();
+    }
+
+    /** Marks records per paper, counted by the database. */
+    private Map<String, Integer> marksCountBySchedule() {
+        return store.marks.aggregate("select e.scheduleId, count(e) from %s e group by e.scheduleId").stream()
+                .collect(Collectors.toMap(row -> (String) row[0], row -> ((Long) row[1]).intValue()));
     }
 
     // ---------------------------------------------------------------- marks
@@ -229,8 +246,7 @@ public class ExamService {
     public MarksSheet marksSheet(User user, String scheduleId) {
         ExamSchedule paper = store.schedules.getById(scheduleId);
         guard.checkCanManageClass(user, paper.className());
-        Map<String, MarksRecord> existing = store.marks.stream()
-                .filter(m -> m.scheduleId().equals(scheduleId))
+        Map<String, MarksRecord> existing = store.marks.where("e.scheduleId = ?1", scheduleId).stream()
                 .collect(Collectors.toMap(MarksRecord::studentId, Function.identity()));
         List<MarksSheetRow> rows = store.studentsOf(paper.className()).stream()
                 .map(st -> {
@@ -327,8 +343,7 @@ public class ExamService {
         }
         boolean familyView = user.getRole() == Role.STUDENT || user.getRole() == Role.PARENT;
         Map<String, Exam> exams = examsById();
-        List<SubjectResult> subjects = store.marks.stream()
-                .filter(m -> m.studentId().equals(studentId))
+        List<SubjectResult> subjects = store.marks.where("e.studentId = ?1", studentId).stream()
                 .filter(m -> examId == null || m.examId().equals(examId))
                 .filter(m -> !familyView || (exams.get(m.examId()).isPublished() && MarksRecord.SUBMITTED.equals(m.status())))
                 .map(m -> toSubjectResult(m, exams.get(m.examId()), store.schedules.getById(m.scheduleId())))
@@ -352,8 +367,9 @@ public class ExamService {
         Map<String, ExamSchedule> papers = store.schedules.stream()
                 .filter(s -> s.examId().equals(examId) && s.className().equals(className))
                 .collect(Collectors.toMap(ExamSchedule::id, Function.identity()));
-        Map<String, List<MarksRecord>> byStudent = store.marks.stream()
-                .filter(m -> papers.containsKey(m.scheduleId()))
+        Map<String, List<MarksRecord>> byStudent = (papers.isEmpty()
+                ? List.<MarksRecord>of()
+                : store.marks.where("e.scheduleId in ?1", papers.keySet())).stream()
                 .collect(Collectors.groupingBy(MarksRecord::studentId));
 
         List<ClassResultRow> unranked = store.studentsOf(className).stream()
@@ -412,7 +428,4 @@ public class ExamService {
         return store.exams.stream().collect(Collectors.toMap(Exam::id, Function.identity()));
     }
 
-    private static String academicYearOr(String academicYear) {
-        return academicYear == null || academicYear.isBlank() ? ReferenceData.ACADEMIC_YEAR : academicYear;
-    }
 }

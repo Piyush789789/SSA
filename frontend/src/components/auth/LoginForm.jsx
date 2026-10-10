@@ -1,5 +1,7 @@
 ﻿import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { LanguageSwitch } from '@/components/common/LanguageSwitch';
+import { useI18n } from '@/i18n/translate';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Shield, BookOpen, GraduationCap, Heart, AlertCircle, Loader2 } from 'lucide-react';
 import { RoleSelector } from './RoleSelector';
 import { ROLES } from '@/constants/roles';
@@ -11,6 +13,7 @@ import { HOME_BY_ROLE } from '@/routes/RequireRole';
 export const LoginForm = () => {
   const navigate = useNavigate();
   const { loginWithApi } = useAuth();
+  const { t } = useI18n();
   const [selectedRoleId, setSelectedRoleId] = useState('Teacher');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -66,7 +69,7 @@ export const LoginForm = () => {
       {/* Header */}
       <div className="mb-4 sm:mb-5">
         <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-          Welcome back
+          {t('common.welcomeBack')}
         </h2>
         <p className="text-xs sm:text-sm font-normal text-slate-500 mt-0.5">
           Select your role and sign in
@@ -85,15 +88,18 @@ export const LoginForm = () => {
         {/* Email Field */}
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1">
-            Email
+            Email or ID
           </label>
           <div className="relative flex items-center">
             <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none stroke-[2]" />
             <input
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
+              placeholder="Email, or student ID like STU-2026-0503"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
               required
               className="w-full h-11 bg-white border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 pl-10 pr-4 focus:outline-none focus:border-[#FF6B2C] focus:ring-2 focus:ring-[#FF6B2C]/20 transition-all duration-150"
             />
@@ -153,16 +159,15 @@ export const LoginForm = () => {
         </button>
       </form>
 
-      {/* School Registration Link */}
+      {/* Admission enquiry (public form, no login) */}
       <div className="text-center mt-3.5 text-xs text-slate-500 font-medium">
-        New school?{' '}
-        <button
-          type="button"
-          onClick={() => {}}
-          className="text-[#FF6B2C] font-semibold hover:underline cursor-pointer ml-0.5"
-        >
-          Register School
-        </button>
+        {t('enquiry.loginPrompt')}{' '}
+        <Link to={ROUTES.ADMISSION_ENQUIRY} className="text-[#FF6B2C] font-semibold hover:underline ml-0.5">
+          {t('enquiry.loginLink')}
+        </Link>
+      </div>
+      <div className="flex justify-center mt-3">
+        <LanguageSwitch />
       </div>
 
       {/* Role Selector Grid */}

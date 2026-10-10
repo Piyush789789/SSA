@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
+import { useI18n } from '@/i18n/translate';
 
 /** `onConfirm(teacher)` returns a promise (DELETE /teachers/{id}); its error message is shown here. */
 export const DeleteTeacherDialog = ({ isOpen, teacher, onClose, onConfirm }) => {
@@ -8,6 +9,7 @@ export const DeleteTeacherDialog = ({ isOpen, teacher, onClose, onConfirm }) => 
 };
 
 const DeleteTeacherContent = ({ teacher, onClose, onConfirm }) => {
+  const { tx } = useI18n();
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
 
@@ -38,7 +40,7 @@ const DeleteTeacherContent = ({ teacher, onClose, onConfirm }) => {
             <AlertTriangle className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-slate-900">Delete Teacher?</h3>
+            <h3 className="text-lg font-bold text-slate-900">{tx('Delete Teacher?')}</h3>
             <p className="text-xs text-slate-500 mt-0.5">
               Are you sure you want to remove <span className="font-semibold text-slate-700">{teacher.name}</span> ({teacher.id})?
             </p>
@@ -59,7 +61,7 @@ const DeleteTeacherContent = ({ teacher, onClose, onConfirm }) => {
             onClick={onClose}
             className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
           >
-            Cancel
+            {tx('Cancel')}
           </button>
           <button
             type="button"
@@ -67,7 +69,7 @@ const DeleteTeacherContent = ({ teacher, onClose, onConfirm }) => {
             disabled={deleting}
             className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-xs rounded-xl shadow-md shadow-rose-600/20 transition-colors cursor-pointer"
           >
-            {deleting ? 'Deleting…' : 'Delete'}
+            {deleting ? tx('Deleting…') : tx('Delete')}
           </button>
         </div>
       </div>

@@ -1,5 +1,9 @@
 package com.ssa.schoolerp.security;
 
+import com.ssa.schoolerp.model.Permission;
+import com.ssa.schoolerp.model.Role;
+import org.springframework.http.HttpMethod;
+
 import com.ssa.schoolerp.exception.ApiErrors;
 import com.ssa.schoolerp.model.User;
 import com.ssa.schoolerp.service.AuthService;
@@ -42,8 +46,28 @@ public class AuthInterceptor implements HandlerInterceptor {
         if (required != null && !Arrays.asList(required.value()).contains(user.getRole())) {
             throw ApiErrors.forbidden();
         }
+        if (user.getRole() == Role.ADMIN && !user.isFullAdmin()) {
+            checkStaffPermission(user, request);
+        }
         request.setAttribute(CURRENT_USER, user);
         return true;
+    }
+
+    /**
+     * Limited staff logins read freely but change only the modules they were given. Full-admin areas (settings,
+     * logins, promotion, backups, audit) are closed to them entirely.
+     */
+    private static void checkStaffPermission(User user, HttpServletRequest request) {
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+        if (Permission.fullAdminOnly(path)) {
+            throw ApiErrors.forbidden();
+        }
+        if (HttpMethod.GET.matches(request.getMethod()) || Permission.personal(path)) {
+            return;
+        }
+        if (user.getPermissions().stream().noneMatch(p -> p.covers(path))) {
+            throw ApiErrors.forbidden();
+        }
     }
 
     private static <A extends Annotation> A findAnnotation(HandlerMethod method, Class<A> type) {

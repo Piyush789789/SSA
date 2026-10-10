@@ -40,11 +40,15 @@ public class FeeService {
     private final DataStore store;
     private final AccessGuard guard;
     private final Clock clock;
+    private final NotificationService notifications;
+    private final SettingsService settings;
 
-    public FeeService(DataStore store, AccessGuard guard, Clock clock) {
+    public FeeService(DataStore store, AccessGuard guard, Clock clock, SettingsService settings, NotificationService notifications) {
         this.store = store;
         this.guard = guard;
         this.clock = clock;
+        this.notifications = notifications;
+        this.settings = settings;
     }
 
     // ---------------------------------------------------------------- fee heads
@@ -57,7 +61,7 @@ public class FeeService {
     public synchronized FeeHead createHead(FeeHead request) {
         validateHead(request);
         FeeHead head = new FeeHead(store.nextId("FH"), request.title(), request.amount(), request.frequency(),
-                request.dueDate(), academicYearOr(request.academicYear()), List.copyOf(request.classNames()));
+                request.dueDate(), settings.yearOr(request.academicYear()), List.copyOf(request.classNames()));
         store.feeHeads.save(head);
         billStudentsOf(head);
         return head;
@@ -84,7 +88,7 @@ public class FeeService {
         removedDues.forEach(d -> deleteDue(d.id()));
 
         FeeHead head = new FeeHead(id, request.title(), request.amount(), request.frequency(), request.dueDate(),
-                academicYearOr(request.academicYear()), List.copyOf(request.classNames()));
+                settings.yearOr(request.academicYear()), List.copyOf(request.classNames()));
         store.feeHeads.save(head);
         store.feeDues.findWhere(d -> d.feeHeadId().equals(id))
                 .forEach(d -> store.feeDues.save(d.withHeadDetails(head.title(), head.amount(), head.dueDate())));
@@ -142,10 +146,15 @@ public class FeeService {
         if (className != null) {
             guard.checkClassAccess(user, className);
         }
-        Set<String> visible = guard.readableStudentIds(user);
         Map<String, Student> students = studentsById();
-        return store.feeDues.stream()
-                .filter(d -> visible.contains(d.studentId()))
+        List<FeeDue> rows;
+        if (studentId != null) {
+            rows = store.feeDues.where("e.studentId = ?1", studentId); // access already checked
+        } else {
+            Set<String> visible = guard.readableStudentIds(user);
+            rows = store.feeDues.findWhere(d -> visible.contains(d.studentId()));
+        }
+        return rows.stream()
                 .filter(d -> studentId == null || d.studentId().equals(studentId))
                 .filter(d -> className == null || className.equals(classOf(students, d.studentId())))
                 .map(d -> view(d, students))
@@ -173,7 +182,22 @@ public class FeeService {
         if (request.amount() > due.pending()) {
             throw ApiErrors.badRequest("Amount exceeds the pending balance of ₹" + due.pending());
         }
-        return recordPayment(due, request.amount(), request.paymentMode(), request.remarks(), collector.getName());
+        FeePayment payment = recordPayment(due, request.amount(), request.paymentMode(), request.remarks(), collector.getName());
+        notifyPaid(payment);
+        return payment;
+    }
+
+    /** A verified online (Razorpay) payment: recorded with a receipt and the family is told. */
+    public synchronized FeePayment recordOnlinePayment(String feeDueId, long amount, String gatewayPaymentId) {
+        FeeDue due = store.feeDues.getById(feeDueId);
+        FeePayment payment = recordPayment(due, amount, "Online", "Razorpay " + gatewayPaymentId, "Online payment");
+        notifyPaid(payment);
+        return payment;
+    }
+
+    /** What can still be paid on a due: pending minus deposits awaiting verification. */
+    public long payableNow(FeeDue due) {
+        return Math.max(0, due.pending() - pendingDepositTotal(due.id()));
     }
 
     private FeePayment recordPayment(FeeDue due, long amount, String mode, String remarks, String collectedBy) {
@@ -215,7 +239,10 @@ public class FeeService {
                 due.id(), due.title(), request.amount(), request.paymentMode(), reference, request.paidOn(),
                 request.note(), FeeDeposit.Status.PENDING, user.getName(), LocalDateTime.now(clock), null, null, null,
                 null);
-        return store.deposits.save(deposit);
+        FeeDeposit saved = store.deposits.save(deposit);
+        notifications.notifyAdmins("Fee deposit to verify", student.name() + " (" + student.className() + ") reported ₹"
+                + request.amount() + " by " + request.paymentMode() + ", ref " + reference + ".", NotificationService.FEES, "/fees");
+        return saved;
     }
 
     public List<FeeDeposit> deposits(User user, String studentId, FeeDeposit.Status status) {
@@ -240,14 +267,25 @@ public class FeeService {
         }
         String remarks = "App deposit " + deposit.referenceNo() + " paid on " + deposit.paidOn();
         FeePayment payment = recordPayment(due, deposit.amount(), deposit.paymentMode(), remarks, admin.getName());
+        notifyPaid(payment);
         return store.deposits.save(deposit.reviewed(FeeDeposit.Status.APPROVED, admin.getName(),
                 LocalDateTime.now(clock), note, payment.id()));
     }
 
     public synchronized FeeDeposit rejectDeposit(User admin, String id, String note) {
         FeeDeposit deposit = pendingDeposit(id);
+        store.students.findById(deposit.studentId()).ifPresent(student -> notifications.notifyFamily(student,
+                "Deposit not verified", "The ₹" + deposit.amount() + " deposit (ref " + deposit.referenceNo()
+                        + ") could not be verified" + (note == null || note.isBlank() ? "." : ": " + note),
+                NotificationService.FEES, "/fees", false));
         return store.deposits.save(deposit.reviewed(FeeDeposit.Status.REJECTED, admin.getName(),
                 LocalDateTime.now(clock), note, null));
+    }
+
+    private void notifyPaid(FeePayment payment) {
+        store.students.findById(payment.studentId()).ifPresent(student -> notifications.notifyFamily(student,
+                "Payment received", "₹" + payment.amount() + " received for " + payment.feeTitle() + ". Receipt "
+                        + payment.receiptNo() + ".", NotificationService.FEES, "/fees", false));
     }
 
     private FeeDeposit pendingDeposit(String id) {
@@ -259,8 +297,7 @@ public class FeeService {
     }
 
     private long pendingDepositTotal(String dueId) {
-        return store.deposits.stream()
-                .filter(d -> d.feeDueId().equals(dueId) && d.status() == FeeDeposit.Status.PENDING)
+        return store.deposits.where("e.feeDueId = ?1 and e.status = ?2", dueId, FeeDeposit.Status.PENDING).stream()
                 .mapToLong(FeeDeposit::amount)
                 .sum();
     }
@@ -269,10 +306,14 @@ public class FeeService {
         if (studentId != null) {
             guard.checkStudentAccess(user, studentId);
         }
-        Set<String> visible = guard.readableStudentIds(user);
-        return store.payments.stream()
-                .filter(p -> visible.contains(p.studentId()))
-                .filter(p -> studentId == null || p.studentId().equals(studentId))
+        List<FeePayment> rows;
+        if (studentId != null) {
+            rows = store.payments.where("e.studentId = ?1", studentId); // access already checked
+        } else {
+            Set<String> visible = guard.readableStudentIds(user);
+            rows = store.payments.findWhere(p -> visible.contains(p.studentId()));
+        }
+        return rows.stream()
                 .filter(p -> from == null || !p.paidAt().toLocalDate().isBefore(from))
                 .filter(p -> to == null || !p.paidAt().toLocalDate().isAfter(to))
                 .sorted(Comparator.comparing(FeePayment::paidAt).reversed())
@@ -321,9 +362,11 @@ public class FeeService {
         if (studentId != null) {
             guard.checkStudentAccess(user, studentId);
         }
+        if (studentId != null) {
+            return store.concessions.where("e.studentId = ?1", studentId); // access already checked
+        }
         Set<String> visible = guard.readableStudentIds(user);
-        return store.concessions.findWhere(c -> visible.contains(c.studentId())
-                && (studentId == null || c.studentId().equals(studentId)));
+        return store.concessions.findWhere(c -> visible.contains(c.studentId()));
     }
 
     // ---------------------------------------------------------------- summaries
@@ -331,8 +374,7 @@ public class FeeService {
     public StudentSummary studentSummary(User user, String studentId) {
         Student student = guard.checkStudentAccess(user, studentId);
         Map<String, Student> students = Map.of(student.id(), student);
-        List<DueView> dues = store.feeDues.stream()
-                .filter(d -> d.studentId().equals(studentId))
+        List<DueView> dues = store.feeDues.where("e.studentId = ?1", studentId).stream()
                 .map(d -> view(d, students))
                 .sorted(Comparator.comparing(DueView::dueDate))
                 .toList();
@@ -402,7 +444,4 @@ public class FeeService {
         return student == null ? null : student.className();
     }
 
-    private static String academicYearOr(String academicYear) {
-        return academicYear == null || academicYear.isBlank() ? ReferenceData.ACADEMIC_YEAR : academicYear;
-    }
 }

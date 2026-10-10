@@ -3,6 +3,8 @@ import { Award, FileCheck, TrendingUp, Search, ChevronDown, ChevronUp, Sparkles 
 import { useAuth } from '@/context/AuthContext';
 import { useApi } from '@/hooks/useApi';
 import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
+import { AdmitCardLinks } from '@/components/exams/AdmitCardLinks';
+import { useI18n } from '@/i18n/translate';
 import { formatDate } from '@/utils';
 
 const round1 = (value) => Math.round(value * 10) / 10;
@@ -38,6 +40,7 @@ const groupByExam = (subjects, gradeBands) => {
 };
 
 export const ParentResultsPage = () => {
+  const { tx } = useI18n();
   const { currentUser, selectedChild, switchChild } = useAuth();
   const linkedChildren = currentUser?.linkedChildren || [];
   const childId = selectedChild?.studentId ?? null;
@@ -118,7 +121,7 @@ export const ParentResultsPage = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
             <Award className="w-7 h-7 text-[#FF6B2C]" />
-            Academic Results & Marks
+            {tx('Academic Results & Marks')}
           </h1>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
             Published examination report cards for {selectedChild.name} (Class {selectedChild.className}).
@@ -141,6 +144,8 @@ export const ParentResultsPage = () => {
           </select>
         </div>
       </div>
+
+      <AdmitCardLinks student={selectedChild} />
 
       <AsyncState state={[results, meta]} loadingText="Loading results…">
         {() =>

@@ -5,8 +5,10 @@ import { useApi } from '@/hooks/useApi';
 import { withQuery } from '@/api/http';
 import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { formatDate } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 export const StudentStudyMaterialsPage = () => {
+  const { tx } = useI18n();
   const { currentUser } = useAuth();
   const className = currentUser?.className;
 
@@ -44,7 +46,7 @@ export const StudentStudyMaterialsPage = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
             <Library className="w-7 h-7 text-[#FF6B2C]" />
-            Study Materials & Notes
+            {tx('Study Materials & Notes')}
           </h1>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
             Notes, worksheets and revision material shared by your teachers{className ? ` for Class ${className}` : ''}.
@@ -206,7 +208,7 @@ export const StudentStudyMaterialsPage = () => {
                 onClick={() => setPreviewMaterial(null)}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
               >
-                Close
+                {tx('Close')}
               </button>
             </div>
           </div>

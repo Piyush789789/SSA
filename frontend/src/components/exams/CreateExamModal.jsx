@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Calendar } from 'lucide-react';
 import { http } from '@/api/http';
+import { useI18n } from '@/i18n/translate';
 
 const NONE = [];
 
@@ -27,6 +28,7 @@ export const CreateExamModal = ({
   examTypes = NONE,
   academicYear = '',
 }) => {
+  const { tx } = useI18n();
   const isEditing = Boolean(examToEdit);
   const [formData, setFormData] = useState(() => emptyForm(examTypes, academicYear));
   const [errors, setErrors] = useState({});
@@ -242,14 +244,14 @@ export const CreateExamModal = ({
               onClick={onClose}
               className="px-5 py-2.5 rounded-2xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs transition-colors cursor-pointer"
             >
-              Cancel
+              {tx('Cancel')}
             </button>
             <button
               type="submit"
               disabled={saving}
               className="px-5 py-2.5 rounded-2xl bg-[#FF6B2C] hover:bg-[#e85a1c] text-white font-bold text-xs transition-all shadow-md shadow-[#FF6B2C]/20 cursor-pointer disabled:opacity-60"
             >
-              {saving ? 'Saving…' : isEditing ? 'Save Changes' : 'Create Exam'}
+              {saving ? tx('Saving…') : tx(isEditing ? 'Save Changes' : 'Create Exam')}
             </button>
           </div>
         </form>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Trash2, AlertCircle } from 'lucide-react';
+import { useI18n } from '@/i18n/translate';
 
 /**
  * Edit one timetable cell. Saves with PUT /timetable/entries and clears with DELETE /timetable/entries/{id}
@@ -12,6 +13,7 @@ export const EditTimetableEntryModal = ({ isOpen, cellData, ...props }) => {
 };
 
 const EntryForm = ({ cellData, subjects = [], teachers = [], optionsError, onClose, onSave, onClear }) => {
+  const { tx } = useI18n();
   const { classId, day, period, entry } = cellData;
   const [subject, setSubject] = useState(entry?.subject || '');
   const [teacherId, setTeacherId] = useState(entry?.teacherId || '');
@@ -97,7 +99,7 @@ const EntryForm = ({ cellData, subjects = [], teachers = [], optionsError, onClo
                 onClick={() => setShowClearConfirm(false)}
                 className="px-4 py-2 bg-white text-slate-700 font-semibold text-xs rounded-xl border border-slate-200 cursor-pointer"
               >
-                Cancel
+                {tx('Cancel')}
               </button>
               <button
                 type="button"
@@ -187,14 +189,14 @@ const EntryForm = ({ cellData, subjects = [], teachers = [], optionsError, onClo
                   onClick={onClose}
                   className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-2xl transition-colors cursor-pointer"
                 >
-                  Cancel
+                  {tx('Cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={busy}
                   className="px-6 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-xs rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-colors cursor-pointer"
                 >
-                  {busy ? 'Saving…' : 'Save'}
+                  {busy ? tx('Saving…') : tx('Save')}
                 </button>
               </div>
             </div>

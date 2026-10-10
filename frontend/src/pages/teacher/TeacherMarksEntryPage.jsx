@@ -5,6 +5,7 @@ import { http } from '@/api/http';
 import { useApi } from '@/hooks/useApi';
 import { AsyncState, EmptyMessage, ErrorMessage, LoadingMessage } from '@/components/common/AsyncState';
 import { formatDate, initialsOf, todayIso } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 /** Grade band for a percentage, using the scale from GET /meta (sorted high to low). */
 const gradeFor = (percentage, bands) => {
@@ -19,6 +20,7 @@ const STATUS_STYLES = {
 };
 
 export const TeacherMarksEntryPage = () => {
+  const { tx } = useI18n();
   // The route param is the exam paper (ExamSchedule) id: /teacher/exams/:examId/marks
   const { examId: scheduleId } = useParams();
   const navigate = useNavigate();
@@ -143,7 +145,7 @@ export const TeacherMarksEntryPage = () => {
       <div className="space-y-6">
         <div className="flex items-center gap-3.5">
           {backButton}
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">Marks Entry</h1>
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">{tx('Marks Entry')}</h1>
         </div>
         {sheet.error.status === 404 ? (
           <div className="bg-white p-12 rounded-2xl border border-slate-200/80 text-center text-slate-500 text-sm">
@@ -181,7 +183,7 @@ export const TeacherMarksEntryPage = () => {
               <span className="text-xs font-semibold text-slate-500">{schedule.subject}</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight mt-0.5">
-              Marks Entry — {sheet.data.examName}
+              {tx('Marks Entry')} — {sheet.data.examName}
             </h1>
           </div>
         </div>
@@ -192,7 +194,7 @@ export const TeacherMarksEntryPage = () => {
             disabled={saving}
             className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-2xl text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? 'Saving…' : 'Save Draft'}
+            {saving ? tx('Saving…') : tx('Save Draft')}
           </button>
           <button
             onClick={() => handleSave(true)}
@@ -368,7 +370,7 @@ export const TeacherMarksEntryPage = () => {
             className="flex items-center justify-center gap-2 px-6 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer text-xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FileCheck className="w-4 h-4 stroke-[2]" />
-            <span>{saving ? 'Saving…' : 'Submit Marks'}</span>
+            <span>{saving ? tx('Saving…') : tx('Submit Marks')}</span>
           </button>
         </div>
       </div>

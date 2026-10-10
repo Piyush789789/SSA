@@ -58,13 +58,10 @@ public class AccessGuard {
     public Set<String> readableStudentIds(User user) {
         return switch (user.getRole()) {
             case ADMIN -> store.students.stream().map(Student::id).collect(Collectors.toSet());
-            case TEACHER -> {
-                Set<String> classes = readableClasses(user);
-                yield store.students.stream()
-                        .filter(s -> classes.contains(s.className()))
-                        .map(Student::id)
-                        .collect(Collectors.toSet());
-            }
+            case TEACHER -> readableClasses(user).stream()
+                    .flatMap(c -> store.studentsOf(c).stream()) // current (active) students only
+                    .map(Student::id)
+                    .collect(Collectors.toSet());
             case STUDENT -> Set.of(user.getProfileId());
             case PARENT -> Set.copyOf(parentOf(user).childIds());
         };
@@ -72,7 +69,14 @@ public class AccessGuard {
 
     public Student checkStudentAccess(User user, String studentId) {
         Student student = store.students.getById(studentId);
-        if (!readableStudentIds(user).contains(studentId)) {
+        // Checks this one student directly instead of building the set of every student the user may see.
+        boolean allowed = switch (user.getRole()) {
+            case ADMIN -> true;
+            case TEACHER -> teacherOf(user).assignedClasses().contains(student.className());
+            case STUDENT -> studentId.equals(user.getProfileId());
+            case PARENT -> parentOf(user).childIds().contains(studentId);
+        };
+        if (!allowed) {
             throw ApiErrors.forbidden();
         }
         return student;

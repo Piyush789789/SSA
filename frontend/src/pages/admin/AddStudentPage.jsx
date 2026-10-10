@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, User, GraduationCap, Users, MapPin } from 'lucide-react';
+import { ChevronLeft, User, GraduationCap, Users, MapPin, Landmark } from 'lucide-react';
+import { PhotoUpload } from '@/components/students/PhotoUpload';
+import { useI18n } from '@/i18n/translate';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { AsyncState, ErrorMessage } from '@/components/common/AsyncState';
@@ -86,8 +88,22 @@ const emptyForm = (preselectedClass) => {
     city: '',
     state: 'Uttar Pradesh',
     pinCode: '',
+    ...emptyGov,
   };
 };
+
+// Government records (UDISE+ / APAAR / RTE); all optional.
+const SOCIAL_CATEGORIES = ['General', 'OBC', 'SC', 'ST', 'EWS'];
+const emptyGov = { penNumber: '', apaarId: '', rte: false, socialCategory: '', fatherName: '', motherName: '', photoFileId: '' };
+const govFromStudent = (s) => ({
+  penNumber: s.penNumber || '',
+  apaarId: s.apaarId || '',
+  rte: Boolean(s.rte),
+  socialCategory: s.socialCategory || '',
+  fatherName: s.fatherName || '',
+  motherName: s.motherName || '',
+  photoFileId: s.photoFileId || '',
+});
 
 const formFromStudent = (s) => {
   const [grade = '', section = ''] = (s.className || '').split('-');
@@ -110,6 +126,7 @@ const formFromStudent = (s) => {
     city: '',
     state: '',
     pinCode: '',
+    ...govFromStudent(s),
   };
 };
 
@@ -129,6 +146,7 @@ export const AddStudentPage = () => {
   const existing = useApi(editId ? `/students/${encodeURIComponent(editId)}` : null);
 
   const backTo = editId ? `/admin/students/${editId}` : ROUTES.ADMIN_STUDENTS;
+  const { t } = useI18n();
 
   return (
     <div className="min-h-screen bg-slate-50/60 font-sans text-slate-900 antialiased flex flex-col relative">
@@ -154,7 +172,7 @@ export const AddStudentPage = () => {
 
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              {editId ? 'Edit Student' : 'Add New Student'}
+              {editId ? t('students.edit') : t('students.addNew')}
             </h1>
             <p className="text-xs sm:text-sm font-normal text-slate-500 mt-1">
               {editId ? `Update the record of ${editId}` : 'Create a new student record'}
@@ -193,6 +211,7 @@ export const AddStudentPage = () => {
 };
 
 const StudentForm = ({ classList, academicYear, student, preselectedClass, onCancel, onSaved }) => {
+  const { t } = useI18n();
   const isEditing = Boolean(student);
   const [formData, setFormData] = useState(() =>
     student ? formFromStudent(student) : emptyForm(preselectedClass),
@@ -259,6 +278,10 @@ const StudentForm = ({ classList, academicYear, student, preselectedClass, onCan
       e.pinCode = 'PIN Code must contain exactly 6 digits.';
     }
 
+    if (formData.apaarId.trim() && !/^\d{12}$/.test(formData.apaarId.trim()))
+      e.apaarId = 'APAAR ID must be exactly 12 digits.';
+    if (formData.penNumber.trim().length > 20) e.penNumber = 'PEN is too long.';
+
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -293,6 +316,14 @@ const StudentForm = ({ classList, academicYear, student, preselectedClass, onCan
         phone: formData.parentPhone.trim(),
         email: formData.parentEmail.trim() || null,
       },
+      // Left blank = null, which keeps any saved value on an edit.
+      penNumber: formData.penNumber.trim() || null,
+      apaarId: formData.apaarId.trim() || null,
+      rte: formData.rte,
+      socialCategory: formData.socialCategory || null,
+      fatherName: formData.fatherName.trim() || null,
+      motherName: formData.motherName.trim() || null,
+      photoFileId: formData.photoFileId || null,
     };
 
     setSaving(true);
@@ -611,6 +642,94 @@ const StudentForm = ({ classList, academicYear, student, preselectedClass, onCan
         </p>
       </div>
 
+      {/* SECTION 5: GOVERNMENT RECORDS */}
+      <div className="space-y-6">
+        <SectionHeader
+          icon={Landmark}
+          title={t('gov.title')}
+          subtitle={t('gov.subtitle')}
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Field label={t('gov.pen')} error={errors.penNumber} hint={t('gov.penHint')}>
+            <input
+              type="text"
+              name="penNumber"
+              maxLength={20}
+              value={formData.penNumber}
+              onChange={handleChange}
+              placeholder="UDISE+ PEN"
+              className={inputClass(errors.penNumber)}
+            />
+          </Field>
+          <Field label={t('gov.apaar')} error={errors.apaarId} hint={t('gov.apaarHint')}>
+            <input
+              type="text"
+              inputMode="numeric"
+              name="apaarId"
+              maxLength={12}
+              value={formData.apaarId}
+              onChange={(e) => handleChange({ target: { name: 'apaarId', value: e.target.value.replace(/\D/g, '') } })}
+              placeholder="12-digit APAAR ID"
+              className={inputClass(errors.apaarId)}
+            />
+          </Field>
+          <Field label={t('gov.category')}>
+            <select
+              name="socialCategory"
+              value={formData.socialCategory}
+              onChange={handleChange}
+              className={`${inputClass(false)} cursor-pointer`}
+            >
+              <option value="">{t('gov.selectCategory')}</option>
+              {SOCIAL_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t('gov.father')}>
+            <input
+              type="text"
+              name="fatherName"
+              maxLength={100}
+              value={formData.fatherName}
+              onChange={handleChange}
+              className={inputClass(false)}
+            />
+          </Field>
+          <Field label={t('gov.mother')}>
+            <input
+              type="text"
+              name="motherName"
+              maxLength={100}
+              value={formData.motherName}
+              onChange={handleChange}
+              className={inputClass(false)}
+            />
+          </Field>
+          <Field label={t('gov.rte')}>
+            <label className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/30 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.rte}
+                onChange={(e) => setFormData((prev) => ({ ...prev, rte: e.target.checked }))}
+                className="w-4 h-4 accent-[#FF6B2C]"
+              />
+              <span className="text-sm text-slate-700">{t('gov.rteLabel')}</span>
+            </label>
+          </Field>
+          <Field label={t('gov.photo')} className="md:col-span-2 lg:col-span-3" hint={t('gov.photoHint')}>
+            <PhotoUpload
+              fileId={formData.photoFileId}
+              name={formData.fullName}
+              onChange={(id) => setFormData((prev) => ({ ...prev, photoFileId: id }))}
+            />
+          </Field>
+        </div>
+        {isEditing && <p className="text-[11px] text-slate-400">{t('gov.blankKeeps')}</p>}
+      </div>
+
       {/* ACTION BUTTONS */}
       <div className="flex flex-col sm:flex-row items-center justify-end gap-4 border-t border-slate-100 pt-6">
         <button
@@ -618,7 +737,7 @@ const StudentForm = ({ classList, academicYear, student, preselectedClass, onCan
           onClick={onCancel}
           className="w-full sm:w-auto px-6 py-3 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-semibold text-sm rounded-2xl transition-all cursor-pointer"
         >
-          Cancel
+          {t('common.cancel')}
         </button>
 
         <button
@@ -626,7 +745,7 @@ const StudentForm = ({ classList, academicYear, student, preselectedClass, onCan
           disabled={saving}
           className="w-full sm:w-auto px-8 py-3 bg-[#FF6B2C] hover:bg-[#F25A1B] active:bg-[#D94E13] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer"
         >
-          {saving ? 'Saving…' : isEditing ? 'Save Changes' : 'Create Student'}
+          {saving ? t('common.saving') : isEditing ? t('common.saveChanges') : t('students.create')}
         </button>
       </div>
     </form>

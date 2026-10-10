@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { User, Mail, Phone, GraduationCap, Calendar, Award, Edit3, CheckCircle2, X, AlertCircle } from 'lucide-react';
 import { http } from '@/api/http';
+import { ChangePasswordButton } from '@/components/common/ChangePassword';
 import { useAuth } from '@/context/AuthContext';
 import { formatDate, initialsOf } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 export const TeacherProfilePage = () => {
+  const { tx } = useI18n();
   const { currentUser, refreshSession } = useAuth();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -99,6 +102,7 @@ export const TeacherProfilePage = () => {
           <Edit3 className="w-4 h-4 stroke-[2]" />
           <span>Edit Profile</span>
         </button>
+        <ChangePasswordButton className="shrink-0 self-start sm:self-auto" />
       </div>
 
       {/* Details Grid */}
@@ -276,14 +280,14 @@ export const TeacherProfilePage = () => {
                   onClick={() => setIsEditModalOpen(false)}
                   className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700"
                 >
-                  Cancel
+                  {tx('Cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
                   className="px-5 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] disabled:opacity-60 text-white font-bold rounded-2xl text-xs shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer"
                 >
-                  {saving ? 'Saving…' : 'Save Changes'}
+                  {saving ? tx('Saving…') : tx('Save Changes')}
                 </button>
               </div>
             </form>

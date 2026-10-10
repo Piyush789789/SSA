@@ -5,6 +5,7 @@ import { useApi } from '@/hooks/useApi';
 import { http } from '@/api/http';
 import { AsyncState } from '@/components/common/AsyncState';
 import { formatDateTime, initialsOf } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 const CATEGORY = {
   CLASS: 'Class Broadcast',
@@ -13,6 +14,7 @@ const CATEGORY = {
 };
 
 export const StudentCommunicationPage = () => {
+  const { tx } = useI18n();
   const { currentUser } = useAuth();
   const className = currentUser?.className;
   const myIds = [currentUser?.id, currentUser?.studentId, currentUser?.userId].filter(Boolean);
@@ -105,7 +107,7 @@ export const StudentCommunicationPage = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
             <MessageSquare className="w-7 h-7 text-[#FF6B2C]" />
-            Student Communication
+            {tx('Student Communication')}
           </h1>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
             Connect with your teachers and view classroom messages{className ? ` for Class ${className}` : ''}.
@@ -206,7 +208,7 @@ export const StudentCommunicationPage = () => {
                     onClick={() => setActiveTab('INBOX')}
                     className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-2xl text-xs sm:text-sm transition-all cursor-pointer"
                   >
-                    Cancel
+                    {tx('Cancel')}
                   </button>
                   <button
                     type="submit"

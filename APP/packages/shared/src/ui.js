@@ -10,6 +10,8 @@ import {
   View,
 } from 'react-native';
 
+import { addDaysIso, formatDate, todayIso, weekdayOf } from './format';
+import { LANGUAGES, useLanguage, useT } from './i18n';
 import { colors, tones, toneFor } from './theme';
 
 /** Icon renderer for Tabs.Screen options: `tabBarIcon: tabIcon('home-outline')`. */
@@ -59,29 +61,32 @@ export function Loading() {
 }
 
 export function ErrorBox({ error, onRetry }) {
+  const t = useT();
   return (
     <View style={[styles.card, { backgroundColor: colors.dangerSoft, borderColor: '#FECACA' }]}>
-      <Text style={[styles.body, { color: colors.danger }]}>{error?.message ?? 'Something went wrong.'}</Text>
+      <Text style={[styles.body, { color: colors.danger }]}>{error?.message ?? t('Something went wrong.')}</Text>
       {onRetry ? <Button title="Try again" variant="secondary" onPress={onRetry} style={{ marginTop: 12 }} /> : null}
     </View>
   );
 }
 
 export function Empty({ text, icon = 'file-tray-outline' }) {
+  const t = useT();
   return (
     <View style={styles.empty}>
       <Ionicons name={icon} size={32} color={colors.muted} />
-      <Text style={[styles.muted, { marginTop: 8, textAlign: 'center' }]}>{text}</Text>
+      <Text style={[styles.muted, { marginTop: 8, textAlign: 'center' }]}>{t(text)}</Text>
     </View>
   );
 }
 
 export function Card({ title, right, children, onPress, style }) {
+  const t = useT();
   const content = (
     <>
       {title || right ? (
         <View style={styles.cardHeader}>
-          {title ? <Text style={styles.cardTitle}>{title}</Text> : <View />}
+          {title ? <Text style={styles.cardTitle}>{t(title)}</Text> : <View />}
           {right}
         </View>
       ) : null}
@@ -103,9 +108,10 @@ export function Card({ title, right, children, onPress, style }) {
 }
 
 export function SectionTitle({ children, right }) {
+  const t = useT();
   return (
     <View style={styles.sectionTitle}>
-      <Text style={styles.sectionTitleText}>{children}</Text>
+      <Text style={styles.sectionTitleText}>{t(children)}</Text>
       {right}
     </View>
   );
@@ -116,6 +122,7 @@ export function StatGrid({ children }) {
 }
 
 export function Stat({ label, value, tone = 'neutral', icon }) {
+  const translate = useT();
   const t = tones[tone];
   return (
     <View style={styles.stat}>
@@ -126,16 +133,17 @@ export function Stat({ label, value, tone = 'neutral', icon }) {
         {value}
       </Text>
       <Text style={styles.statLabel} numberOfLines={2}>
-        {label}
+        {translate(label)}
       </Text>
     </View>
   );
 }
 
 export function Row({ label, value, last }) {
+  const t = useT();
   return (
     <View style={[styles.row, last && { borderBottomWidth: 0 }]}>
-      <Text style={[styles.muted, styles.rowLabel]}>{label}</Text>
+      <Text style={[styles.muted, styles.rowLabel]}>{t(label)}</Text>
       <Text style={[styles.body, styles.rowValue]}>{value ?? '—'}</Text>
     </View>
   );
@@ -151,6 +159,7 @@ export function Badge({ label, tone }) {
 }
 
 export function ListItem({ title, subtitle, right, onPress, icon }) {
+  const t = useT();
   return (
     <Pressable
       onPress={onPress}
@@ -164,7 +173,7 @@ export function ListItem({ title, subtitle, right, onPress, icon }) {
         </View>
       ) : null}
       <View style={styles.flex}>
-        <Text style={styles.listTitle}>{title}</Text>
+        <Text style={styles.listTitle}>{t(title)}</Text>
         {subtitle ? <Text style={styles.muted}>{subtitle}</Text> : null}
       </View>
       {right ?? (onPress ? <Ionicons name="chevron-forward" size={18} color={colors.muted} /> : null)}
@@ -173,6 +182,7 @@ export function ListItem({ title, subtitle, right, onPress, icon }) {
 }
 
 export function Button({ title, onPress, loading, disabled, variant = 'primary', icon, style }) {
+  const t = useT();
   const secondary = variant === 'secondary';
   const danger = variant === 'danger';
   const inactive = disabled || loading;
@@ -195,7 +205,7 @@ export function Button({ title, onPress, loading, disabled, variant = 'primary',
       ) : (
         <View style={styles.buttonInner}>
           {icon ? <Ionicons name={icon} size={18} color={secondary ? colors.primary : '#fff'} /> : null}
-          <Text style={[styles.buttonText, secondary && { color: colors.primary }]}>{title}</Text>
+          <Text style={[styles.buttonText, secondary && { color: colors.primary }]}>{t(title)}</Text>
         </View>
       )}
     </Pressable>
@@ -203,9 +213,10 @@ export function Button({ title, onPress, loading, disabled, variant = 'primary',
 }
 
 export function Field({ label, error, style, ...inputProps }) {
+  const t = useT();
   return (
     <View style={[{ marginBottom: 14 }, style]}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+      {label ? <Text style={styles.label}>{t(label)}</Text> : null}
       <TextInput
         placeholderTextColor="#94A3B8"
         style={[styles.input, inputProps.multiline && { minHeight: 96, textAlignVertical: 'top' }]}
@@ -218,6 +229,7 @@ export function Field({ label, error, style, ...inputProps }) {
 
 /** Horizontal single-choice chips. options: [{ label, value }] */
 export function Chips({ options, value, onChange, style }) {
+  const t = useT();
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[{ marginBottom: 12 }, style]}>
       {options.map((option) => {
@@ -230,7 +242,7 @@ export function Chips({ options, value, onChange, style }) {
             accessibilityState={{ selected }}
             style={[styles.chip, selected && styles.chipSelected]}
           >
-            <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.label}</Text>
+            <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{t(option.label)}</Text>
           </Pressable>
         );
       })}
@@ -238,7 +250,77 @@ export function Chips({ options, value, onChange, style }) {
   );
 }
 
+/**
+ * A date with previous / next day arrows. `min` / `max` ("YYYY-MM-DD") stop the arrows; `label` sits above.
+ */
+export function DateStepper({ label, value, onChange, min, max, style }) {
+  const prev = addDaysIso(value, -1);
+  const next = addDaysIso(value, 1);
+  const canPrev = !min || prev >= min;
+  const canNext = !max || next <= max;
+  const t = useT();
+  return (
+    <View style={[{ marginBottom: 12 }, style]}>
+      {label ? <Text style={styles.label}>{t(label)}</Text> : null}
+      <View style={styles.stepper}>
+        <Pressable
+          onPress={() => onChange(prev)}
+          disabled={!canPrev}
+          accessibilityRole="button"
+          accessibilityLabel="Previous day"
+          style={[styles.stepperButton, !canPrev && { opacity: 0.3 }]}
+        >
+          <Ionicons name="chevron-back" size={20} color={colors.primary} />
+        </Pressable>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={[styles.body, { fontWeight: '700' }]}>{formatDate(value)}</Text>
+          <Text style={styles.muted}>{t(value === todayIso() ? 'Today' : weekdayOf(value))}</Text>
+        </View>
+        <Pressable
+          onPress={() => onChange(next)}
+          disabled={!canNext}
+          accessibilityRole="button"
+          accessibilityLabel="Next day"
+          style={[styles.stepperButton, !canNext && { opacity: 0.3 }]}
+        >
+          <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+/** English / हिन्दी switch; the choice is saved on the device. */
+export function LanguageSwitch({ style }) {
+  const { language, setLanguage, t } = useLanguage();
+  return (
+    <Card title={t('Language')} style={style}>
+      <Chips options={LANGUAGES} value={language} onChange={setLanguage} style={{ marginBottom: 0 }} />
+    </Card>
+  );
+}
+
+/** Green (or red with `tone="danger"`) message card shown after a form saves. */
+export function InfoCard({ text, tone = 'success' }) {
+  const t = tones[tone];
+  return (
+    <View style={[styles.card, { backgroundColor: t.bg, borderColor: t.bg }]}>
+      <Text style={[styles.body, { color: t.fg }]}>{text}</Text>
+    </View>
+  );
+}
+
 export const styles = StyleSheet.create({
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingVertical: 6,
+  },
+  stepperButton: { paddingHorizontal: 14, paddingVertical: 6 },
   flex: { flex: 1 },
   screen: { flex: 1, backgroundColor: colors.background },
   screenContent: { padding: 16, paddingBottom: 32 },

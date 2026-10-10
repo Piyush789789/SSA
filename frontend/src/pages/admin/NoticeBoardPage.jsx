@@ -8,8 +8,10 @@ import { DeleteNoticeModal } from '@/components/notices/DeleteNoticeModal';
 import { AsyncState } from '@/components/common/AsyncState';
 import { useApi } from '@/hooks/useApi';
 import { http } from '@/api/http';
+import { useI18n } from '@/i18n/translate';
 
 export const NoticeBoardPage = () => {
+  const { tx } = useI18n();
   const [activeSidebarId, setActiveSidebarId] = useState('notice-board');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -82,7 +84,7 @@ export const NoticeBoardPage = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                Notice Board
+                {tx('Notice Board')}
               </h1>
               <p className="text-xs sm:text-sm font-normal text-slate-500 mt-1">
                 {count === undefined
@@ -97,7 +99,7 @@ export const NoticeBoardPage = () => {
               className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] active:bg-[#D94E13] text-white font-semibold text-xs sm:text-sm rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-all duration-200 cursor-pointer shrink-0 self-start sm:self-auto"
             >
               <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>New Notice</span>
+              <span>{tx('New Notice')}</span>
             </button>
           </div>
 

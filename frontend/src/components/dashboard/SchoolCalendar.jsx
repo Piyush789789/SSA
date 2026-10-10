@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDate, parseIsoDate, toIsoDate } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -22,6 +23,7 @@ const buildMonthGrid = (year, month) => {
  * holiday/event calendar yet, so only exam dates are shown.
  */
 export const SchoolCalendar = ({ papers = [], today }) => {
+  const { t } = useI18n();
   const todayDate = parseIsoDate(today);
   const [view, setView] = useState({ year: todayDate.getFullYear(), month: todayDate.getMonth() });
 
@@ -54,7 +56,7 @@ export const SchoolCalendar = ({ papers = [], today }) => {
             <CalendarIcon className="w-4 h-4 stroke-[2.2]" />
           </div>
           <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-            School Calendar
+            {t('nav.schoolCalendar')}
           </h3>
         </div>
 
@@ -116,7 +118,7 @@ export const SchoolCalendar = ({ papers = [], today }) => {
         {/* Upcoming Events Section */}
         <div>
           <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
-            UPCOMING EXAMS
+            {t('dash.upcomingExams')}
           </h4>
 
           {events.length === 0 ? (

@@ -8,6 +8,7 @@ import { UnsavedChangesModal } from '@/components/roles/UnsavedChangesModal';
 import { SERVER_TEACHER_RULES } from '@/components/roles/permissionGroups';
 import { AsyncState } from '@/components/common/AsyncState';
 import { useApi } from '@/hooks/useApi';
+import { useI18n } from '@/i18n/translate';
 
 /**
  * Teachers come from GET /teachers. The backend has NO permissions API yet: every teacher gets the same
@@ -15,6 +16,7 @@ import { useApi } from '@/hooks/useApi';
  * this browser tab (lost on reload) — the page says so clearly.
  */
 export const RolesPermissionsPage = () => {
+  const { tx } = useI18n();
   const [activeSidebarId, setActiveSidebarId] = useState('roles-permissions');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -103,7 +105,7 @@ export const RolesPermissionsPage = () => {
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                Roles &amp; Permissions
+                {tx('Roles & Permissions')}
               </h1>
               <p className="text-xs sm:text-sm font-semibold text-slate-400 mt-0.5">
                 Assign permissions to teachers

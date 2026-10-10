@@ -1,6 +1,9 @@
 package com.ssa.schoolerp.seed;
 
 import com.ssa.schoolerp.model.AttendanceRecord;
+import com.ssa.schoolerp.model.CalendarEvent;
+import com.ssa.schoolerp.model.LeaveRequest;
+import com.ssa.schoolerp.model.StaffAttendance;
 import com.ssa.schoolerp.model.AttendanceStatus;
 import com.ssa.schoolerp.model.Audience;
 import com.ssa.schoolerp.model.Concession;
@@ -19,11 +22,14 @@ import com.ssa.schoolerp.model.Parent;
 import com.ssa.schoolerp.model.RecipientType;
 import com.ssa.schoolerp.model.Role;
 import com.ssa.schoolerp.model.SchoolClass;
+import com.ssa.schoolerp.model.SchoolSettings;
 import com.ssa.schoolerp.model.Student;
 import com.ssa.schoolerp.model.StudyMaterial;
 import com.ssa.schoolerp.model.Teacher;
 import com.ssa.schoolerp.model.TimetableEntry;
 import com.ssa.schoolerp.model.TimetablePeriod;
+import com.ssa.schoolerp.model.UserAccount;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import com.ssa.schoolerp.repository.DataStore;
 
 import java.time.DayOfWeek;
@@ -115,6 +121,55 @@ public final class SeedData {
         seedStudyMaterials(store, today);
         seedMessages(store, today);
         seedTimetable(store);
+        seedOperations(store, today);
+        CampusSeed.populate(store, today);
+        seedSettings(store);
+        seedAccounts(store);
+    }
+
+    /** School details for certificates and report cards; the admin fills in the official numbers. */
+    public static void seedSettings(DataStore s) {
+        s.settings.save(new SchoolSettings("SSA Shiv Shanti Adarsh Academy", "Civil Lines, Meerut, Uttar Pradesh",
+                null, null, "CBSE", null, null, null, ACADEMIC_YEAR));
+    }
+
+    /**
+     * Demo logins: the four documented accounts, plus one for every other teacher, student and parent
+     * (login = their email or ID; password teacher123 / student123 / parent123). Also used once to create
+     * accounts for a database that was filled before accounts existed.
+     */
+    public static void seedAccounts(DataStore s) {
+        account(s, ADMIN_ID, "admin@ssa.edu", DemoPasswords.ADMIN, Role.ADMIN, null, "School Administrator");
+        account(s, "teacher-001", "teacher@ssa.edu", DemoPasswords.TEACHER, Role.TEACHER, DEMO_TEACHER_ID,
+                s.teachers.findById(DEMO_TEACHER_ID).map(Teacher::name).orElse("Demo Teacher"));
+        account(s, "student-001", "student@ssa.edu", DemoPasswords.STUDENT, Role.STUDENT, DEMO_STUDENT_ID,
+                s.students.findById(DEMO_STUDENT_ID).map(Student::name).orElse("Demo Student"));
+        account(s, "parent-001", "parent@ssa.edu", DemoPasswords.PARENT, Role.PARENT, DEMO_PARENT_ID,
+                s.parents.findById(DEMO_PARENT_ID).map(Parent::name).orElse("Demo Parent"));
+
+        s.teachers.stream().filter(t -> !t.id().equals(DEMO_TEACHER_ID)).forEach(t ->
+                account(s, "ACC-" + t.id(), t.email(), DemoPasswords.TEACHER, Role.TEACHER, t.id(), t.name()));
+        s.students.stream().filter(st -> !st.id().equals(DEMO_STUDENT_ID)).forEach(st ->
+                account(s, "ACC-" + st.id(), st.email() != null ? st.email() : st.id().toLowerCase(Locale.ROOT),
+                        DemoPasswords.STUDENT, Role.STUDENT, st.id(), st.name()));
+        s.parents.stream().filter(p -> !p.id().equals(DEMO_PARENT_ID)).forEach(p ->
+                account(s, "ACC-" + p.id(), p.email() != null ? p.email() : p.id().toLowerCase(Locale.ROOT),
+                        DemoPasswords.PARENT, Role.PARENT, p.id(), p.name()));
+    }
+
+    private static void account(DataStore s, String id, String loginId, String passwordHash, Role role, String profileId,
+                                String name) {
+        s.accounts.save(new UserAccount(id, loginId.toLowerCase(Locale.ROOT), passwordHash, role, profileId, name, true,
+                false, 0, null, null));
+    }
+
+    /** BCrypt is slow on purpose, so the four demo password hashes are computed once and reused. */
+    private static final class DemoPasswords {
+        private static final BCryptPasswordEncoder ENCODER = new BCryptPasswordEncoder();
+        static final String ADMIN = ENCODER.encode("admin123");
+        static final String TEACHER = ENCODER.encode("teacher123");
+        static final String STUDENT = ENCODER.encode("student123");
+        static final String PARENT = ENCODER.encode("parent123");
     }
 
     /** A stable pseudo-random number in 0..99 derived from the keys. */
@@ -127,6 +182,49 @@ public final class SeedData {
     }
 
     // ---------------------------------------------------------------- people and classes
+
+    /** Upcoming holidays/events, staff attendance for the last two weeks, and leave applications. */
+    private static void seedOperations(DataStore s, LocalDate today) {
+        s.calendar.save(new CalendarEvent("CAL-001", "Diwali break", nextWeekday(today.plusDays(22)),
+                nextWeekday(today.plusDays(22)).plusDays(2), CalendarEvent.HOLIDAY, "School closed for Diwali."));
+        s.calendar.save(new CalendarEvent("CAL-002", "Annual Sports Day", nextWeekday(today.plusDays(30)), null,
+                CalendarEvent.EVENT, "Parents are welcome from 9 AM on the main ground."));
+        s.calendar.save(new CalendarEvent("CAL-003", "Founders' Day", nextWeekday(today.plusDays(35)), null,
+                CalendarEvent.HOLIDAY, null));
+
+        List<Teacher> teachers = s.teachers.findAll();
+        for (int back = 14; back >= 1; back--) {
+            LocalDate day = today.minusDays(back);
+            if (day.getDayOfWeek() == DayOfWeek.SUNDAY) continue;
+            for (Teacher t : teachers) {
+                boolean absent = t.id().equals("TCH-2026-006") && back == 3;
+                s.staffAttendance.save(new StaffAttendance(t.id(), t.name(), day,
+                        absent ? StaffAttendance.ABSENT : StaffAttendance.PRESENT,
+                        absent ? null : LocalTime.of(7, 40 + (back + t.id().hashCode() & 15)),
+                        absent ? null : LocalTime.of(14, 30), "Office"));
+            }
+        }
+
+        // Tabassum Bano is on approved leave today (so the substitution screen has periods to cover).
+        java.time.LocalDateTime applied = today.minusDays(2).atTime(9, 0);
+        s.leaves.save(new LeaveRequest("LV-001", LeaveRequest.STAFF, "TCH-2026-005", "Tabassum Bano", null, today, today,
+                "Family function", LeaveRequest.APPROVED, "TCH-2026-005", "Tabassum Bano", applied, "Principal",
+                applied.plusHours(3), "Approved"));
+        if (today.getDayOfWeek() != DayOfWeek.SUNDAY) {
+            s.staffAttendance.save(new StaffAttendance("TCH-2026-005", "Tabassum Bano", today, StaffAttendance.LEAVE,
+                    null, null, "Approved leave"));
+        }
+        s.leaves.save(new LeaveRequest("LV-002", LeaveRequest.STUDENT, "STU-2026-0512", "Ananya Verma", "5-B",
+                today.plusDays(3), today.plusDays(4), "Cousin's wedding in Jaipur", LeaveRequest.PENDING,
+                "PRN-2026-001", "Rajesh Verma", today.minusDays(1).atTime(19, 30), null, null, null));
+        s.leaves.save(new LeaveRequest("LV-003", LeaveRequest.STAFF, "TCH-2026-001", "Anjali Singh", null,
+                today.plusDays(6), today.plusDays(6), "Medical appointment", LeaveRequest.PENDING, "TCH-2026-001",
+                "Anjali Singh", today.atTime(8, 0), null, null, null));
+    }
+
+    private static LocalDate nextWeekday(LocalDate day) {
+        return day.getDayOfWeek() == DayOfWeek.SUNDAY ? day.plusDays(1) : day;
+    }
 
     private static void seedTeachers(DataStore s) {
         teacher(s, "TCH-2026-001", "Anjali Singh", "M.Sc Mathematics, B.Ed", 8, LocalDate.of(2018, 6, 15),

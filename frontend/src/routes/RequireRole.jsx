@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { LoadingMessage } from '@/components/common/AsyncState';
+import { ForcedPasswordChange } from '@/components/common/ChangePassword';
 
 export const HOME_BY_ROLE = {
   admin: '/admin/dashboard',
@@ -30,6 +31,9 @@ export const RequireRole = ({ role, children }) => {
   }
   if (currentUser.role !== role) {
     return <Navigate to={HOME_BY_ROLE[currentUser.role] ?? '/login'} replace />;
+  }
+  if (currentUser.mustChangePassword) {
+    return <ForcedPasswordChange />;
   }
   return children;
 };

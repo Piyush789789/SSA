@@ -29,6 +29,16 @@ public final class ReferenceData {
     public static final List<String> CONCESSION_TYPES = List.of(
             "Merit", "Sibling", "Staff Ward", "Financial Aid", "Sports");
 
+    /** CBSE co-scholastic areas graded A/B/C on the report card. */
+    public static final List<String> CO_SCHOLASTIC_AREAS = List.of(
+            "Work Education", "Art Education", "Health & Physical Education", "Discipline");
+
+    public static final List<String> CO_SCHOLASTIC_GRADES = List.of("A", "B", "C");
+
+    public static final List<String> REPORT_TERMS = List.of("Term 1", "Term 2");
+
+    public static final List<String> CONDUCT_OPTIONS = List.of("Excellent", "Very Good", "Good", "Satisfactory");
+
     private ReferenceData() {
     }
 }

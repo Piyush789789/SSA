@@ -12,7 +12,18 @@ const CHILD_STORAGE_KEY = 'ssa_selected_child';
  */
 function buildCurrentUser({ user, profile, children }) {
   const role = user.role.toLowerCase();
-  const base = { userId: user.id, id: user.id, role, name: user.name, email: user.email, avatar: initialsOf(user.name) };
+  const base = {
+    userId: user.id,
+    id: user.id,
+    role,
+    name: user.name,
+    email: user.email,
+    avatar: initialsOf(user.name),
+    mustChangePassword: Boolean(user.mustChangePassword),
+    // Admin staff roles: an empty list means a full administrator; otherwise the modules they may change.
+    permissions: Array.isArray(user.permissions) ? user.permissions : [],
+    staffTitle: user.staffTitle ?? null,
+  };
 
   switch (role) {
     case 'teacher':

@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, Search, ChevronDown, Building2, LogOut, Mail } from 'lucide-react';
+import { Menu, Search, ChevronDown, Building2, LogOut, Mail, KeyRound } from 'lucide-react';
+import { ChangePasswordModal } from '@/components/common/ChangePassword';
+import { NotificationBell } from '@/components/common/NotificationBell';
+import { LanguageSwitch } from '@/components/common/LanguageSwitch';
+import { useI18n } from '@/i18n/translate';
 import { APP_CONFIG } from '@/config/env';
 import { ROUTES } from '@/constants/routes';
 import { useAuth } from '@/context/AuthContext';
@@ -9,12 +13,16 @@ import { initialsOf } from '@/utils';
 export const DashboardHeader = ({ onToggleSidebar }) => {
   const navigate = useNavigate();
   const { currentUser, logout } = useAuth();
+  const { t } = useI18n();
   const [query, setQuery] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isPasswordOpen, setIsPasswordOpen] = useState(false);
   const menuRef = useRef(null);
 
   const name = currentUser?.name || 'Admin';
   const initials = initialsOf(name) || 'A';
+  const isLimitedStaff = (currentUser?.permissions?.length ?? 0) > 0;
+  const roleTitle = currentUser?.staffTitle || (isLimitedStaff ? 'School Staff' : 'School Administrator');
 
   useEffect(() => {
     if (!isMenuOpen) return undefined;
@@ -65,6 +73,9 @@ export const DashboardHeader = ({ onToggleSidebar }) => {
 
       {/* Right User Actions & Avatar Section */}
       <div className="flex items-center gap-2.5 sm:gap-4 shrink-0">
+        <LanguageSwitch />
+        <NotificationBell portal="admin" />
+
         {/* School Name Pill */}
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs font-semibold text-slate-700">
           <Building2 className="w-4 h-4 text-[#FF6B2C] stroke-[2]" />
@@ -83,7 +94,12 @@ export const DashboardHeader = ({ onToggleSidebar }) => {
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#FF6B2C] to-[#E04E15] text-white flex items-center justify-center font-bold text-xs shadow-sm ring-2 ring-orange-100">
               {initials}
             </div>
-            <span className="hidden md:block text-xs font-bold text-slate-800 max-w-[140px] truncate">{name}</span>
+            <span className="hidden md:flex flex-col items-start max-w-[160px]">
+              <span className="text-xs font-bold text-slate-800 max-w-[160px] truncate">{name}</span>
+              {currentUser?.staffTitle && (
+                <span className="text-[10px] font-semibold text-slate-400 max-w-[160px] truncate">{currentUser.staffTitle}</span>
+              )}
+            </span>
             <ChevronDown className="hidden md:block w-3.5 h-3.5 text-slate-400 stroke-[2]" />
           </button>
 
@@ -94,7 +110,7 @@ export const DashboardHeader = ({ onToggleSidebar }) => {
             >
               <div className="px-4 py-2.5 border-b border-slate-100">
                 <p className="font-extrabold text-slate-900 text-sm truncate">{name}</p>
-                <p className="text-slate-400 font-medium mt-0.5">School Administrator</p>
+                <p className="text-slate-400 font-medium mt-0.5">{roleTitle}</p>
                 {currentUser?.email && (
                   <p className="flex items-center gap-1.5 text-slate-500 mt-1.5 truncate">
                     <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -105,16 +121,33 @@ export const DashboardHeader = ({ onToggleSidebar }) => {
               <button
                 type="button"
                 role="menuitem"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  setIsPasswordOpen(true);
+                }}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-slate-700 font-bold hover:bg-slate-50 cursor-pointer"
+              >
+                <KeyRound className="w-4 h-4" />
+                <span>{t('common.changePassword')}</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
                 onClick={handleLogout}
                 className="w-full flex items-center gap-2.5 px-4 py-2.5 text-rose-600 font-bold hover:bg-rose-50 cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
-                <span>Log out</span>
+                <span>{t('common.logOut')}</span>
               </button>
             </div>
           )}
         </div>
       </div>
+      <ChangePasswordModal
+        isOpen={isPasswordOpen}
+        onClose={() => setIsPasswordOpen(false)}
+        onDone={() => setIsPasswordOpen(false)}
+      />
     </header>
   );
 };

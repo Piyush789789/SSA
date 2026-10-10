@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { http, withQuery } from '@/api/http';
 import { useApi } from '@/hooks/useApi';
 import { formatCurrency } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 const NONE = [];
 
@@ -11,6 +12,7 @@ const NONE = [];
  * student → due; the concession lowers what is owed on that due. `concessionTypes` come from GET /meta.
  */
 export const ConcessionModal = ({ isOpen, classes = NONE, concessionTypes = NONE, onClose, onSaved }) => {
+  const { tx } = useI18n();
   const [className, setClassName] = useState('');
   const [studentId, setStudentId] = useState('');
   const [feeDueId, setFeeDueId] = useState('');
@@ -100,7 +102,7 @@ export const ConcessionModal = ({ isOpen, classes = NONE, concessionTypes = NONE
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in">
       <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 relative space-y-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-          <h3 className="text-lg font-extrabold text-slate-900">Add Concession</h3>
+          <h3 className="text-lg font-extrabold text-slate-900">{tx('Add Concession')}</h3>
           <button
             type="button"
             onClick={onClose}
@@ -246,14 +248,14 @@ export const ConcessionModal = ({ isOpen, classes = NONE, concessionTypes = NONE
               onClick={onClose}
               className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-2xl transition-colors cursor-pointer"
             >
-              Cancel
+              {tx('Cancel')}
             </button>
             <button
               type="submit"
               disabled={saving || !selectedDue}
               className="px-6 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] active:bg-[#D94E13] text-white font-semibold text-xs rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-colors cursor-pointer disabled:opacity-60"
             >
-              {saving ? 'Saving…' : 'Add Concession'}
+              {saving ? tx('Saving…') : tx('Add Concession')}
             </button>
           </div>
         </form>

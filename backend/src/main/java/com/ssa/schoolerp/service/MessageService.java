@@ -33,11 +33,13 @@ public class MessageService {
     private final DataStore store;
     private final AccessGuard guard;
     private final Clock clock;
+    private final NotificationService notifications;
 
-    public MessageService(DataStore store, AccessGuard guard, Clock clock) {
+    public MessageService(DataStore store, AccessGuard guard, Clock clock, NotificationService notifications) {
         this.store = store;
         this.guard = guard;
         this.clock = clock;
+        this.notifications = notifications;
     }
 
     public List<Message> inbox(User user) {
@@ -114,7 +116,17 @@ public class MessageService {
         Message message = new Message(store.nextId("MSG"), user.actorId(), user.getName(), user.getRole(),
                 request.recipientType(), className, request.recipientId(), recipientName, request.subject(),
                 request.body(), LocalDateTime.now(clock));
-        return store.messages.save(message);
+        Message saved = store.messages.save(message);
+        String title = "Message from " + user.getName();
+        switch (saved.recipientType()) {
+            case CLASS -> notifications.notifyClassFamilies(List.of(saved.className()), title, saved.subject(),
+                    NotificationService.MESSAGE, "/messages");
+            case STUDENT -> store.students.findById(saved.recipientId()).ifPresent(s -> notifications.notifyFamily(s,
+                    title, saved.subject(), NotificationService.MESSAGE, "/messages", false));
+            case TEACHER -> notifications.notify(List.of(saved.recipientId()), title, saved.subject(),
+                    NotificationService.MESSAGE, "/messages");
+        }
+        return saved;
     }
 
     private static String required(String value, String field) {

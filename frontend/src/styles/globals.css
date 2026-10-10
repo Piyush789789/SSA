@@ -14,3 +14,136 @@
     @apply bg-white text-slate-900 antialiased font-sans;
   }
 }
+
+/*
+ * ID cards: CR80 size (85.6 × 54 mm), 8 per A4 page in 2 columns × 4 rows (same size on screen and paper).
+ */
+.id-card-page {
+  display: grid;
+  grid-template-columns: repeat(2, 85.6mm);
+  grid-auto-rows: 54mm;
+  gap: 4mm 6mm;
+  justify-content: center;
+}
+
+.id-card {
+  width: 85.6mm;
+  height: 54mm;
+  overflow: hidden;
+  border-radius: 3mm;
+  box-sizing: border-box;
+}
+
+.id-card-blank {
+  visibility: hidden;
+}
+
+.id-card-photo {
+  width: 20mm;
+  height: 25mm;
+  border-radius: 1.5mm;
+  border: 1px solid #cbd5e1;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+/*
+ * Printable sheets (report cards, certificates). While a `.print-sheet` is on the page, printing shows only
+ * that sheet: the app chrome (sidebar, header, toolbars marked `.no-print`) is removed.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  body:has(.print-sheet) aside,
+  body:has(.print-sheet) header,
+  body:has(.print-sheet) .no-print {
+    display: none !important;
+  }
+
+  body:has(.print-sheet) * {
+    visibility: hidden;
+  }
+
+  body:has(.print-sheet) .print-sheet,
+  body:has(.print-sheet) .print-sheet * {
+    visibility: visible;
+  }
+
+  body:has(.print-sheet) .print-sheet {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    margin: 0;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+  }
+
+  body:has(.print-sheet),
+  body:has(.print-sheet) #root {
+    background: #fff !important;
+    height: auto;
+  }
+
+  .print-sheet {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-sheet table {
+    page-break-inside: auto;
+  }
+
+  .print-sheet tr {
+    page-break-inside: avoid;
+  }
+
+  /* Admit cards: two per A4 page (each .admit-card-page holds a pair), never split across pages. */
+  .admit-card-page {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .admit-card-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .admit-card {
+    zoom: 0.85;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* ID cards: each .id-card-page (8 fronts, or their 8 backs) fills one A4 page. */
+  .id-card-page {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .id-card-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .id-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Room-wise seating lists: one room per page. */
+  .seating-room {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .seating-room:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+}

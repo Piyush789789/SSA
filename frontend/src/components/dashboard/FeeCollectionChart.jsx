@@ -10,11 +10,13 @@ import {
   Cell,
 } from 'recharts';
 import { monthKey } from './dashboardDates';
+import { useI18n } from '@/i18n/translate';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** Money collected per month over the last 6 months, summed from GET /fees/payments. */
 export const FeeCollectionChart = ({ payments = [], today, months = 6 }) => {
+  const { t } = useI18n();
   const chartData = useMemo(() => {
     const totals = new Map();
     payments.forEach((p) => {
@@ -48,10 +50,10 @@ export const FeeCollectionChart = ({ payments = [], today, months = 6 }) => {
     <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-          Fee Collection
+          {t('dash.feeCollection')}
         </h3>
         <span className="text-xs font-semibold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/60">
-          Last {months} months
+          {t('dash.lastNMonths', { months })}
         </span>
       </div>
 

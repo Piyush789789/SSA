@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Printer, GraduationCap } from 'lucide-react';
 import { formatCurrency, formatDateTime } from '@/utils';
+import { useI18n } from '@/i18n/translate';
 
 // When printing, show only the receipt (not the page behind the modal).
 const PRINT_CSS = `
@@ -12,6 +13,7 @@ const PRINT_CSS = `
 
 /** Receipt for a Payment returned by the API (POST /fees/payments or GET /fees/payments). */
 export const PaymentReceiptModal = ({ isOpen, transaction, onClose }) => {
+  const { tx } = useI18n();
   if (!isOpen || !transaction) return null;
 
   return (
@@ -115,7 +117,7 @@ export const PaymentReceiptModal = ({ isOpen, transaction, onClose }) => {
             onClick={onClose}
             className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-2xl transition-colors cursor-pointer"
           >
-            Close
+            {tx('Close')}
           </button>
         </div>
       </div>

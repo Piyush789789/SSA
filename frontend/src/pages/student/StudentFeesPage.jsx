@@ -15,6 +15,9 @@ import { useApi } from '@/hooks/useApi';
 import { http, withQuery } from '@/api/http';
 import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { formatCurrency, formatDate, formatDateTime, todayIso } from '@/utils';
+import { OnlinePayButton } from '@/components/fees/OnlinePayButton';
+import { OnlinePaymentReceipt } from '@/components/fees/OnlinePaymentReceipt';
+import { useI18n } from '@/i18n/translate';
 
 const DUE_BADGES = {
   Paid: 'bg-emerald-50 border-emerald-200 text-emerald-700',
@@ -38,6 +41,7 @@ const Badge = ({ className, dot, children }) => (
 );
 
 export const StudentFeesPage = () => {
+  const { tx } = useI18n();
   const { currentUser } = useAuth();
   const [searchParams] = useSearchParams();
 
@@ -47,6 +51,16 @@ export const StudentFeesPage = () => {
   const payments = useApi(studentId ? withQuery('/fees/payments', { studentId }) : null);
   const deposits = useApi(studentId ? withQuery('/fees/deposits', { studentId }) : null);
   const meta = useApi('/meta');
+  const onlineStatus = useApi('/online-payments/status');
+  const onlineEnabled = onlineStatus.data?.enabled === true;
+  const [paidOnline, setPaidOnline] = useState(null);
+
+  const handlePaidOnline = (payment) => {
+    setPaidOnline(payment);
+    summary.reload();
+    payments.reload();
+    deposits.reload();
+  };
 
   const [dueFilter, setDueFilter] = useState(searchParams.get('filter')?.toLowerCase() === 'pending' ? 'UNPAID' : 'ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -106,7 +120,7 @@ export const StudentFeesPage = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
             <CreditCard className="w-7 h-7 text-[#FF6B2C]" />
-            Fee Details
+            {tx('Fee Details')}
           </h1>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
             Dues, receipts and deposits for {currentUser?.name}
@@ -122,6 +136,8 @@ export const StudentFeesPage = () => {
           Print Ledger
         </button>
       </div>
+
+      <OnlinePaymentReceipt payment={paidOnline} onClose={() => setPaidOnline(null)} />
 
       <AsyncState state={summary} loadingText="Loading your fee summary…">
         {(s) => (
@@ -251,13 +267,18 @@ export const StudentFeesPage = () => {
                             </td>
                             <td className="py-4 px-4 sm:px-6 text-right whitespace-nowrap">
                               {payable > 0 ? (
-                                <button
-                                  onClick={() => setDepositDue(due)}
-                                  disabled={!deposits.data}
-                                  className="px-3 py-1.5 rounded-xl bg-[#FFF5F0] hover:bg-orange-100 text-[#FF6B2C] text-xs font-bold transition-colors cursor-pointer border border-orange-200/60 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  Deposit fee
-                                </button>
+                                <div className="flex items-center justify-end gap-2">
+                                  {onlineEnabled && deposits.data && (
+                                    <OnlinePayButton due={due} amount={payable} onPaid={handlePaidOnline} />
+                                  )}
+                                  <button
+                                    onClick={() => setDepositDue(due)}
+                                    disabled={!deposits.data}
+                                    className="px-3 py-1.5 rounded-xl bg-[#FFF5F0] hover:bg-orange-100 text-[#FF6B2C] text-xs font-bold transition-colors cursor-pointer border border-orange-200/60 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    Deposit fee
+                                  </button>
+                                </div>
                               ) : (
                                 <span className="text-[11px] text-slate-400">
                                   {due.pending > 0 ? 'Awaiting verification' : '—'}
@@ -467,6 +488,7 @@ const inputClass =
   'w-full h-11 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 px-4 focus:outline-none focus:border-[#FF6B2C] focus:bg-white transition-all';
 
 const DepositModal = ({ due, maxAmount, meta, onClose, onSaved }) => {
+  const { tx } = useI18n();
   const modes = meta?.depositModes || [];
   const [form, setForm] = useState({
     amount: String(maxAmount),
@@ -598,14 +620,14 @@ const DepositModal = ({ due, maxAmount, meta, onClose, onSaved }) => {
             onClick={onClose}
             className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
           >
-            Cancel
+            {tx('Cancel')}
           </button>
           <button
             type="submit"
             disabled={saving}
             className="px-5 py-2 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {saving ? 'Submitting…' : 'Submit for verification'}
+            {saving ? tx('Submitting…') : tx('Submit for verification')}
           </button>
         </div>
       </form>
