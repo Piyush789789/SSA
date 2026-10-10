@@ -61,13 +61,13 @@ public class Student implements Identifiable {
     private String penNumber;
 
     /** APAAR ID ("One Nation One Student ID"), 12 digits. */
-    @Pattern(regexp = "\\d{12}")
+    @Pattern(regexp = "(\\d{12})?")
     private String apaarId;
 
     /** Admitted under the RTE 25% quota (free seat). */
     private Boolean rte;
 
-    @Pattern(regexp = "General|OBC|SC|ST|EWS")
+    @Pattern(regexp = "(General|OBC|SC|ST|EWS)?")
     private String socialCategory;
 
     private String fatherName;
@@ -109,29 +109,36 @@ public class Student implements Identifiable {
         this.guardian = guardian;
     }
 
-    /** Copies the government-record fields and photo onto a rebuilt copy. */
+    /** Copies the government-record fields and photo onto a rebuilt copy (blank text is stored as null). */
     private Student carry(Student next) {
-        next.penNumber = penNumber;
-        next.apaarId = apaarId;
+        next.penNumber = blankToNull(penNumber);
+        next.apaarId = blankToNull(apaarId);
         next.rte = rte;
-        next.socialCategory = socialCategory;
-        next.fatherName = fatherName;
-        next.motherName = motherName;
-        next.photoFileId = photoFileId;
+        next.socialCategory = blankToNull(socialCategory);
+        next.fatherName = blankToNull(fatherName);
+        next.motherName = blankToNull(motherName);
+        next.photoFileId = blankToNull(photoFileId);
         return next;
     }
 
-    /** Fields an older form leaves out (null) keep their saved value. */
+    /**
+     * For an update: a field the form left out (null) keeps its saved value; a field sent empty ("") clears it,
+     * so a wrong PEN or APAAR ID can be removed.
+     */
     public Student keepingRecordsOf(Student saved) {
         Student next = carry(withStatus(status));
-        if (next.penNumber == null) next.penNumber = saved.penNumber;
-        if (next.apaarId == null) next.apaarId = saved.apaarId;
-        if (next.rte == null) next.rte = saved.rte;
-        if (next.socialCategory == null) next.socialCategory = saved.socialCategory;
-        if (next.fatherName == null) next.fatherName = saved.fatherName;
-        if (next.motherName == null) next.motherName = saved.motherName;
-        if (next.photoFileId == null) next.photoFileId = saved.photoFileId;
+        if (penNumber == null) next.penNumber = saved.penNumber;
+        if (apaarId == null) next.apaarId = saved.apaarId;
+        if (rte == null) next.rte = saved.rte;
+        if (socialCategory == null) next.socialCategory = saved.socialCategory;
+        if (fatherName == null) next.fatherName = saved.fatherName;
+        if (motherName == null) next.motherName = saved.motherName;
+        if (photoFileId == null) next.photoFileId = saved.photoFileId;
         return next;
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     public Student withPhoto(String fileId) {

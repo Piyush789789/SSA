@@ -1,17 +1,33 @@
 ﻿import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LanguageSwitch } from '@/components/common/LanguageSwitch';
 import { useI18n } from '@/i18n/translate';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Shield, BookOpen, GraduationCap, Heart, AlertCircle, Loader2 } from 'lucide-react';
 import { RoleSelector } from './RoleSelector';
+import { ForgotPasswordLink } from './ForgotPassword';
 import { ROLES } from '@/constants/roles';
 import { ROUTES } from '@/constants/routes';
 import { useAuth } from '@/context/AuthContext';
 import { authApi } from '@/api/authApi';
 import { HOME_BY_ROLE } from '@/routes/RequireRole';
 
+const PORTAL_PREFIXES = ['/admin/', '/teacher/', '/student/', '/parent/'];
+
+/**
+ * Where to go after signing in: back to the page the user was sent away from (RequireRole remembers it in
+ * location.state.from), unless that page belongs to another portal; otherwise the portal's home.
+ */
+const destinationAfterLogin = (role, from) => {
+  const home = HOME_BY_ROLE[role] ?? ROUTES.LOGIN;
+  if (typeof from !== 'string' || !from.startsWith('/') || from.startsWith('//')) return home;
+  if (from === '/' || from === ROUTES.LOGIN) return home;
+  const otherPortal = PORTAL_PREFIXES.some((prefix) => from.startsWith(prefix) && !home.startsWith(prefix));
+  return otherPortal ? home : from;
+};
+
 export const LoginForm = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { loginWithApi } = useAuth();
   const { t } = useI18n();
   const [selectedRoleId, setSelectedRoleId] = useState('Teacher');
@@ -45,19 +61,21 @@ export const LoginForm = () => {
     setIsLoading(true);
 
     try {
-      const response = await authApi.login(email, password, selectedRoleId);
+      // Mobile keyboards and copy-paste often add a trailing space to the login ID.
+      const response = await authApi.login(email.trim(), password, selectedRoleId);
       if (response && response.success && response.user) {
         const user = await loginWithApi(response.user, response.token);
-        navigate(HOME_BY_ROLE[user.role] ?? ROUTES.LOGIN, { replace: true });
+        navigate(destinationAfterLogin(user.role, location.state?.from), { replace: true });
       } else {
-        setErrorMessage(response.message || 'Login failed. Please try again.');
+        setErrorMessage(response?.message || 'Login failed. Please try again.');
       }
     } catch (err) {
       const msg =
         err.response?.data?.message ||
         (err.message === 'Network Error'
           ? 'Unable to reach backend server. Please check that the Spring Boot server is running.'
-          : 'Invalid credentials or connection error');
+          : // ApiError from loading the profile after the password was accepted carries a useful message.
+            (!err.response && err.status !== undefined && err.message) || 'Invalid credentials or connection error');
       setErrorMessage(msg);
     } finally {
       setIsLoading(false);
@@ -108,9 +126,12 @@ export const LoginForm = () => {
 
         {/* Password Field */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
-            Password
-          </label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs font-semibold text-slate-700">
+              Password
+            </label>
+            <ForgotPasswordLink initialLogin={email} />
+          </div>
           <div className="relative flex items-center">
             <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none stroke-[2]" />
             <input

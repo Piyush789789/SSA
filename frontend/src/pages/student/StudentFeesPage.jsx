@@ -91,7 +91,7 @@ export const StudentFeesPage = () => {
   const filteredDues = dues.filter((d) =>
     dueFilter === 'ALL' ? true : dueFilter === 'UNPAID' ? d.pending > 0 : d.status === dueFilter,
   );
-  const nextDue = [...dues].filter((d) => d.pending > 0).sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+  const nextDue = [...dues].filter((d) => d.pending > 0).sort((a, b) => (a.dueDate || '9999-12-31').localeCompare(b.dueDate || '9999-12-31'))[0];
 
   const paymentModes = useMemo(
     () => [...new Set((payments.data || []).map((p) => p.paymentMode).filter(Boolean))],

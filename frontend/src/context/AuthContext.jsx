@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { TOKEN_STORAGE_KEY } from '@/api/apiClient';
+import apiClient, { TOKEN_STORAGE_KEY } from '@/api/apiClient';
 import { http } from '@/api/http';
 import { initialsOf } from '@/utils';
 
@@ -10,7 +10,7 @@ const CHILD_STORAGE_KEY = 'ssa_selected_child';
  * Flattens the /auth/me response into the `currentUser` shape the pages use. Field names such as
  * studentId, teacherId, assignedClasses and linkedChildren are kept from the earlier mock users.
  */
-function buildCurrentUser({ user, profile, children }) {
+export function buildCurrentUser({ user, profile, children }) {
   const role = user.role.toLowerCase();
   const base = {
     userId: user.id,
@@ -104,14 +104,25 @@ export const AuthProvider = ({ children }) => {
   const loginWithApi = useCallback(
     async (_apiUser, token) => {
       localStorage.setItem(TOKEN_STORAGE_KEY, token);
-      const next = await loadSession();
-      return buildCurrentUser(next);
+      try {
+        const next = await loadSession();
+        return buildCurrentUser(next);
+      } catch (error) {
+        // The sign-in did not complete: do not leave a token behind that would sign the user in on the next visit.
+        clearSession();
+        throw error;
+      }
     },
-    [loadSession],
+    [loadSession, clearSession],
   );
 
   const logout = useCallback(() => {
-    http.post('/auth/logout').catch(() => {});
+    // Send the token explicitly: axios runs the request interceptor (which reads localStorage) only after
+    // clearSession() below has removed it, so the server session would otherwise never be ended.
+    const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+    if (token) {
+      apiClient.post('/auth/logout', null, { headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+    }
     clearSession();
   }, [clearSession]);
 

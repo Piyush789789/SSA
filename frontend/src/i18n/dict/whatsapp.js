@@ -1,4 +1,4 @@
-/** WhatsApp messaging strings (English / Hindi). */
+/** WhatsApp messaging, list export and forgot-password strings (English / Hindi). */
 export default {
   en: {
     'nav.whatsapp': 'WhatsApp Parents',
@@ -26,6 +26,16 @@ export default {
     'wa.allDone': 'All done',
     'wa.skip': 'Skip',
     'wa.noStudents': 'No students in this class.',
+    'common.exportExcel': 'Export to Excel',
+    'common.exportHint': 'Download this list as a CSV file (opens in Excel or Google Sheets)',
+    'forgot.link': 'Forgot password?',
+    'forgot.title': 'Forgot your password?',
+    'forgot.explain': 'Enter your email or ID. The school office will be told and will reset your password, then give you a new one.',
+    'forgot.loginLabel': 'Email or ID',
+    'forgot.enterLogin': 'Enter your email or ID.',
+    'forgot.submit': 'Ask the school office',
+    'forgot.sent': 'Done. If this login exists, the school office has been asked to reset your password. They will give you a new one.',
+    'forgot.failed': 'Could not send the request. Please contact the school office.',
   },
   hi: {
     'nav.whatsapp': 'अभिभावकों को व्हाट्सऐप',
@@ -53,5 +63,15 @@ export default {
     'wa.allDone': 'सब भेज दिए गए',
     'wa.skip': 'छोड़ें',
     'wa.noStudents': 'इस कक्षा में कोई विद्यार्थी नहीं है।',
+    'common.exportExcel': 'एक्सेल में निर्यात करें',
+    'common.exportHint': 'यह सूची CSV फ़ाइल के रूप में डाउनलोड करें (एक्सेल या गूगल शीट्स में खुलती है)',
+    'forgot.link': 'पासवर्ड भूल गए?',
+    'forgot.title': 'पासवर्ड भूल गए?',
+    'forgot.explain': 'अपना ईमेल या आईडी लिखें। विद्यालय कार्यालय को सूचना जाएगी, वे आपका पासवर्ड रीसेट करके आपको नया पासवर्ड देंगे।',
+    'forgot.loginLabel': 'ईमेल या आईडी',
+    'forgot.enterLogin': 'अपना ईमेल या आईडी लिखें।',
+    'forgot.submit': 'विद्यालय कार्यालय से अनुरोध करें',
+    'forgot.sent': 'हो गया। यदि यह लॉगिन मौजूद है, तो विद्यालय कार्यालय को आपका पासवर्ड रीसेट करने के लिए कहा गया है। वे आपको नया पासवर्ड देंगे।',
+    'forgot.failed': 'अनुरोध नहीं भेजा जा सका। कृपया विद्यालय कार्यालय से संपर्क करें।',
   },
 };

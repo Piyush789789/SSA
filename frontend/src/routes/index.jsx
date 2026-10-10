@@ -124,19 +124,19 @@ const AdminRoute = ({ children }) => <RequireRole role="admin">{children}</Requi
 const lazyAdmin = (Component) => <AdminRoute>{page(Component)}</AdminRoute>;
 
 /** Settings, Logins, Promotion, Backups, Audit: full administrators only (limited staff go to the dashboard). */
-const FullAdminGate = ({ children }) => {
+export const FullAdminGate = ({ children }) => {
   const { currentUser } = useAuth();
   if ((currentUser?.permissions?.length ?? 0) > 0) return <Navigate to={ROUTES.ADMIN_DASHBOARD} replace />;
   return children;
 };
-const FullAdminRoute = ({ children }) => (
+export const FullAdminRoute = ({ children }) => (
   <AdminRoute>
     <FullAdminGate>{children}</FullAdminGate>
   </AdminRoute>
 );
 
 /** Any signed-in user (pages shared by several roles; the backend decides what each may see). */
-const SignedInRoute = ({ children }) => {
+export const SignedInRoute = ({ children }) => {
   const { currentUser, isLoading } = useAuth();
   const location = useLocation();
   if (isLoading) {
@@ -152,7 +152,7 @@ const SignedInRoute = ({ children }) => {
 };
 
 /** "/" and unknown addresses: signed-in users go to their portal, everyone else to the login page. */
-const HomeRedirect = () => {
+export const HomeRedirect = () => {
   const { currentUser, isLoading } = useAuth();
   if (isLoading) return null;
   return <Navigate to={currentUser ? HOME_BY_ROLE[currentUser.role] : ROUTES.LOGIN} replace />;

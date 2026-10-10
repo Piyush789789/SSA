@@ -8,6 +8,7 @@ import com.ssa.schoolerp.model.User;
 import com.ssa.schoolerp.security.AccessGuard;
 import com.ssa.schoolerp.security.CurrentUser;
 import com.ssa.schoolerp.security.PublicEndpoint;
+import com.ssa.schoolerp.service.AccountService;
 import com.ssa.schoolerp.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -20,12 +21,46 @@ import java.util.Map;
 @RequestMapping("/api/auth")
 public class AuthController {
 
+    /** Forgot-password requests allowed per connection per hour (stops someone flooding the admins). */
+    private static final int RESET_REQUESTS_PER_HOUR = 5;
+
     private final AuthService authService;
     private final AccessGuard guard;
+    private final AccountService accounts;
+    private final java.time.Clock clock;
+    private final Map<String, java.util.Deque<java.time.Instant>> resetRequestsByIp =
+            new java.util.concurrent.ConcurrentHashMap<>();
 
-    public AuthController(AuthService authService, AccessGuard guard) {
+    public AuthController(AuthService authService, AccessGuard guard, AccountService accounts, java.time.Clock clock) {
         this.authService = authService;
         this.guard = guard;
+        this.accounts = accounts;
+        this.clock = clock;
+    }
+
+    public record ForgotPasswordRequest(@jakarta.validation.constraints.NotBlank String loginId) {
+    }
+
+    /** Asks the school office to reset a password. Same answer whether or not the login exists. */
+    @PublicEndpoint
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request,
+                                                            jakarta.servlet.http.HttpServletRequest http) {
+        java.time.Instant now = clock.instant();
+        java.util.Deque<java.time.Instant> times = resetRequestsByIp.computeIfAbsent(
+                String.valueOf(http.getRemoteAddr()), k -> new java.util.ArrayDeque<>());
+        synchronized (times) {
+            while (!times.isEmpty() && times.peekFirst().isBefore(now.minusSeconds(3600))) times.pollFirst();
+            if (times.size() >= RESET_REQUESTS_PER_HOUR) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.TOO_MANY_REQUESTS,
+                        "Too many requests; please contact the school office");
+            }
+            times.addLast(now);
+        }
+        accounts.requestPasswordReset(request.loginId());
+        return ResponseEntity.ok(ApiResponse.success(
+                "If this login exists, the school office has been asked to reset the password. They will give you a new one."));
     }
 
     @PublicEndpoint

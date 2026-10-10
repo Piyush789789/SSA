@@ -27,6 +27,12 @@ const NOTIFICATION_LINKS = {
     '/leaves': '/admin/leaves',
     '/calendar': '/admin/calendar',
     '/timetable': '/admin/substitutions',
+    '/admissions': '/admin/admissions',
+    '/ptm': '/admin/ptm',
+    '/library': '/admin/library',
+    '/gallery': '/admin/gallery',
+    '/transport': '/admin/transport',
+    '/admin/accounts': '/admin/accounts',
   },
   teacher: {
     '/attendance': '/teacher/attendance',
@@ -37,6 +43,9 @@ const NOTIFICATION_LINKS = {
     '/leaves': '/teacher/leave',
     '/calendar': '/teacher/calendar',
     '/timetable': '/teacher/dashboard',
+    '/ptm': '/teacher/ptm',
+    '/library': '/teacher/library',
+    '/gallery': '/teacher/gallery',
   },
   student: {
     '/fees': '/student/fees',
@@ -47,6 +56,10 @@ const NOTIFICATION_LINKS = {
     '/messages': '/student/communication',
     '/leaves': '/student/leave',
     '/calendar': '/student/calendar',
+    '/library': '/student/library',
+    '/health': '/student/health',
+    '/gallery': '/student/gallery',
+    '/transport': '/student/bus',
   },
   parent: {
     '/fees': '/parent/fees',
@@ -57,6 +70,11 @@ const NOTIFICATION_LINKS = {
     '/messages': '/parent/communication',
     '/leaves': '/parent/leave',
     '/calendar': '/parent/calendar',
+    '/ptm': '/parent/ptm',
+    '/library': '/parent/library',
+    '/health': '/parent/health',
+    '/gallery': '/parent/gallery',
+    '/transport': '/parent/bus',
   },
 };
 

@@ -34,10 +34,28 @@ public class AccountService {
 
     private final DataStore store;
     private final AuthService auth;
+    private final NotificationService notifications;
 
-    public AccountService(DataStore store, AuthService auth) {
+    public AccountService(DataStore store, AuthService auth, NotificationService notifications) {
         this.store = store;
         this.auth = auth;
+        this.notifications = notifications;
+    }
+
+    /**
+     * "Forgot password" from the login page: the admins get a notification and reset it from Logins & Parents
+     * (no SMS/email cost). Says nothing about whether the login exists, so it cannot be used to discover accounts.
+     */
+    public void requestPasswordReset(String loginId) {
+        String login = loginId == null ? "" : loginId.trim().toLowerCase(Locale.ROOT);
+        if (login.isEmpty()) return;
+        store.accounts.where("lower(e.loginId) = ?1 or lower(e.profileId) = ?1", login).stream()
+                .filter(UserAccount::active)
+                .findFirst()
+                .ifPresent(a -> notifications.notifyAdmins("Password reset requested",
+                        a.displayName() + " (" + a.loginId() + ", " + a.role().name().toLowerCase(Locale.ROOT)
+                                + ") forgot their password. Reset it in Logins & Parents and give them the new one.",
+                        NotificationService.NOTICE, "/admin/accounts"));
     }
 
     /** Everyone who can log in (optionally one role), with or without a login yet. */

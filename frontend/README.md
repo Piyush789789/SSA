@@ -30,3 +30,13 @@ If you are developing a production application, we recommend enabling type-aware
 ```
 
 See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+
+## Tests
+
+- **Unit + integration** (Vitest, no server needed): `npm test`
+- **System / end-to-end** (Playwright, real browser). Never point these at the school's live backend: they create and reset data.
+  1. Start a throw-away backend on port 8090 with an in-memory database (from `backend/`):
+     `mvnw.cmd spring-boot:run -Dspring-boot.run.useTestClasspath=true "-Dspring-boot.run.arguments=--server.port=8090 --spring.datasource.url=jdbc:h2:mem:systest;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;NON_KEYWORDS=DAY,VALUE --spring.datasource.username=sa --spring.datasource.password= --spring.jpa.hibernate.ddl-auto=create-drop --spring.config.import= --app.notify.push.enabled=false --app.cors.frontend-url=http://localhost:5190"`
+  2. Build and serve the website against it:
+     `set VITE_API_BASE_URL=http://localhost:8090/api && npx vite build --outDir systest-dist && npx vite preview --outDir systest-dist --port 5190`
+  3. First time only: `npx playwright install chromium`. Then: `npx playwright test`

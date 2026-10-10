@@ -70,6 +70,47 @@ class CampusTest extends ApiTestSupport {
         publicEnquiry("10.0.0.99", body).andExpect(status().isTooManyRequests());
     }
 
+    // ---------------------------------------------------------------- government records
+
+    @Test
+    void governmentRecordsCanBeSetKeptAndCleared() throws Exception {
+        String admin = admin();
+        com.fasterxml.jackson.databind.node.ObjectNode student =
+                (com.fasterxml.jackson.databind.node.ObjectNode) data(getAs(admin, "/api/students/" + ROHIT));
+        student.put("penNumber", "PEN123").put("apaarId", "123456789012").put("socialCategory", "OBC");
+        putAs(admin, "/api/students/" + ROHIT, student).andExpect(status().isOk());
+
+        student.remove(List.of("penNumber", "apaarId", "socialCategory")); // an older form: fields left out
+        putAs(admin, "/api/students/" + ROHIT, student).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.penNumber").value("PEN123"));
+
+        student.put("penNumber", "").put("apaarId", "").put("socialCategory", ""); // emptied on the form
+        putAs(admin, "/api/students/" + ROHIT, student).andExpect(status().isOk());
+        assertThat(store.students.getById(ROHIT).penNumber()).isNull();
+        assertThat(store.students.getById(ROHIT).apaarId()).isNull();
+
+        student.put("apaarId", "12345");
+        putAs(admin, "/api/students/" + ROHIT, student).andExpect(status().isBadRequest());
+    }
+
+    // ---------------------------------------------------------------- forgot password
+
+    @Test
+    void forgotPasswordAsksTheAdminsWithoutRevealingAccounts() throws Exception {
+        String unknown = mockMvc.perform(post("/api/auth/forgot-password").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"loginId\":\"nobody@nowhere.in\"}")
+                        .with(r -> { r.setRemoteAddr("10.0.2.1"); return r; }))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String known = mockMvc.perform(post("/api/auth/forgot-password").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"loginId\":\"Student@SSA.edu\"}")
+                        .with(r -> { r.setRemoteAddr("10.0.2.1"); return r; }))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(known).isEqualTo(unknown); // same answer either way
+        // Only the real login produced a request for the admins.
+        getAs(admin(), "/api/notifications").andExpect(
+                jsonPath("$.data[?(@.title == 'Password reset requested')]", org.hamcrest.Matchers.hasSize(1)));
+    }
+
     // ---------------------------------------------------------------- transport
 
     @Test

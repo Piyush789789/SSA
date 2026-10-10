@@ -6,6 +6,7 @@ import { useApi } from '@/hooks/useApi';
 import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { formatCurrency } from '@/utils';
 import { useI18n } from '@/i18n/translate';
+import { ExportButton } from '@/components/common/ExportButton';
 
 /** Colour of the urgency score badge (higher = more urgent). */
 const scoreTone = (score) =>
@@ -165,6 +166,23 @@ export const AtRiskView = ({ classes, profileBase }) => {
               </option>
             ))}
           </select>
+          <ExportButton
+            className="ml-auto"
+            rows={list.data || []}
+            fileBase="students-needing-attention"
+            columns={[
+              { label: 'Student ID', value: (s) => s.studentId },
+              { label: 'Name', value: (s) => s.name },
+              { label: 'Class', value: (s) => s.className },
+              { label: 'Roll No', value: (s) => s.rollNumber },
+              { label: 'Score', value: (s) => s.score },
+              { label: 'Attendance %', value: (s) => s.attendanceRate },
+              { label: 'Average Marks %', value: (s) => s.averageMarks },
+              { label: 'Overdue Fees', value: (s) => s.overdueFees },
+              { label: 'Homework Missed', value: (s) => s.missingHomework },
+              { label: 'Reasons', value: (s) => (s.reasons || []).join('; ') },
+            ]}
+          />
         </div>
       )}
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">

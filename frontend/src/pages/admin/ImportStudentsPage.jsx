@@ -148,7 +148,7 @@ export const ImportStudentsPage = () => {
                   <h2 className="text-base sm:text-lg font-bold text-slate-900">Check result</h2>
                   <p className="text-xs text-slate-500 mt-1">
                     {check.valid} of {check.total} rows are ready to import
-                    {check.failed ? `, ${check.failed} have errors and will be skipped` : ''}.
+                    {check.failed ? `, ${check.failed} ${check.failed === 1 ? 'has' : 'have'} errors and will be skipped` : ''}.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
@@ -238,7 +238,9 @@ const ImportDone = ({ result, onDownloadLogins, onStartOver }) => (
             {result.created} {result.created === 1 ? 'student' : 'students'} admitted
           </h2>
           <p className="text-xs text-slate-500">
-            {result.failed ? `${result.failed} rows were skipped because of errors.` : 'Every row was imported.'}
+            {result.failed
+              ? `${result.failed} ${result.failed === 1 ? 'row was' : 'rows were'} skipped because of errors.`
+              : 'Every row was imported.'}
           </p>
         </div>
       </div>

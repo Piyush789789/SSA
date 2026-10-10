@@ -47,7 +47,11 @@ export const groupDuesByStudent = (dues = []) => {
       ...s,
       status: s.pending <= 0 ? 'Paid' : anyOverdue ? 'Overdue' : s.paid > 0 ? 'Partial' : 'Pending',
     }))
-    .sort((a, b) => a.className.localeCompare(b.className, undefined, { numeric: true }) || a.name.localeCompare(b.name));
+    .sort(
+      (a, b) =>
+        String(a.className ?? '').localeCompare(String(b.className ?? ''), undefined, { numeric: true }) ||
+        String(a.name ?? '').localeCompare(String(b.name ?? '')),
+    );
 };
 
 /** "2026-10-06T10:30:00" -> "2026-10-06" */

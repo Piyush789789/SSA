@@ -4,6 +4,7 @@ import { useApi } from '@/hooks/useApi';
 import { AsyncState } from '@/components/common/AsyncState';
 import { formatCurrency, formatDate, formatDateTime, todayIso } from '@/utils';
 import { groupDuesByStudent, netAmount, paymentDate, statusBadgeClass } from '@/components/fees/feeHelpers';
+import { ExportButton } from '@/components/common/ExportButton';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const monthLabel = (ym) => {
@@ -300,9 +301,26 @@ export const FeeReportsSection = ({ classes = [], onSelectStudentForCollection }
                     <h3 className="text-lg font-extrabold text-slate-900">Fee Defaulters List</h3>
                     <p className="text-xs text-slate-500 mt-0.5">Students with outstanding pending or overdue balances</p>
                   </div>
-                  <span className="px-3 py-1 bg-rose-50 text-rose-600 font-bold text-xs rounded-full border border-rose-200">
-                    {defaultersList.length} Defaulters
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="px-3 py-1 bg-rose-50 text-rose-600 font-bold text-xs rounded-full border border-rose-200">
+                      {defaultersList.length} Defaulters
+                    </span>
+                    <ExportButton
+                      rows={defaultersList}
+                      fileBase="fee-defaulters"
+                      columns={[
+                        { label: 'Student ID', value: (s) => s.id },
+                        { label: 'Name', value: (s) => s.name },
+                        { label: 'Class', value: (s) => s.className },
+                        { label: 'Total Due', value: (s) => s.totalDue },
+                        { label: 'Concession', value: (s) => s.concession },
+                        { label: 'Paid', value: (s) => s.paid },
+                        { label: 'Pending', value: (s) => s.pending },
+                        { label: 'Oldest Due Date', value: (s) => s.oldestDueDate },
+                        { label: 'Overdue', value: (s) => (s.anyOverdue ? 'Yes' : 'No') },
+                      ]}
+                    />
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto custom-scrollbar">

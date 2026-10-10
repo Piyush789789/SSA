@@ -144,12 +144,15 @@ const StatusModal = ({ enquiry, onClose, onSaved }) => {
   return (
     <Modal title={t('admissions.changeStatus')} subtitle={`${enquiry.studentName} · ${enquiry.parentName}`} icon={RefreshCw} busy={saving} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
-        <FormField label={t('common.status')}>
+        {/* A group, not a FormField <label>: a click on the label's empty space would press the first button (New). */}
+        <div role="group" aria-label={t('common.status')}>
+          <span className="mb-1 block text-xs font-bold text-slate-700">{t('common.status')}</span>
           <div className="flex flex-wrap gap-1.5">
             {STATUSES.filter((s) => s !== 'ADMITTED').map((s) => (
               <button
                 key={s}
                 type="button"
+                aria-pressed={status === s}
                 onClick={() => setStatus(s)}
                 className={`rounded-xl px-3 py-1.5 text-xs font-bold border cursor-pointer ${
                   status === s ? 'bg-[#FF6B2C] border-[#FF6B2C] text-white' : 'bg-white border-slate-200 text-slate-600'
@@ -159,7 +162,7 @@ const StatusModal = ({ enquiry, onClose, onSaved }) => {
               </button>
             ))}
           </div>
-        </FormField>
+        </div>
         <FormField label={t('admissions.followUp')} hint={t('admissions.followUpHint')}>
           <input type="date" value={followUpDate} onChange={(e) => setFollowUpDate(e.target.value)} className={fieldClass} />
         </FormField>

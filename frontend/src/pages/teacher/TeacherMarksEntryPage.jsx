@@ -6,6 +6,7 @@ import { useApi } from '@/hooks/useApi';
 import { AsyncState, EmptyMessage, ErrorMessage, LoadingMessage } from '@/components/common/AsyncState';
 import { formatDate, initialsOf, todayIso } from '@/utils';
 import { useI18n } from '@/i18n/translate';
+import { useAuth } from '@/context/AuthContext';
 
 /** Grade band for a percentage, using the scale from GET /meta (sorted high to low). */
 const gradeFor = (percentage, bands) => {
@@ -23,6 +24,7 @@ export const TeacherMarksEntryPage = () => {
   const { tx } = useI18n();
   // The route param is the exam paper (ExamSchedule) id: /teacher/exams/:examId/marks
   const { examId: scheduleId } = useParams();
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
 
   const sheet = useApi(scheduleId ? `/exam-schedules/${encodeURIComponent(scheduleId)}/marks` : null);
@@ -42,6 +44,14 @@ export const TeacherMarksEntryPage = () => {
   const today = todayIso();
   const notYetHeld = schedule ? schedule.date > today : false;
   const published = exam.data?.resultsStatus === 'Published';
+  // Only the subject teacher of the class may change marks (the server answers "Access denied" otherwise).
+  const notMySubject = Boolean(
+    schedule &&
+      currentUser &&
+      !((currentUser.assignedClasses ?? []).includes(schedule.className) && (currentUser.subjects ?? []).includes(schedule.subject)),
+  );
+  // Read-only sheet: saving would only be refused by the server.
+  const locked = published || notYetHeld || notMySubject;
 
   const rows = useMemo(
     () =>
@@ -191,14 +201,14 @@ export const TeacherMarksEntryPage = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={() => handleSave(false)}
-            disabled={saving}
+            disabled={saving || locked}
             className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-2xl text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? tx('Saving…') : tx('Save Draft')}
           </button>
           <button
             onClick={() => handleSave(true)}
-            disabled={saving}
+            disabled={saving || locked}
             className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer text-xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FileCheck className="w-4 h-4 stroke-[2]" />
@@ -240,6 +250,12 @@ export const TeacherMarksEntryPage = () => {
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           Results for this exam are published, so marks can no longer be changed. Ask the administrator to unpublish them
           if a correction is needed.
+        </div>
+      )}
+      {notMySubject && (
+        <div className="flex items-center gap-2 p-4 rounded-2xl border border-amber-200 bg-amber-50 text-amber-800 text-xs font-semibold">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          You can view these marks, but only the {schedule.subject} teacher of Class {schedule.className} can change them.
         </div>
       )}
       {saveError && <ErrorMessage error={{ message: saveError }} />}
@@ -304,7 +320,7 @@ export const TeacherMarksEntryPage = () => {
                                 min="0"
                                 max={maxMarks}
                                 step="0.5"
-                                disabled={row.isAbsent}
+                                disabled={row.isAbsent || locked}
                                 value={row.value}
                                 onChange={(e) => handleMarksChange(row, e.target.value)}
                                 placeholder="Enter marks"
@@ -328,6 +344,7 @@ export const TeacherMarksEntryPage = () => {
                               <input
                                 type="checkbox"
                                 checked={row.isAbsent}
+                                disabled={locked}
                                 onChange={(e) => handleAbsentToggle(row, e.target.checked)}
                                 className="w-4 h-4 rounded text-[#FF6B2C] focus:ring-[#FF6B2C] cursor-pointer"
                               />
@@ -366,7 +383,7 @@ export const TeacherMarksEntryPage = () => {
           </p>
           <button
             onClick={() => handleSave(true)}
-            disabled={saving}
+            disabled={saving || locked}
             className="flex items-center justify-center gap-2 px-6 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer text-xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FileCheck className="w-4 h-4 stroke-[2]" />

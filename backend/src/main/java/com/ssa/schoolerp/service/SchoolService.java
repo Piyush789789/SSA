@@ -147,8 +147,9 @@ public class SchoolService {
             roll = nextRollNumber(request.className());
         }
         checkRollNumberFree(request.className(), roll, id);
-        Student saved = store.students.save(request.withIdAndRollNumber(id, roll).withStatus(existing.status())
-                .keepingRecordsOf(existing));
+        // keepingRecordsOf runs on the request as received, while "" (clear) and null (keep) are still different.
+        Student saved = store.students.save(request.keepingRecordsOf(existing).withIdAndRollNumber(id, roll)
+                .withStatus(existing.status()));
         accounts.renameForProfile(id, saved.name());
         return saved;
     }

@@ -64,6 +64,10 @@ export const LeaveApplyForm = ({ studentId, forName, onApplied }) => {
       setError('The end date is before the start date.');
       return;
     }
+    if (values.fromDate < addDays(today, -30)) {
+      setError('The leave cannot start more than 30 days ago.');
+      return;
+    }
     if (dayCount(values.fromDate, values.toDate) > 60) {
       setError('One application can cover at most 60 days.');
       return;

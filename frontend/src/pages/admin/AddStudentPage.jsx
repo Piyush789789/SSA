@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, User, GraduationCap, Users, MapPin, Landmark } from 'lucide-react';
 import { PhotoUpload } from '@/components/students/PhotoUpload';
 import { useI18n } from '@/i18n/translate';
+import { normalizePhone } from '@/utils/whatsapp';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { AsyncState, ErrorMessage } from '@/components/common/AsyncState';
@@ -252,8 +253,8 @@ const StudentForm = ({ classList, academicYear, student, preselectedClass, onCan
     if (!formData.dob) e.dob = 'Date of Birth is required.';
     if (!formData.gender) e.gender = 'Gender is required.';
 
-    if (formData.rollNumber && !(Number(formData.rollNumber) > 0))
-      e.rollNumber = 'Roll Number must be a positive number.';
+    if (formData.rollNumber && !(/^\d+$/.test(String(formData.rollNumber).trim()) && Number(formData.rollNumber) > 0))
+      e.rollNumber = 'Roll Number must be a whole number above 0.';
     if (!formData.grade) e.grade = 'Class is required.';
     if (!formData.section) e.section = 'Section is required.';
     if (!formData.admissionDate) e.admissionDate = 'Admission Date is required.';
@@ -261,9 +262,11 @@ const StudentForm = ({ classList, academicYear, student, preselectedClass, onCan
     if (!formData.parentName.trim()) e.parentName = 'Parent / Guardian Name is required.';
     if (!formData.relationship) e.relationship = 'Relationship is required.';
     const digits = formData.parentPhone.replace(/\D/g, '');
+    const phone = normalizePhone(formData.parentPhone);
+    // Accepts 98765 12345, 098765 12345, +91 98765 12345, 0091 98765 12345 (Indian mobile: starts with 6-9).
     if (!digits) e.parentPhone = 'Parent Phone is required.';
-    else if (!/^(91)?\d{10}$/.test(digits))
-      e.parentPhone = 'Parent Phone must be a valid 10-digit number.';
+    else if (!phone || !/^91[6-9]\d{9}$/.test(phone))
+      e.parentPhone = 'Parent Phone must be a valid 10-digit mobile number.';
     if (formData.parentEmail && !EMAIL_RE.test(formData.parentEmail.trim())) {
       e.parentEmail = 'Please enter a valid parent email address.';
     }
@@ -316,14 +319,14 @@ const StudentForm = ({ classList, academicYear, student, preselectedClass, onCan
         phone: formData.parentPhone.trim(),
         email: formData.parentEmail.trim() || null,
       },
-      // Left blank = null, which keeps any saved value on an edit.
-      penNumber: formData.penNumber.trim() || null,
-      apaarId: formData.apaarId.trim() || null,
+      // Sent as typed: an emptied field ("") clears the saved value; the server stores blanks as empty (null).
+      penNumber: formData.penNumber.trim(),
+      apaarId: formData.apaarId.trim(),
       rte: formData.rte,
-      socialCategory: formData.socialCategory || null,
-      fatherName: formData.fatherName.trim() || null,
-      motherName: formData.motherName.trim() || null,
-      photoFileId: formData.photoFileId || null,
+      socialCategory: formData.socialCategory || '',
+      fatherName: formData.fatherName.trim(),
+      motherName: formData.motherName.trim(),
+      photoFileId: formData.photoFileId || '',
     };
 
     setSaving(true);
@@ -666,9 +669,11 @@ const StudentForm = ({ classList, academicYear, student, preselectedClass, onCan
               type="text"
               inputMode="numeric"
               name="apaarId"
-              maxLength={12}
+              // No maxLength: it would cut a pasted "1234 5678 9012" to 12 characters before the spaces are removed.
               value={formData.apaarId}
-              onChange={(e) => handleChange({ target: { name: 'apaarId', value: e.target.value.replace(/\D/g, '') } })}
+              onChange={(e) =>
+                handleChange({ target: { name: 'apaarId', value: e.target.value.replace(/\D/g, '').slice(0, 12) } })
+              }
               placeholder="12-digit APAAR ID"
               className={inputClass(errors.apaarId)}
             />

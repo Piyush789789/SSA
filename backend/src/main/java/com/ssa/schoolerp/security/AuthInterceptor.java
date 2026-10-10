@@ -60,13 +60,15 @@ public class AuthInterceptor implements HandlerInterceptor {
     private static void checkStaffPermission(User user, HttpServletRequest request) {
         String path = request.getRequestURI().substring(request.getContextPath().length());
         if (Permission.fullAdminOnly(path)) {
-            throw ApiErrors.forbidden();
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN,
+                    "Only a full administrator can do this");
         }
         if (HttpMethod.GET.matches(request.getMethod()) || Permission.personal(path)) {
             return;
         }
         if (user.getPermissions().stream().noneMatch(p -> p.covers(path))) {
-            throw ApiErrors.forbidden();
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN,
+                    "Your staff login can view this but not change it. Ask a full administrator.");
         }
     }
 

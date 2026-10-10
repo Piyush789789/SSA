@@ -232,9 +232,14 @@ const AssignModal = ({ routes, initialRouteId, onClose, onSaved }) => {
   return (
     <Modal title={t('transport.assignStudent')} icon={UserPlus} busy={saving} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
-        <FormField label={t('transport.student')} required>
+        {/* Not a FormField: that is a <label>, and clicking a search result inside a label re-clicks the picker's
+            first button (the new "Choose another student" ×), which cleared the student straight away. */}
+        <div>
+          <span className="mb-1 block text-xs font-bold text-slate-700">
+            {t('transport.student')} <span className="text-rose-500">*</span>
+          </span>
           <StudentPicker value={student} onChange={setStudent} autoFocus />
-        </FormField>
+        </div>
         {current && (
           <p className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
             {t('transport.alreadyOn', { route: current.routeName, stop: current.stopName })}

@@ -33,7 +33,7 @@ const KEY_BY_ENGLISH = Object.entries(DICTIONARIES.en).reduce((index, [key, text
 }, {});
 
 const interpolate = (text, vars) =>
-  vars ? String(text).replace(/\{(\w+)\}/g, (match, name) => (vars[name] ?? vars[name] === 0 ? String(vars[name]) : match)) : text;
+  vars ? String(text).replace(/\{(\w+)\}/g, (match, name) => (vars[name] != null ? String(vars[name]) : match)) : text;
 
 /** Translation of `key` in `lang`, falling back to English, then `fallback`, then the key itself. */
 export const translate = (lang, key, vars, fallback) => {

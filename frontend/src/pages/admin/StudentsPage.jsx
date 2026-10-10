@@ -12,6 +12,7 @@ import { addDays, todayIso } from '@/utils';
 import { groupBy, summarizeRecords } from '@/components/attendance/attendanceMath';
 import { ROUTES } from '@/constants/routes';
 import { useI18n } from '@/i18n/translate';
+import { ExportButton } from '@/components/common/ExportButton';
 
 const ATTENDANCE_DAYS = 30;
 
@@ -127,6 +128,32 @@ export const StudentsPage = () => {
               </p>
             </div>
 
+            <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
+            <ExportButton
+              rows={filteredStudents}
+              fileBase="students"
+              columns={[
+                { label: 'Student ID', value: (s) => s.id },
+                { label: 'Name', value: (s) => s.name },
+                { label: 'Class', value: (s) => s.className },
+                { label: 'Roll No', value: (s) => s.rollNumber },
+                { label: 'Gender', value: (s) => s.gender },
+                { label: 'Date of Birth', value: (s) => s.dateOfBirth },
+                { label: 'Blood Group', value: (s) => s.bloodGroup },
+                { label: 'Guardian', value: (s) => s.guardian?.name },
+                { label: 'Relation', value: (s) => s.guardian?.relation },
+                { label: 'Guardian Phone', value: (s) => s.guardian?.phone },
+                { label: 'Guardian Email', value: (s) => s.guardian?.email },
+                { label: 'Address', value: (s) => s.address },
+                { label: 'Admission Date', value: (s) => s.admissionDate },
+                { label: 'PEN', value: (s) => s.penNumber },
+                { label: 'APAAR ID', value: (s) => s.apaarId },
+                { label: 'RTE', value: (s) => (s.rte ? 'Yes' : '') },
+                { label: 'Category', value: (s) => s.socialCategory },
+                { label: 'Fee Status', value: (s) => s.feeStatus },
+                { label: `Attendance % (last ${ATTENDANCE_DAYS} days)`, value: (s) => (typeof s.attendance === 'number' ? Math.round(s.attendance) : '') },
+              ]}
+            />
             {/* Add Student Primary Action Button */}
             <button
               type="button"
@@ -136,6 +163,7 @@ export const StudentsPage = () => {
               <Plus className="w-4 h-4 stroke-[2.5]" />
               <span>{tx('Add Student')}</span>
             </button>
+            </div>
           </div>
 
           {/* Filter Toolbar */}

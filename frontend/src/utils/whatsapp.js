@@ -7,6 +7,10 @@
 export const normalizePhone = (phone) => {
   if (!phone) return null;
   let digits = String(phone).replace(/\D/g, '');
+  // "00" is the international call prefix ("0091 98765 12345"); wa.me wants the number without it.
+  if (digits.startsWith('00')) digits = digits.slice(2);
+  // "+91 098765 12345": the trunk 0 written after the country code.
+  if (digits.length === 13 && digits.startsWith('910')) digits = `91${digits.slice(3)}`;
   if (digits.length === 11 && digits.startsWith('0')) digits = digits.slice(1);
   if (digits.length === 10) digits = `91${digits}`;
   return digits.length >= 11 && digits.length <= 15 ? digits : null;
