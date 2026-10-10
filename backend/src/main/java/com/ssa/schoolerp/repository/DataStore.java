@@ -34,7 +34,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.LocalDate;
-import java.util.Comparator;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.List;
 
 /** All application tables. Seeds the demo data the first time it starts against an empty database. */
@@ -142,9 +143,12 @@ public class DataStore {
 
     /** The students of a class, in roll-number order. */
     public List<Student> studentsOf(String className) {
-        return students.stream()
-                .filter(s -> s.className().equals(className))
-                .sorted(Comparator.comparing(Student::rollNumber))
-                .toList();
+        return students.where("e.className = ?1 order by e.rollNumber", className);
+    }
+
+    /** Number of students per class, counted by the database. */
+    public Map<String, Integer> studentCountsByClass() {
+        return students.aggregate("select e.className, count(e) from %s e group by e.className").stream()
+                .collect(Collectors.toMap(row -> (String) row[0], row -> ((Long) row[1]).intValue()));
     }
 }

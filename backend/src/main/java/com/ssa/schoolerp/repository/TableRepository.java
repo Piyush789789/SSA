@@ -3,6 +3,7 @@ package com.ssa.schoolerp.repository;
 import com.ssa.schoolerp.exception.ApiErrors;
 import com.ssa.schoolerp.model.Identifiable;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
@@ -41,6 +42,34 @@ public class TableRepository<T extends Identifiable> {
 
     public List<T> findWhere(Predicate<? super T> predicate) {
         return stream().filter(predicate).toList();
+    }
+
+    /**
+     * Rows matching a JPQL condition, filtered by the database (uses indexes) instead of in Java. The entity
+     * alias is {@code e} and parameters are positional: {@code where("e.studentId = ?1 and e.date >= ?2", id, from)}.
+     * The condition may end with an {@code order by} clause.
+     */
+    public List<T> where(String condition, Object... params) {
+        TypedQuery<T> query = em.createQuery("select e from " + type.getSimpleName() + " e where " + condition, type);
+        bind(query, params);
+        return query.getResultList();
+    }
+
+    /**
+     * Runs a JPQL aggregate over this table, e.g.
+     * {@code aggregate("select e.status, count(e) from %s e where e.date = ?1 group by e.status", date)};
+     * {@code %s} is replaced by the entity name. Each row is an Object[] of the selected values.
+     */
+    public List<Object[]> aggregate(String jpqlTemplate, Object... params) {
+        TypedQuery<Object[]> query = em.createQuery(jpqlTemplate.formatted(type.getSimpleName()), Object[].class);
+        bind(query, params);
+        return query.getResultList();
+    }
+
+    private static void bind(TypedQuery<?> query, Object... params) {
+        for (int i = 0; i < params.length; i++) {
+            query.setParameter(i + 1, params[i]);
+        }
     }
 
     public Optional<T> findById(String id) {
