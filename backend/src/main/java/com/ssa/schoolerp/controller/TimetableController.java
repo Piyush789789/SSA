@@ -1,6 +1,7 @@
 package com.ssa.schoolerp.controller;
 
 import com.ssa.schoolerp.dto.ApiResponse;
+import com.ssa.schoolerp.dto.ScheduleSlot;
 import com.ssa.schoolerp.dto.TimetableEntryRequest;
 import com.ssa.schoolerp.model.Role;
 import com.ssa.schoolerp.model.TimetableEntry;
@@ -20,6 +21,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Clock;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -30,9 +34,11 @@ public class TimetableController {
     }
 
     private final TimetableService timetable;
+    private final Clock clock;
 
-    public TimetableController(TimetableService timetable) {
+    public TimetableController(TimetableService timetable, Clock clock) {
         this.timetable = timetable;
+        this.clock = clock;
     }
 
     @GetMapping("/periods")
@@ -49,6 +55,13 @@ public class TimetableController {
     @GetMapping
     public ApiResponse<List<TimetableEntry>> forClass(@CurrentUser User user, @RequestParam String className) {
         return ApiResponse.of(timetable.forClass(user, className));
+    }
+
+    /** A class's whole day period by period (default: today). */
+    @GetMapping("/day")
+    public ApiResponse<List<ScheduleSlot>> day(@CurrentUser User user, @RequestParam String className,
+                                               @RequestParam(required = false) DayOfWeek day) {
+        return ApiResponse.of(timetable.daySchedule(user, className, day != null ? day : LocalDate.now(clock).getDayOfWeek()));
     }
 
     @RequireRole({Role.ADMIN, Role.TEACHER})

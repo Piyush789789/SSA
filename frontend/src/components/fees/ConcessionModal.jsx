@@ -1,90 +1,104 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { calculateEffectiveAmount, formatCurrency } from '@/data/feeData';
+import { http, withQuery } from '@/api/http';
+import { useApi } from '@/hooks/useApi';
+import { formatCurrency } from '@/utils';
 
-export const ConcessionModal = ({
-  isOpen,
-  students,
-  feeHeads,
-  onClose,
-  onSave,
-}) => {
-  const [formData, setFormData] = useState({
-    studentId: '',
-    feeHeadId: '',
-    type: 'Sibling',
-    discountType: 'Percentage',
-    discountValue: '10',
-    description: '',
-  });
+const NONE = [];
 
-  const [errors, setErrors] = useState({});
+/**
+ * Grants a concession on one of a student's unpaid dues (POST /fees/concessions). The admin picks class →
+ * student → due; the concession lowers what is owed on that due. `concessionTypes` come from GET /meta.
+ */
+export const ConcessionModal = ({ isOpen, classes = NONE, concessionTypes = NONE, onClose, onSaved }) => {
+  const [className, setClassName] = useState('');
+  const [studentId, setStudentId] = useState('');
+  const [feeDueId, setFeeDueId] = useState('');
+  const [type, setType] = useState('');
+  const [discountType, setDiscountType] = useState('PERCENTAGE');
+  const [discountValue, setDiscountValue] = useState('10');
+  const [description, setDescription] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      setFormData({
-        studentId: students[0]?.id || '',
-        feeHeadId: feeHeads[0]?.id || '',
-        type: 'Sibling',
-        discountType: 'Percentage',
-        discountValue: '10',
-        description: '',
-      });
-      setErrors({});
-    }
-  }, [isOpen, students, feeHeads]);
+    if (!isOpen) return;
+    setClassName(classes[0] || '');
+    setStudentId('');
+    setFeeDueId('');
+    setType(concessionTypes[0] || '');
+    setDiscountType('PERCENTAGE');
+    setDiscountValue('10');
+    setDescription('');
+    setError('');
+    setSaving(false);
+  }, [isOpen, classes, concessionTypes]);
+
+  const studentsApi = useApi(isOpen && className ? withQuery('/students', { className }) : null);
+  const students = studentsApi.data || NONE;
+  const effectiveStudentId = students.some((s) => s.id === studentId) ? studentId : students[0]?.id || '';
+
+  const duesApi = useApi(isOpen && effectiveStudentId ? withQuery('/fees/dues', { studentId: effectiveStudentId }) : null);
+  const openDues = (duesApi.data || NONE).filter((d) => d.pending > 0);
+  const selectedDue = openDues.find((d) => d.id === feeDueId) || openDues[0] || null;
 
   if (!isOpen) return null;
 
-  const selectedFeeHead = feeHeads.find((f) => String(f.id) === String(formData.feeHeadId)) || feeHeads[0];
-  const grossAmount = selectedFeeHead ? selectedFeeHead.amount : 0;
-  const effectiveAmount = calculateEffectiveAmount(
-    grossAmount,
-    formData.discountType,
-    formData.discountValue
-  );
+  const value = Number(discountValue);
+  const discount = selectedDue
+    ? discountType === 'PERCENTAGE'
+      ? Math.round((selectedDue.amount * (Number.isNaN(value) ? 0 : value)) / 100)
+      : Math.round(Number.isNaN(value) ? 0 : value)
+    : 0;
+  const pendingAfter = selectedDue ? selectedDue.pending - discount : 0;
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
-  };
-
-  const validate = () => {
-    const newErrors = {};
-    if (!formData.studentId) newErrors.studentId = 'Student is required.';
-    if (!formData.feeHeadId) newErrors.feeHeadId = 'Fee Structure is required.';
-    if (!formData.discountValue || Number(formData.discountValue) < 0) {
-      newErrors.discountValue = 'Please enter a valid discount value.';
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validate()) return;
+    if (!selectedDue) {
+      setError('Pick a student with an unpaid fee.');
+      return;
+    }
+    if (!type) {
+      setError('Concession type is required.');
+      return;
+    }
+    if (!(value > 0)) {
+      setError('Discount value must be greater than 0.');
+      return;
+    }
+    if (discountType === 'PERCENTAGE' && value > 100) {
+      setError('A percentage concession cannot exceed 100.');
+      return;
+    }
+    if (discount > selectedDue.pending) {
+      setError(`The concession (${formatCurrency(discount)}) exceeds the pending balance of ${formatCurrency(selectedDue.pending)}.`);
+      return;
+    }
 
-    const studentObj = students.find((s) => String(s.id) === String(formData.studentId));
-
-    onSave({
-      id: Date.now(),
-      studentId: Number(formData.studentId),
-      studentName: studentObj ? studentObj.name : 'Student',
-      className: studentObj ? studentObj.className : '1-A',
-      feeStructure: selectedFeeHead ? selectedFeeHead.title : 'Tuition Fee',
-      type: formData.type,
-      discountType: formData.discountType,
-      discountValue: Number(formData.discountValue),
-      grossAmount,
-      effectiveAmount,
-      description: formData.description.trim() || `${formData.type} concession approved.`,
-    });
+    setSaving(true);
+    setError('');
+    try {
+      const saved = await http.post('/fees/concessions', {
+        feeDueId: selectedDue.id,
+        type,
+        discountType,
+        discountValue: value,
+        description: description.trim() || `${type} concession`,
+      });
+      onSaved?.(saved);
+      onClose();
+    } catch (err) {
+      setError(err.message);
+      setSaving(false);
+    }
   };
+
+  const selectClass =
+    'w-full px-4 py-2.5 rounded-2xl text-xs sm:text-sm border border-slate-200 bg-slate-50/30 text-slate-900 focus:border-[#FF6B2C] focus:ring-2 focus:ring-orange-100 focus:outline-none transition-all cursor-pointer';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in">
-      <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 relative space-y-6">
+      <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 relative space-y-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
           <h3 className="text-lg font-extrabold text-slate-900">Add Concession</h3>
           <button
@@ -97,77 +111,87 @@ export const ConcessionModal = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Select Student */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Class</label>
+              <select
+                value={className}
+                onChange={(e) => {
+                  setClassName(e.target.value);
+                  setStudentId('');
+                  setFeeDueId('');
+                }}
+                className={selectClass}
+              >
+                {classes.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1.5 col-span-2">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Student <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={effectiveStudentId}
+                onChange={(e) => {
+                  setStudentId(e.target.value);
+                  setFeeDueId('');
+                }}
+                disabled={students.length === 0}
+                className={selectClass}
+              >
+                {studentsApi.loading && <option value="">Loading…</option>}
+                {!studentsApi.loading && students.length === 0 && <option value="">No students</option>}
+                {students.map((st) => (
+                  <option key={st.id} value={st.id}>
+                    {st.name} (Roll {st.rollNumber} • {st.id})
+                  </option>
+                ))}
+              </select>
+              {studentsApi.error && <p className="text-xs text-rose-500">{studentsApi.error.message}</p>}
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-              Student <span className="text-rose-500">*</span>
+              Unpaid Fee <span className="text-rose-500">*</span>
             </label>
             <select
-              name="studentId"
-              value={formData.studentId}
-              onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded-2xl text-xs sm:text-sm border border-slate-200 bg-slate-50/30 text-slate-900 focus:border-[#FF6B2C] focus:ring-2 focus:ring-orange-100 focus:outline-none transition-all cursor-pointer"
+              value={selectedDue?.id || ''}
+              onChange={(e) => setFeeDueId(e.target.value)}
+              disabled={openDues.length === 0}
+              className={selectClass}
             >
-              {students.map((st) => (
-                <option key={st.id} value={st.id}>
-                  {st.name} ({st.className} • {st.studentId})
+              {duesApi.loading && <option value="">Loading…</option>}
+              {!duesApi.loading && openDues.length === 0 && <option value="">No unpaid fees for this student</option>}
+              {openDues.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.title} (pending {formatCurrency(d.pending)})
                 </option>
               ))}
             </select>
+            {duesApi.error && <p className="text-xs text-rose-500">{duesApi.error.message}</p>}
           </div>
 
-          {/* Select Fee Structure */}
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-              Fee Structure <span className="text-rose-500">*</span>
-            </label>
-            <select
-              name="feeHeadId"
-              value={formData.feeHeadId}
-              onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded-2xl text-xs sm:text-sm border border-slate-200 bg-slate-50/30 text-slate-900 focus:border-[#FF6B2C] focus:ring-2 focus:ring-orange-100 focus:outline-none transition-all cursor-pointer"
-            >
-              {feeHeads.map((fh) => (
-                <option key={fh.id} value={fh.id}>
-                  {fh.title} ({formatCurrency(fh.amount)})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Type */}
           <div className="space-y-1.5">
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
               Concession Type <span className="text-rose-500">*</span>
             </label>
-            <select
-              name="type"
-              value={formData.type}
-              onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded-2xl text-xs sm:text-sm border border-slate-200 bg-slate-50/30 text-slate-900 focus:border-[#FF6B2C] focus:ring-2 focus:ring-orange-100 focus:outline-none transition-all cursor-pointer"
-            >
-              <option value="Sibling">Sibling</option>
-              <option value="Merit">Merit</option>
-              <option value="SC/ST">SC/ST</option>
-              <option value="Staff Ward">Staff Ward</option>
-              <option value="Custom">Custom</option>
+            <select value={type} onChange={(e) => setType(e.target.value)} className={selectClass}>
+              {concessionTypes.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
             </select>
           </div>
 
-          {/* Discount Type & Value */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Discount Type
-              </label>
-              <select
-                name="discountType"
-                value={formData.discountType}
-                onChange={handleChange}
-                className="w-full px-4 py-2.5 rounded-2xl text-xs sm:text-sm border border-slate-200 bg-slate-50/30 text-slate-900 focus:border-[#FF6B2C] focus:ring-2 focus:ring-orange-100 focus:outline-none transition-all cursor-pointer"
-              >
-                <option value="Percentage">Percentage (%)</option>
-                <option value="Flat Amount">Flat Amount (₹)</option>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Discount Type</label>
+              <select value={discountType} onChange={(e) => setDiscountType(e.target.value)} className={selectClass}>
+                <option value="PERCENTAGE">Percentage (%)</option>
+                <option value="FLAT">Flat Amount (₹)</option>
               </select>
             </div>
 
@@ -178,45 +202,44 @@ export const ConcessionModal = ({
               <input
                 type="number"
                 min="0"
-                name="discountValue"
-                value={formData.discountValue}
-                onChange={handleChange}
+                value={discountValue}
+                onChange={(e) => setDiscountValue(e.target.value)}
                 placeholder="e.g. 10 or 500"
                 className="w-full px-4 py-2.5 rounded-2xl text-xs sm:text-sm border border-slate-200 bg-slate-50/30 text-slate-900 focus:border-[#FF6B2C] focus:ring-2 focus:ring-orange-100 focus:outline-none transition-all"
               />
             </div>
           </div>
 
-          {/* Effective Amount Display Banner */}
-          <div className="bg-[#FFF5F0] border border-[#FF6B2C]/20 rounded-2xl p-4 flex items-center justify-between text-xs">
-            <div>
-              <span className="text-slate-500">Gross Fee:</span>{' '}
-              <strong className="text-slate-800">{formatCurrency(grossAmount)}</strong>
+          {selectedDue && (
+            <div className="bg-[#FFF5F0] border border-[#FF6B2C]/20 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div>
+                <span className="text-slate-500">Fee:</span>{' '}
+                <strong className="text-slate-800">{formatCurrency(selectedDue.amount)}</strong>
+              </div>
+              <div>
+                <span className="text-slate-500">Discount:</span>{' '}
+                <strong className="text-emerald-600">{formatCurrency(discount)}</strong>
+              </div>
+              <div>
+                <span className="text-slate-500">Pending after:</span>{' '}
+                <strong className="text-[#FF6B2C] text-sm font-extrabold">{formatCurrency(Math.max(0, pendingAfter))}</strong>
+              </div>
             </div>
-            <div>
-              <span className="text-slate-500">Effective Amount:</span>{' '}
-              <strong className="text-[#FF6B2C] text-sm font-extrabold">
-                {formatCurrency(effectiveAmount)}
-              </strong>
-            </div>
-          </div>
+          )}
 
-          {/* Description */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-              Description / Reason
-            </label>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Description / Reason</label>
             <input
               type="text"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              placeholder="e.g. Sibling discount approved for 2026-27"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. Sibling discount approved"
               className="w-full px-4 py-2.5 rounded-2xl text-xs sm:text-sm border border-slate-200 bg-slate-50/30 text-slate-900 focus:border-[#FF6B2C] focus:ring-2 focus:ring-orange-100 focus:outline-none transition-all"
             />
           </div>
 
-          {/* Buttons */}
+          {error && <p className="text-xs font-semibold text-rose-600">{error}</p>}
+
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
             <button
               type="button"
@@ -227,9 +250,10 @@ export const ConcessionModal = ({
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] active:bg-[#D94E13] text-white font-semibold text-xs rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-colors cursor-pointer"
+              disabled={saving || !selectedDue}
+              className="px-6 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] active:bg-[#D94E13] text-white font-semibold text-xs rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-colors cursor-pointer disabled:opacity-60"
             >
-              Add Concession
+              {saving ? 'Saving…' : 'Add Concession'}
             </button>
           </div>
         </form>

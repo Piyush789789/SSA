@@ -1,16 +1,12 @@
 import { AppRouter } from '@/routes';
 import { AuthProvider } from '@/context/AuthContext';
-import { DataProvider } from '@/context/DataContext';
 
 export const App = () => {
   return (
     <AuthProvider>
-      <DataProvider>
-        <AppRouter />
-      </DataProvider>
+      <AppRouter />
     </AuthProvider>
   );
 };
 
 export default App;
-

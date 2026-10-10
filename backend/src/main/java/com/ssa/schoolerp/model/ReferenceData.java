@@ -20,6 +20,9 @@ public final class ReferenceData {
     public static final List<String> PAYMENT_MODES = List.of(
             "Cash", "UPI", "Card", "Cheque", "DD", "Bank Transfer");
 
+    /** Ways a family can pay outside the school office and then report the payment from the app. */
+    public static final List<String> DEPOSIT_MODES = List.of("UPI", "Bank Transfer", "Cheque", "DD");
+
     public static final List<String> FEE_FREQUENCIES = List.of(
             "One-Time", "Monthly", "Quarterly", "Half-Yearly", "Annual");
 

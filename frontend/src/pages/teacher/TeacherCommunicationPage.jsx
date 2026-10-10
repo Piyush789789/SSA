@@ -1,74 +1,83 @@
-import React, { useState, useMemo } from 'react';
-import { MessageSquare, Send, CheckCircle2, User, Users, Mail, Clock } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { MessageSquare, Send, CheckCircle2, Clock, Inbox } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { useData } from '@/context/DataContext';
+import { http } from '@/api/http';
+import { useApi } from '@/hooks/useApi';
+import { AsyncState } from '@/components/common/AsyncState';
+import { formatDateTime } from '@/utils';
+
+const recipientLabel = (msg) => {
+  if (msg.recipientType === 'CLASS') return `Class ${msg.className} families`;
+  if (msg.recipientType === 'STUDENT') return `${msg.recipientName ?? msg.recipientId} (family)`;
+  return msg.recipientName ?? msg.recipientId;
+};
 
 export const TeacherCommunicationPage = () => {
   const { currentUser } = useAuth();
-  const { students, messages, sendMessage } = useData();
+  const assignedClasses = useMemo(() => currentUser?.assignedClasses ?? [], [currentUser]);
 
-  const assignedClasses = currentUser?.assignedClasses || ['5-B', '6-A'];
-  const teacherName = currentUser?.name || 'Anjali Singh';
-
-  const [selectedClass, setSelectedClass] = useState(assignedClasses[0] || '5-B');
-  const [recipientType, setRecipientType] = useState('ALL'); // 'ALL' | 'STUDENT'
+  const [selectedClass, setSelectedClass] = useState(() => assignedClasses[0] ?? '');
+  const [recipientType, setRecipientType] = useState('CLASS'); // 'CLASS' | 'STUDENT'
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [subject, setSubject] = useState('');
   const [messageBody, setMessageBody] = useState('');
   const [toastMessage, setToastMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState('');
+  const [logFilter, setLogFilter] = useState('ALL'); // ALL | RECEIVED | SENT
 
-  // Class students dropdown
-  const classStudents = useMemo(() => {
-    return students.filter((s) => s.className === selectedClass);
-  }, [students, selectedClass]);
+  const messages = useApi('/messages');
+  const classStudents = useApi(
+    recipientType === 'STUDENT' && selectedClass ? `/classes/${encodeURIComponent(selectedClass)}/students` : null,
+  );
+
+  const visibleMessages = useMemo(() => {
+    return (messages.data ?? []).filter((msg) => {
+      const mine = msg.senderId === currentUser?.id;
+      if (logFilter === 'SENT') return mine;
+      if (logFilter === 'RECEIVED') return !mine;
+      return true;
+    });
+  }, [messages.data, logFilter, currentUser]);
 
   const triggerToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 3000);
   };
 
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!subject || !messageBody) {
-      alert('Please enter a subject and message body.');
+    if (!subject.trim() || !messageBody.trim()) {
+      setSendError('Please enter a subject and message body.');
+      return;
+    }
+    if (recipientType === 'STUDENT' && !selectedStudentId) {
+      setSendError('Please choose a student.');
       return;
     }
 
-    let recipientName = `Class ${selectedClass} Parents`;
-    if (recipientType === 'STUDENT' && selectedStudentId) {
-      const studentObj = classStudents.find((s) => (s.studentId || s.id) === selectedStudentId);
-      if (studentObj) {
-        recipientName = `${studentObj.name} (Parent)`;
-      }
+    const body =
+      recipientType === 'CLASS'
+        ? { recipientType: 'CLASS', className: selectedClass, subject: subject.trim(), body: messageBody.trim() }
+        : { recipientType: 'STUDENT', recipientId: selectedStudentId, subject: subject.trim(), body: messageBody.trim() };
+
+    setSending(true);
+    setSendError('');
+    try {
+      const sent = await http.post('/messages', body);
+      setSubject('');
+      setMessageBody('');
+      triggerToast(`Message sent to ${sent ? recipientLabel(sent) : 'the recipients'}.`);
+      messages.reload();
+    } catch (error) {
+      setSendError(error.message);
+    } finally {
+      setSending(false);
     }
-
-    const now = new Date();
-    const formattedTime = now.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    }) + ' ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-
-    const newMsg = {
-      id: `MSG-${Date.now()}`,
-      recipientType: recipientType === 'ALL' ? 'Class' : 'Student',
-      className: selectedClass,
-      recipientName,
-      subject,
-      message: messageBody,
-      sentAt: formattedTime,
-      status: 'Sent',
-      author: teacherName,
-    };
-
-    sendMessage(newMsg);
-    setSubject('');
-    setMessageBody('');
-    triggerToast(`Message sent successfully to ${recipientName}.`);
   };
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-5 right-5 z-50 flex items-center gap-2.5 px-4 py-3 bg-slate-900 text-white rounded-2xl shadow-xl text-xs font-semibold animate-in fade-in slide-in-from-top-4 duration-200">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -83,7 +92,7 @@ export const TeacherCommunicationPage = () => {
           <span>Communication & Parent Messages</span>
         </h1>
         <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
-          Send class announcements and direct messages to parents and students
+          Send class announcements and direct messages to students and their families
         </p>
       </div>
 
@@ -92,12 +101,11 @@ export const TeacherCommunicationPage = () => {
         <div className="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-5">
           <div className="border-b border-slate-100 pb-3">
             <h2 className="text-lg font-bold text-slate-900">Compose Message</h2>
-            <p className="text-xs text-slate-500">Send an update to parents or specific students</p>
+            <p className="text-xs text-slate-500">Send an update to a whole class or one student's family</p>
           </div>
 
           <form onSubmit={handleSendMessage} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Target Class Dropdown */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Target Class</label>
                 <select
@@ -116,40 +124,44 @@ export const TeacherCommunicationPage = () => {
                 </select>
               </div>
 
-              {/* Recipient Scope */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Recipient Scope</label>
                 <select
                   value={recipientType}
-                  onChange={(e) => setRecipientType(e.target.value)}
+                  onChange={(e) => {
+                    setRecipientType(e.target.value);
+                    setSelectedStudentId('');
+                  }}
                   className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-[#FF6B2C]"
                 >
-                  <option value="ALL">Entire Class Parents</option>
+                  <option value="CLASS">Entire Class (students & parents)</option>
                   <option value="STUDENT">Specific Student / Parent</option>
                 </select>
               </div>
             </div>
 
-            {/* Individual Student Selector if scope is STUDENT */}
             {recipientType === 'STUDENT' && (
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Select Student</label>
-                <select
-                  value={selectedStudentId}
-                  onChange={(e) => setSelectedStudentId(e.target.value)}
-                  className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-[#FF6B2C]"
-                >
-                  <option value="">Select a student...</option>
-                  {classStudents.map((s) => (
-                    <option key={s.studentId || s.id} value={s.studentId || s.id}>
-                      {s.name} (Roll #{s.rollNumber || 1})
-                    </option>
-                  ))}
-                </select>
+                <AsyncState state={classStudents} loadingText="Loading students…">
+                  {(list) => (
+                    <select
+                      value={selectedStudentId}
+                      onChange={(e) => setSelectedStudentId(e.target.value)}
+                      className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-[#FF6B2C]"
+                    >
+                      <option value="">{list.length ? 'Select a student...' : 'No students in this class'}</option>
+                      {list.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} (Roll #{s.rollNumber})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </AsyncState>
               </div>
             )}
 
-            {/* Subject */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">Subject / Header</label>
               <input
@@ -162,7 +174,6 @@ export const TeacherCommunicationPage = () => {
               />
             </div>
 
-            {/* Message Body */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">Message Body</label>
               <textarea
@@ -170,62 +181,99 @@ export const TeacherCommunicationPage = () => {
                 required
                 value={messageBody}
                 onChange={(e) => setMessageBody(e.target.value)}
-                placeholder="Type your message to parents..."
+                placeholder="Type your message..."
                 className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-[#FF6B2C]"
               />
             </div>
 
+            {sendError && <p className="text-xs font-semibold text-rose-600">{sendError}</p>}
+
             <div className="flex justify-end pt-2">
               <button
                 type="submit"
-                className="flex items-center gap-2 px-6 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer text-xs sm:text-sm"
+                disabled={sending || !selectedClass}
+                className="flex items-center gap-2 px-6 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-4 h-4 stroke-[2]" />
-                <span>Send Communication</span>
+                <span>{sending ? 'Sending…' : 'Send Communication'}</span>
               </button>
             </div>
           </form>
         </div>
 
-        {/* Message Log & Sent Messages (5 cols) */}
+        {/* Message Log (5 cols) */}
         <div className="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-          <div className="border-b border-slate-100 pb-3">
-            <h2 className="text-base font-bold text-slate-900">Sent Messages Log</h2>
-            <p className="text-xs text-slate-500">History of communications sent by you</p>
-          </div>
-
-          <div className="space-y-3.5 max-h-[500px] overflow-y-auto custom-scrollbar pr-1">
-            {messages.length === 0 ? (
-              <p className="text-xs text-slate-400 italic text-center py-6">No messages sent yet.</p>
-            ) : (
-              messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/60 space-y-2 hover:border-orange-200 transition-all"
+          <div className="border-b border-slate-100 pb-3 flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">Messages</h2>
+              <p className="text-xs text-slate-500">Messages you sent and replies from families</p>
+            </div>
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200/80 shrink-0">
+              {[
+                ['ALL', 'All'],
+                ['RECEIVED', 'Inbox'],
+                ['SENT', 'Sent'],
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setLogFilter(key)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer ${
+                    logFilter === key ? 'bg-white text-[#FF6B2C] shadow-xs' : 'text-slate-600'
+                  }`}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="px-2.5 py-0.5 bg-orange-100 text-[#FF6B2C] font-bold rounded-md text-[10px]">
-                      {msg.recipientName}
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {msg.sentAt}
-                    </span>
-                  </div>
-
-                  <h4 className="text-xs font-bold text-slate-900">{msg.subject}</h4>
-                  <p className="text-[11px] text-slate-600 line-clamp-2">{msg.message}</p>
-
-                  <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between text-[10px] text-emerald-600 font-bold">
-                    <span className="flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                      Sent to demo state
-                    </span>
-                  </div>
-                </div>
-              ))
-            )}
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
+
+          <AsyncState state={messages} loadingText="Loading messages…">
+            {() => (
+              <div className="space-y-3.5 max-h-[500px] overflow-y-auto custom-scrollbar pr-1">
+                {visibleMessages.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic text-center py-6">No messages yet.</p>
+                ) : (
+                  visibleMessages.map((msg) => {
+                    const mine = msg.senderId === currentUser?.id;
+                    return (
+                      <div
+                        key={msg.id}
+                        className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/60 space-y-2 hover:border-orange-200 transition-all"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="px-2.5 py-0.5 bg-orange-100 text-[#FF6B2C] font-bold rounded-md text-[10px]">
+                            {mine ? `To: ${recipientLabel(msg)}` : `From: ${msg.senderName}`}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1 shrink-0">
+                            <Clock className="w-3 h-3" />
+                            {formatDateTime(msg.sentAt)}
+                          </span>
+                        </div>
+
+                        <h4 className="text-xs font-bold text-slate-900">{msg.subject}</h4>
+                        <p className="text-[11px] text-slate-600 whitespace-pre-line">{msg.body}</p>
+
+                        <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between text-[10px] font-bold">
+                          {mine ? (
+                            <span className="flex items-center gap-1 text-emerald-600">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                              Sent
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-blue-600">
+                              <Inbox className="w-3 h-3" />
+                              Received{msg.senderRole ? ` from a ${String(msg.senderRole).toLowerCase()}` : ''}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </AsyncState>
         </div>
       </div>
     </div>

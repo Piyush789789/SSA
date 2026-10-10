@@ -2,7 +2,7 @@ import React from 'react';
 import { Calendar, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-export const MonthlyAttendanceTable = ({ monthlyData }) => {
+export const MonthlyAttendanceTable = ({ monthlyData, periodLabel }) => {
   const navigate = useNavigate();
 
   return (
@@ -13,7 +13,7 @@ export const MonthlyAttendanceTable = ({ monthlyData }) => {
             <Calendar className="w-4 h-4 stroke-[2.2]" />
           </div>
           <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">
-            Monthly Student Attendance Overview (September 2026)
+            Monthly Student Attendance Overview{periodLabel ? ` (${periodLabel})` : ''}
           </h3>
         </div>
         <span className="text-xs font-semibold text-slate-400">
@@ -82,14 +82,16 @@ export const MonthlyAttendanceTable = ({ monthlyData }) => {
                   <td className="py-3 px-3 text-center font-black">
                     <span
                       className={`px-2.5 py-1 rounded-full text-xs ${
-                        Number(row.rate) >= 90
+                        row.rate === null
+                          ? 'bg-slate-50 text-slate-400 border border-slate-200'
+                          : Number(row.rate) >= 90
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : Number(row.rate) >= 75
                           ? 'bg-amber-50 text-amber-700 border border-amber-200'
                           : 'bg-rose-50 text-rose-700 border border-rose-200'
                       }`}
                     >
-                      {row.rate}%
+                      {row.rate === null ? '—' : `${Number(row.rate).toFixed(1)}%`}
                     </span>
                   </td>
                   <td className="py-3 px-3 text-right">

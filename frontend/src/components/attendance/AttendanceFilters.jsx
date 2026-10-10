@@ -1,15 +1,28 @@
 import React from 'react';
 import { Search, Download, Calendar as CalendarIcon, CheckSquare, RotateCcw } from 'lucide-react';
-import { CLASSES_LIST } from '@/data/attendanceData';
+import { addDays, formatDate, parseIsoDate, todayIso } from '@/utils';
+
+const WEEKS_SHOWN = 12;
+
+/** Monday dates of the last few weeks, newest first. */
+const recentWeeks = () => {
+  const today = todayIso();
+  const monday = addDays(today, -((parseIsoDate(today).getDay() + 6) % 7));
+  return Array.from({ length: WEEKS_SHOWN }, (_, i) => addDays(monday, -7 * i));
+};
 
 export const AttendanceFilters = ({
   filterState,
+  classOptions = [],
   onFilterChange,
   onResetFilters,
   onExportCSV,
   onOpenMarkModal,
 }) => {
   const { viewMode, selectedDate, selectedWeek, selectedMonth, selectedClass, searchQuery } = filterState;
+  const today = todayIso();
+  const weeks = recentWeeks();
+  if (!weeks.includes(selectedWeek)) weeks.push(selectedWeek);
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200/80 p-4 sm:p-5 shadow-xs space-y-4">
@@ -41,7 +54,8 @@ export const AttendanceFilters = ({
               <input
                 type="date"
                 value={selectedDate}
-                onChange={(e) => onFilterChange('selectedDate', e.target.value)}
+                max={today}
+                onChange={(e) => e.target.value && onFilterChange('selectedDate', e.target.value)}
                 className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6B2C]/20 focus:border-[#FF6B2C] transition-all"
               />
             </div>
@@ -53,22 +67,22 @@ export const AttendanceFilters = ({
               onChange={(e) => onFilterChange('selectedWeek', e.target.value)}
               className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6B2C]/20 focus:border-[#FF6B2C] transition-all"
             >
-              <option value="2026-W39">Week: 21 Sep – 26 Sep 2026</option>
-              <option value="2026-W38">Week: 14 Sep – 19 Sep 2026</option>
-              <option value="2026-W37">Week: 07 Sep – 12 Sep 2026</option>
+              {weeks.map((monday) => (
+                <option key={monday} value={monday}>
+                  Week: {formatDate(monday)} – {formatDate(addDays(monday, 5))}
+                </option>
+              ))}
             </select>
           )}
 
           {viewMode === 'monthly' && (
-            <select
+            <input
+              type="month"
               value={selectedMonth}
-              onChange={(e) => onFilterChange('selectedMonth', e.target.value)}
+              max={today.slice(0, 7)}
+              onChange={(e) => e.target.value && onFilterChange('selectedMonth', e.target.value)}
               className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6B2C]/20 focus:border-[#FF6B2C] transition-all"
-            >
-              <option value="2026-09">September 2026</option>
-              <option value="2026-08">August 2026</option>
-              <option value="2026-07">July 2026</option>
-            </select>
+            />
           )}
         </div>
 
@@ -113,9 +127,9 @@ export const AttendanceFilters = ({
             className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6B2C]/20 focus:border-[#FF6B2C] transition-all"
           >
             <option value="ALL">All Classes</option>
-            {CLASSES_LIST.map((c) => (
-              <option key={c.id} value={c.name}>
-                Class {c.name}
+            {classOptions.map((c) => (
+              <option key={c} value={c}>
+                Class {c}
               </option>
             ))}
           </select>

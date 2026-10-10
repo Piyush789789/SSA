@@ -1,37 +1,42 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileCheck, Calendar, Clock, Edit3, Eye, Search, Filter } from 'lucide-react';
+import { FileCheck, Calendar, Clock, Edit3 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { useData } from '@/context/DataContext';
+import { useApi } from '@/hooks/useApi';
+import { AsyncState } from '@/components/common/AsyncState';
+import { formatDate } from '@/utils';
 
 export const TeacherExamsPage = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { exams, schedules } = useData();
+  const schedules = useApi('/exam-schedules');
+  const exams = useApi('/exams');
 
-  const assignedClasses = currentUser?.assignedClasses || ['5-B', '6-A'];
-  const teacherSubjects = currentUser?.subjects || ['Mathematics', 'Science'];
+  const assignedClasses = useMemo(() => currentUser?.assignedClasses ?? [], [currentUser]);
+  const teacherSubjects = useMemo(() => currentUser?.subjects ?? [], [currentUser]);
 
   const [activeTab, setActiveTab] = useState('ALL');
   const [selectedClassFilter, setSelectedClassFilter] = useState('ALL');
 
-  // Filter exam schedules for assigned classes & subjects
+  // Papers of the teacher's own subjects in the teacher's own classes.
   const relevantSchedules = useMemo(() => {
-    return schedules.filter((sch) => {
-      const isClassMatch = assignedClasses.includes(sch.className);
-      const isSubjectMatch = teacherSubjects.includes(sch.subject);
+    return (schedules.data ?? [])
+      .filter((sch) => {
+        if (!assignedClasses.includes(sch.className) || !teacherSubjects.includes(sch.subject)) return false;
+        if (selectedClassFilter !== 'ALL' && sch.className !== selectedClassFilter) return false;
+        if (activeTab !== 'ALL' && sch.status !== activeTab) return false;
+        return true;
+      })
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  }, [schedules.data, assignedClasses, teacherSubjects, selectedClassFilter, activeTab]);
 
-      if (!isClassMatch || !isSubjectMatch) return false;
-
-      if (selectedClassFilter !== 'ALL' && sch.className !== selectedClassFilter) return false;
-
-      if (activeTab === 'Upcoming' && sch.status !== 'Upcoming' && sch.status !== 'Scheduled') return false;
-      if (activeTab === 'Active' && sch.status !== 'Active' && sch.status !== 'Ongoing') return false;
-      if (activeTab === 'Completed' && sch.status !== 'Completed') return false;
-
-      return true;
+  const examsById = useMemo(() => {
+    const map = {};
+    (exams.data ?? []).forEach((e) => {
+      map[e.id] = e;
     });
-  }, [schedules, assignedClasses, teacherSubjects, selectedClassFilter, activeTab]);
+    return map;
+  }, [exams.data]);
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -52,7 +57,7 @@ export const TeacherExamsPage = () => {
       <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-4">
         {/* Status Tabs */}
         <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200/80">
-          {['ALL', 'Active', 'Upcoming', 'Completed'].map((tab) => (
+          {['ALL', 'Ongoing', 'Upcoming', 'Completed'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -62,7 +67,7 @@ export const TeacherExamsPage = () => {
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              {tab === 'ALL' ? 'All Exams' : tab}
+              {tab === 'ALL' ? 'All Exams' : tab === 'Ongoing' ? 'Active' : tab}
             </button>
           ))}
         </div>
@@ -86,6 +91,8 @@ export const TeacherExamsPage = () => {
       </div>
 
       {/* Exam Schedules Grid */}
+      <AsyncState state={[schedules, exams]} loadingText="Loading exam papers…">
+      {() => (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {relevantSchedules.length === 0 ? (
           <div className="col-span-full bg-white p-12 rounded-2xl border border-slate-200/80 text-center text-slate-400">
@@ -93,8 +100,9 @@ export const TeacherExamsPage = () => {
           </div>
         ) : (
           relevantSchedules.map((sch) => {
-            const parentExam = exams.find((e) => e.id === sch.examId);
-            const examTitle = parentExam ? parentExam.name : 'Periodic Assessment';
+            const parentExam = examsById[sch.examId];
+            const examTitle = parentExam ? parentExam.name : sch.examId;
+            const published = parentExam?.resultsStatus === 'Published';
 
             return (
               <div
@@ -113,12 +121,12 @@ export const TeacherExamsPage = () => {
                         Completed
                       </span>
                     )}
-                    {sch.status === 'Active' && (
+                    {sch.status === 'Ongoing' && (
                       <span className="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 font-bold rounded-xl text-[11px] animate-pulse">
-                        Active / Evaluation Open
+                        Ongoing / Evaluation Open
                       </span>
                     )}
-                    {(sch.status === 'Upcoming' || sch.status === 'Scheduled') && (
+                    {sch.status === 'Upcoming' && (
                       <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 font-bold rounded-xl text-[11px]">
                         Upcoming
                       </span>
@@ -136,7 +144,7 @@ export const TeacherExamsPage = () => {
                         <Calendar className="w-3.5 h-3.5 stroke-[2]" />
                         <span>Date:</span>
                       </span>
-                      <span className="font-bold text-slate-800">{sch.date}</span>
+                      <span className="font-bold text-slate-800">{formatDate(sch.date)}</span>
                     </div>
 
                     <div className="flex items-center justify-between">
@@ -153,6 +161,13 @@ export const TeacherExamsPage = () => {
                       <span className="text-slate-400">Max Marks:</span>
                       <span className="font-extrabold text-[#FF6B2C]">{sch.maxMarks} Marks</span>
                     </div>
+
+                    {published && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Results:</span>
+                        <span className="font-bold text-emerald-700">Published (marks locked)</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -163,7 +178,7 @@ export const TeacherExamsPage = () => {
                     className="w-full h-10 bg-[#FFF5F0] hover:bg-[#FF6B2C] text-[#FF6B2C] hover:text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer group"
                   >
                     <Edit3 className="w-4 h-4 stroke-[2]" />
-                    <span>Enter / Edit Marks</span>
+                    <span>{published ? 'View Marks' : sch.status === 'Upcoming' ? 'Open Marks Sheet' : 'Enter / Edit Marks'}</span>
                   </button>
                 </div>
               </div>
@@ -171,6 +186,8 @@ export const TeacherExamsPage = () => {
           })
         )}
       </div>
+      )}
+      </AsyncState>
     </div>
   );
 };

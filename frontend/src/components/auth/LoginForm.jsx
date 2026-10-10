@@ -6,6 +6,7 @@ import { ROLES } from '@/constants/roles';
 import { ROUTES } from '@/constants/routes';
 import { useAuth } from '@/context/AuthContext';
 import { authApi } from '@/api/authApi';
+import { HOME_BY_ROLE } from '@/routes/RequireRole';
 
 export const LoginForm = () => {
   const navigate = useNavigate();
@@ -43,18 +44,8 @@ export const LoginForm = () => {
     try {
       const response = await authApi.login(email, password, selectedRoleId);
       if (response && response.success && response.user) {
-        loginWithApi(response.user, response.token);
-
-        const roleLower = (response.user.role || selectedRoleId).toLowerCase();
-        if (roleLower === 'teacher') {
-          navigate('/teacher/dashboard');
-        } else if (roleLower === 'student') {
-          navigate('/student/dashboard');
-        } else if (roleLower === 'parent') {
-          navigate('/parent/dashboard');
-        } else {
-          navigate(ROUTES.ADMIN_DASHBOARD || '/admin/dashboard');
-        }
+        const user = await loginWithApi(response.user, response.token);
+        navigate(HOME_BY_ROLE[user.role] ?? ROUTES.LOGIN, { replace: true });
       } else {
         setErrorMessage(response.message || 'Login failed. Please try again.');
       }

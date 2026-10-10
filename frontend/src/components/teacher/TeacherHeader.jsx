@@ -2,15 +2,16 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Menu, Search, Bell, ChevronDown, Building2, User, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { initialsOf } from '@/utils';
 
 export const TeacherHeader = ({ onToggleSidebar }) => {
   const navigate = useNavigate();
   const { currentUser, logout } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedSchool, setSelectedSchool] = useState('Shiv Shanti Adarsh Academy');
+  const selectedSchool = 'Shiv Shanti Adarsh Academy';
   const dropdownRef = useRef(null);
 
-  const teacherAvatar = currentUser?.avatar || 'AS';
+  const teacherAvatar = currentUser?.avatar || initialsOf(currentUser?.name);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -56,11 +57,12 @@ export const TeacherHeader = ({ onToggleSidebar }) => {
         {/* Notification Bell */}
         <button
           type="button"
+          onClick={() => navigate('/teacher/notices')}
+          title="Notices"
           className="relative p-2.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-2xl transition-colors cursor-pointer"
           aria-label="Notifications"
         >
           <Bell className="w-5 h-5 stroke-[2]" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-[#FF6B2C] rounded-full ring-2 ring-white" />
         </button>
 
         {/* School Selector Dropdown Pill */}
@@ -85,10 +87,10 @@ export const TeacherHeader = ({ onToggleSidebar }) => {
             <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200/80 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
               <div className="px-4 py-2 border-b border-slate-100">
                 <p className="text-xs font-bold text-slate-900 truncate">
-                  {currentUser?.name || 'Anjali Singh'}
+                  {currentUser?.name}
                 </p>
                 <p className="text-[10px] text-slate-400 truncate">
-                  {currentUser?.email || 'anjali.singh@teacher.example'}
+                  {currentUser?.email || currentUser?.loginEmail}
                 </p>
               </div>
 

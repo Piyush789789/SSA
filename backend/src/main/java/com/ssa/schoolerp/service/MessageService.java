@@ -12,6 +12,7 @@ import com.ssa.schoolerp.model.User;
 import com.ssa.schoolerp.repository.DataStore;
 import com.ssa.schoolerp.security.AccessGuard;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
  * messages only that student and their parents; for TEACHER messages only that teacher.
  */
 @Service
+@Transactional
 public class MessageService {
 
     private final DataStore store;

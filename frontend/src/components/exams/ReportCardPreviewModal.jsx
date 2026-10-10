@@ -1,76 +1,79 @@
 import React from 'react';
-import { X, Printer, Download, GraduationCap, Award, CheckCircle2 } from 'lucide-react';
+import { X, Printer, Download, GraduationCap, Award } from 'lucide-react';
+import { withQuery } from '@/api/http';
+import { useApi } from '@/hooks/useApi';
+import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
+import { formatDate } from '@/utils';
 
-export const ReportCardPreviewModal = ({ isOpen, onClose, student, examName = 'Mid-Term Examination' }) => {
-  if (!isOpen || !student) return null;
+// When printing, show only the report card (not the page behind the modal).
+const PRINT_CSS = `
+@media print {
+  body * { visibility: hidden !important; }
+  #report-card-print, #report-card-print * { visibility: visible !important; }
+  #report-card-print { position: absolute; left: 0; top: 0; width: 100%; }
+}`;
 
-  const handlePrint = () => {
-    window.print();
-  };
+const pct = (value) => (value == null ? '—' : `${value}%`);
 
-  const handleGeneratePDF = () => {
-    // Create a Blob or download simulation for ReportCard_<StudentID>_<Exam>.pdf
-    const fileName = `ReportCard_${student.id || 'STU-2026-0015'}_${examName.replace(/\s+/g, '_')}.pdf`;
-    const textContent = `
-============================================================
-SSA SHIV SHANTI ADARSH ACADEMY
-ACADEMIC SESSION: 2026-27
-OFFICIAL REPORT CARD — ${examName.toUpperCase()}
-============================================================
+/**
+ * Report card for one student and one exam, built from GET /results/students/{id}?examId=,
+ * the student record and their attendance stats.
+ */
+export const ReportCardPreviewModal = ({ isOpen, onClose, studentId, exam }) => {
+  const active = isOpen && studentId && exam;
+  const result = useApi(active ? withQuery(`/results/students/${studentId}`, { examId: exam.id }) : null);
+  const student = useApi(active ? `/students/${studentId}` : null);
+  const attendance = useApi(active ? `/attendance/students/${studentId}/stats` : null);
 
-STUDENT INFORMATION:
-Student Name: ${student.name}
-Student ID:   ${student.id || 'STU-2026-0015'}
-Roll Number:  ${student.rollNumber || 1}
-Class:        ${student.className || '10-A'}
+  if (!active) return null;
 
-SUBJECT-WISE PERFORMANCE:
-------------------------------------------------------------
-Subject             Max Marks   Obtained   Percentage   Grade
-------------------------------------------------------------
-Mathematics         100         82         82%          A
-English             100         91         91%          A+
-Science             100         95         95%          A+
-Hindi               100         85         85%          A
-Computer Science    100         88         88%          A
-------------------------------------------------------------
+  const handleDownloadText = () => {
+    const r = result.data;
+    if (!r) return;
+    const s = student.data || {};
+    const line = '-'.repeat(68);
+    const rows = r.subjects.map(
+      (sub) =>
+        `${sub.subject.padEnd(22)}${String(sub.maxMarks).padEnd(8)}${String(
+          sub.absent ? 'AB' : sub.obtainedMarks ?? '—',
+        ).padEnd(10)}${pct(sub.percentage).padEnd(10)}${String(sub.grade ?? '—').padEnd(7)}${
+          sub.passed ? 'Pass' : 'Fail'
+        }`,
+    );
+    const text = [
+      'SSA SHIV SHANTI ADARSH ACADEMY',
+      `REPORT CARD — ${exam.name}${exam.academicYear ? ` (${exam.academicYear})` : ''}`,
+      line,
+      `Student Name: ${r.studentName}`,
+      `Student ID:   ${r.studentId}`,
+      `Class:        ${r.className}`,
+      `Roll Number:  ${s.rollNumber ?? '—'}`,
+      line,
+      `${'Subject'.padEnd(22)}${'Max'.padEnd(8)}${'Marks'.padEnd(10)}${'%'.padEnd(10)}${'Grade'.padEnd(7)}Result`,
+      line,
+      ...(rows.length ? rows : ['No marks recorded for this exam.']),
+      line,
+      `Total Marks:  ${r.totalObtained} / ${r.totalMaxMarks}`,
+      `Percentage:   ${pct(r.percentage)}`,
+      `Grade:        ${r.grade ?? '—'}`,
+      '',
+    ].join('\n');
 
-OVERALL ACADEMIC SUMMARY:
-Total Marks:    441 / 500
-Overall Rate:   88.2%
-Overall Grade:  A+
-GPA Score:      9.0 / 10.0
-Result Status:  PASS
-
-ATTENDANCE SUMMARY:
-Total Working Days: 24
-Days Present:       21
-Days Absent:        3
-Attendance Rate:    87.5%
-
-TEACHER REMARK:
-"Excellent academic performance and consistent participation."
-
-SIGNATURES:
-Class Teacher: ___________________
-Principal:     ___________________
-School Seal:   [ SSA ADARSH ACADEMY OFFICIAL SEAL ]
-============================================================
-    `;
-
-    const blob = new Blob([textContent], { type: 'application/pdf' });
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = fileName;
+    link.href = url;
+    link.download = `ReportCard_${r.studentId}_${exam.name.replace(/\s+/g, '_')}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+      <style>{PRINT_CSS}</style>
       <div className="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl border border-slate-100 relative my-8 print:p-0 print:border-none print:shadow-none print:w-full print:max-w-none">
-        
         {/* Action Header Bar (Hidden during print) */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-6 print:hidden">
           <div className="flex items-center gap-2.5">
@@ -86,20 +89,22 @@ School Seal:   [ SSA ADARSH ACADEMY OFFICIAL SEAL ]
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={handlePrint}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-2xl border border-slate-200 transition-all cursor-pointer shadow-2xs"
+              onClick={() => window.print()}
+              disabled={!result.data}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-2xl border border-slate-200 transition-all cursor-pointer shadow-2xs disabled:opacity-60"
             >
               <Printer className="w-4 h-4 text-slate-500" />
-              <span>Print Report</span>
+              <span>Print / Save as PDF</span>
             </button>
 
             <button
               type="button"
-              onClick={handleGeneratePDF}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-[#FF6B2C] hover:bg-[#e85a1c] text-white font-bold text-xs rounded-2xl transition-all cursor-pointer shadow-md shadow-[#FF6B2C]/20"
+              onClick={handleDownloadText}
+              disabled={!result.data}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#FF6B2C] hover:bg-[#e85a1c] text-white font-bold text-xs rounded-2xl transition-all cursor-pointer shadow-md shadow-[#FF6B2C]/20 disabled:opacity-60"
             >
               <Download className="w-4 h-4" />
-              <span>Generate PDF</span>
+              <span>Download .txt</span>
             </button>
 
             <button
@@ -113,158 +118,181 @@ School Seal:   [ SSA ADARSH ACADEMY OFFICIAL SEAL ]
           </div>
         </div>
 
-        {/* PRINTABLE A4 REPORT CARD BODY */}
-        <div className="border border-slate-200 rounded-3xl p-6 sm:p-8 space-y-6 print:border-none print:p-0">
-          
-          {/* School Header */}
-          <div className="text-center border-b-2 border-[#FF6B2C] pb-4">
-            <div className="flex items-center justify-center gap-3 mb-1">
-              <div className="w-10 h-10 rounded-2xl bg-[#FF6B2C] text-white flex items-center justify-center font-bold">
-                <GraduationCap className="w-6 h-6" />
+        <AsyncState state={result} loadingText="Loading report card…">
+          {(r) => {
+            const s = student.data || {};
+            const failedAny = r.subjects.some((sub) => !sub.passed);
+            return (
+              <div
+                id="report-card-print"
+                className="border border-slate-200 rounded-3xl p-6 sm:p-8 space-y-6 print:border-none print:p-0"
+              >
+                {/* School Header */}
+                <div className="text-center border-b-2 border-[#FF6B2C] pb-4">
+                  <div className="flex items-center justify-center gap-3 mb-1">
+                    <div className="w-10 h-10 rounded-2xl bg-[#FF6B2C] text-white flex items-center justify-center font-bold">
+                      <GraduationCap className="w-6 h-6" />
+                    </div>
+                    <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight uppercase">
+                      SSA SHIV SHANTI ADARSH ACADEMY
+                    </h1>
+                  </div>
+                  {exam.academicYear && (
+                    <p className="text-xs font-semibold text-slate-500">Session {exam.academicYear}</p>
+                  )}
+                  <div className="mt-3 inline-block px-5 py-1 bg-amber-50 border border-amber-200 text-[#FF6B2C] font-black text-xs uppercase tracking-widest rounded-full">
+                    REPORT CARD — {exam.name.toUpperCase()}
+                  </div>
+                </div>
+
+                {/* Student Info Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 text-xs">
+                  <div>
+                    <p className="text-slate-400 font-bold uppercase text-[10px]">Student Name</p>
+                    <p className="font-extrabold text-slate-900 mt-0.5">{r.studentName}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400 font-bold uppercase text-[10px]">Student ID</p>
+                    <p className="font-bold text-slate-700 mt-0.5">{r.studentId}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400 font-bold uppercase text-[10px]">Class &amp; Section</p>
+                    <p className="font-bold text-slate-700 mt-0.5">Class {r.className}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400 font-bold uppercase text-[10px]">Roll Number</p>
+                    <p className="font-bold text-slate-700 mt-0.5">{s.rollNumber ?? '—'}</p>
+                  </div>
+                </div>
+
+                {/* Subject Marks Table */}
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-2">
+                    Subject-Wise Performance
+                  </h4>
+                  {r.subjects.length === 0 ? (
+                    <EmptyMessage text="No marks have been recorded for this student in this exam yet." />
+                  ) : (
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b-2 border-slate-200 text-[10px] font-black text-slate-400 uppercase">
+                          <th className="py-2 px-3">Subject</th>
+                          <th className="py-2 px-3 text-center">Date</th>
+                          <th className="py-2 px-3 text-center">Max Marks</th>
+                          <th className="py-2 px-3 text-center">Obtained Marks</th>
+                          <th className="py-2 px-3 text-center">Percentage</th>
+                          <th className="py-2 px-3 text-center">Grade</th>
+                          <th className="py-2 px-3 text-center">Result</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-semibold">
+                        {r.subjects.map((row) => (
+                          <tr key={`${row.subject}-${row.date}`}>
+                            <td className="py-2.5 px-3 font-bold text-slate-900">{row.subject}</td>
+                            <td className="py-2.5 px-3 text-center text-slate-500">{formatDate(row.date)}</td>
+                            <td className="py-2.5 px-3 text-center text-slate-600">{row.maxMarks}</td>
+                            <td className="py-2.5 px-3 text-center font-extrabold text-slate-900">
+                              {row.absent ? 'Absent' : row.obtainedMarks ?? '—'}
+                            </td>
+                            <td className="py-2.5 px-3 text-center font-bold text-slate-800">{pct(row.percentage)}</td>
+                            <td className="py-2.5 px-3 text-center font-black text-emerald-700">{row.grade ?? '—'}</td>
+                            <td className="py-2.5 px-3 text-center">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                  row.passed
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : 'bg-rose-50 text-rose-700 border-rose-200'
+                                }`}
+                              >
+                                {row.passed ? 'Pass' : 'Fail'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                {/* Overall Result & Attendance Summary Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/60 space-y-2">
+                    <h4 className="text-xs font-black uppercase text-amber-900 tracking-wider">Overall Academic Result</h4>
+                    <div className="grid grid-cols-2 gap-2 text-xs font-bold">
+                      <div>
+                        <p className="text-slate-500 text-[10px]">Total Marks</p>
+                        <p className="text-slate-900 text-sm font-black">
+                          {r.totalObtained} / {r.totalMaxMarks}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500 text-[10px]">Percentage</p>
+                        <p className="text-[#FF6B2C] text-sm font-black">{pct(r.percentage)}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500 text-[10px]">Grade</p>
+                        <p className="text-slate-900">{r.grade ?? '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500 text-[10px]">Final Status</p>
+                        {r.subjects.length === 0 ? (
+                          <p className="text-slate-500 font-black">—</p>
+                        ) : (
+                          <p className={`font-black ${failedAny ? 'text-rose-700' : 'text-emerald-700'}`}>
+                            {failedAny ? 'NOT PASSED IN ALL SUBJECTS' : 'PASS'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200/60 space-y-2">
+                    <h4 className="text-xs font-black uppercase text-indigo-900 tracking-wider">Attendance Performance</h4>
+                    {attendance.data ? (
+                      <div className="grid grid-cols-2 gap-2 text-xs font-bold">
+                        <div>
+                          <p className="text-slate-500 text-[10px]">Working Days</p>
+                          <p className="text-slate-900">{attendance.data.workingDays} Days</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-500 text-[10px]">Present / Absent</p>
+                          <p className="text-slate-900">
+                            {attendance.data.present} / {attendance.data.absent}
+                          </p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-slate-500 text-[10px]">Attendance Rate</p>
+                          <p className="text-indigo-700 font-black text-sm">{pct(attendance.data.rate)}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500">
+                        {attendance.error ? 'Attendance not available.' : 'Loading attendance…'}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Signatures Footer */}
+                <div className="grid grid-cols-3 gap-4 pt-10 text-center text-xs font-bold text-slate-700">
+                  <div>
+                    <div className="border-b border-slate-300 pb-1 mb-1">Class Teacher</div>
+                    <span className="text-[10px] font-normal text-slate-400">Signature</span>
+                  </div>
+                  <div>
+                    <div className="border-b border-slate-300 pb-1 mb-1">Principal</div>
+                    <span className="text-[10px] font-normal text-slate-400">Signature &amp; Stamp</span>
+                  </div>
+                  <div>
+                    <div className="border-2 border-dashed border-amber-300 rounded-full w-16 h-16 mx-auto flex items-center justify-center text-[9px] font-black text-amber-700 uppercase leading-tight p-1">
+                      Official Seal
+                    </div>
+                  </div>
+                </div>
               </div>
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight uppercase">
-                SSA SHIV SHANTI ADARSH ACADEMY
-              </h1>
-            </div>
-            <p className="text-xs font-semibold text-slate-500">
-              Affiliated to State Board • Session 2026-27
-            </p>
-            <div className="mt-3 inline-block px-5 py-1 bg-amber-50 border border-amber-200 text-[#FF6B2C] font-black text-xs uppercase tracking-widest rounded-full">
-              REPORT CARD — {examName.toUpperCase()}
-            </div>
-          </div>
-
-          {/* Student Info Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 text-xs">
-            <div>
-              <p className="text-slate-400 font-bold uppercase text-[10px]">Student Name</p>
-              <p className="font-extrabold text-slate-900 mt-0.5">{student.name}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 font-bold uppercase text-[10px]">Student ID</p>
-              <p className="font-bold text-slate-700 mt-0.5">{student.id || 'STU-2026-0015'}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 font-bold uppercase text-[10px]">Class &amp; Section</p>
-              <p className="font-bold text-slate-700 mt-0.5">Class {student.className || '10-A'}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 font-bold uppercase text-[10px]">Roll Number</p>
-              <p className="font-bold text-slate-700 mt-0.5">{student.rollNumber || 1}</p>
-            </div>
-          </div>
-
-          {/* Subject Marks Table */}
-          <div>
-            <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-2">
-              Subject-Wise Performance
-            </h4>
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b-2 border-slate-200 text-[10px] font-black text-slate-400 uppercase">
-                  <th className="py-2 px-3">Subject</th>
-                  <th className="py-2 px-3 text-center">Max Marks</th>
-                  <th className="py-2 px-3 text-center">Obtained Marks</th>
-                  <th className="py-2 px-3 text-center">Percentage</th>
-                  <th className="py-2 px-3 text-center">Grade</th>
-                  <th className="py-2 px-3 text-center">Result</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-semibold">
-                {[
-                  { subject: 'Mathematics', max: 100, obtained: 82, percent: '82%', grade: 'A', result: 'Pass' },
-                  { subject: 'English', max: 100, obtained: 91, percent: '91%', grade: 'A+', result: 'Pass' },
-                  { subject: 'Science', max: 100, obtained: 95, percent: '95%', grade: 'A+', result: 'Pass' },
-                  { subject: 'Hindi', max: 100, obtained: 85, percent: '85%', grade: 'A', result: 'Pass' },
-                  { subject: 'Computer Science', max: 100, obtained: 88, percent: '88%', grade: 'A', result: 'Pass' },
-                ].map((row) => (
-                  <tr key={row.subject}>
-                    <td className="py-2.5 px-3 font-bold text-slate-900">{row.subject}</td>
-                    <td className="py-2.5 px-3 text-center text-slate-600">{row.max}</td>
-                    <td className="py-2.5 px-3 text-center font-extrabold text-slate-900">{row.obtained}</td>
-                    <td className="py-2.5 px-3 text-center font-bold text-slate-800">{row.percent}</td>
-                    <td className="py-2.5 px-3 text-center font-black text-emerald-700">{row.grade}</td>
-                    <td className="py-2.5 px-3 text-center">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        {row.result}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Overall Result & Attendance Summary Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-            {/* Overall Result */}
-            <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/60 space-y-2">
-              <h4 className="text-xs font-black uppercase text-amber-900 tracking-wider">Overall Academic Result</h4>
-              <div className="grid grid-cols-2 gap-2 text-xs font-bold">
-                <div>
-                  <p className="text-slate-500 text-[10px]">Total Marks</p>
-                  <p className="text-slate-900 text-sm font-black">441 / 500</p>
-                </div>
-                <div>
-                  <p className="text-slate-500 text-[10px]">Percentage</p>
-                  <p className="text-[#FF6B2C] text-sm font-black">88.2%</p>
-                </div>
-                <div>
-                  <p className="text-slate-500 text-[10px]">Grade / GPA</p>
-                  <p className="text-slate-900">A+ (GPA: 9.0)</p>
-                </div>
-                <div>
-                  <p className="text-slate-500 text-[10px]">Final Status</p>
-                  <p className="text-emerald-700 font-black">PASS</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Attendance Summary */}
-            <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200/60 space-y-2">
-              <h4 className="text-xs font-black uppercase text-indigo-900 tracking-wider">Attendance Performance</h4>
-              <div className="grid grid-cols-2 gap-2 text-xs font-bold">
-                <div>
-                  <p className="text-slate-500 text-[10px]">Working Days</p>
-                  <p className="text-slate-900">24 Days</p>
-                </div>
-                <div>
-                  <p className="text-slate-500 text-[10px]">Present / Absent</p>
-                  <p className="text-slate-900">21 / 3</p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-slate-500 text-[10px]">Attendance Rate</p>
-                  <p className="text-indigo-700 font-black text-sm">87.5%</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Teacher Remarks */}
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 text-xs">
-            <p className="text-[10px] font-extrabold uppercase text-slate-400">Class Teacher's Remark</p>
-            <p className="font-semibold text-slate-800 italic mt-0.5">
-              "Excellent academic performance and consistent participation in class activities. Keep up the great effort!"
-            </p>
-          </div>
-
-          {/* Signatures Footer */}
-          <div className="grid grid-cols-3 gap-4 pt-10 text-center text-xs font-bold text-slate-700">
-            <div>
-              <div className="border-b border-slate-300 pb-1 mb-1">Class Teacher</div>
-              <span className="text-[10px] font-normal text-slate-400">Signature</span>
-            </div>
-            <div>
-              <div className="border-b border-slate-300 pb-1 mb-1">Principal</div>
-              <span className="text-[10px] font-normal text-slate-400">Signature &amp; Stamp</span>
-            </div>
-            <div>
-              <div className="border-2 border-dashed border-amber-300 rounded-full w-16 h-16 mx-auto flex items-center justify-center text-[9px] font-black text-amber-700 uppercase leading-tight p-1">
-                Official Seal
-              </div>
-            </div>
-          </div>
-        </div>
+            );
+          }}
+        </AsyncState>
       </div>
     </div>
   );

@@ -1,158 +1,94 @@
-import React, { useState } from 'react';
-import { Settings, CheckCircle2, SlidersHorizontal } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Settings, CheckCircle2 } from 'lucide-react';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import {
-  INITIAL_PERIODS,
-  INITIAL_TIMETABLE_ENTRIES,
-} from '@/data/timetableData';
-
 import { SubjectLegend } from '@/components/timetable/SubjectLegend';
 import { TimetableGrid } from '@/components/timetable/TimetableGrid';
 import { EditTimetableEntryModal } from '@/components/timetable/EditTimetableEntryModal';
 import { ManagePeriodsModal } from '@/components/timetable/ManagePeriodsModal';
+import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
+import { useApi } from '@/hooks/useApi';
+import { http, withQuery } from '@/api/http';
 
 export const TimetablePage = () => {
+  const [searchParams] = useSearchParams();
   const [activeSidebarId, setActiveSidebarId] = useState('timetable');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Selected Class (Default: Class 1-A)
-  const [selectedClass, setSelectedClass] = useState('1-A');
+  const classes = useApi('/classes');
+  const periods = useApi('/timetable/periods');
+  const teachers = useApi('/teachers');
+  const meta = useApi('/meta');
 
-  // Selected Legend Subject Filter
-  const [selectedSubjectId, setSelectedSubjectId] = useState(null);
+  const classOptions = useMemo(
+    () => (classes.data || []).map((c) => c.id).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+    [classes.data],
+  );
+  const [chosenClass, setChosenClass] = useState(searchParams.get('class') || '');
+  const selectedClass = chosenClass || classOptions[0] || '';
 
-  // Periods State
-  const [periods, setPeriods] = useState(INITIAL_PERIODS);
+  const entries = useApi(selectedClass ? withQuery('/timetable', { className: selectedClass }) : null);
 
-  // Timetable Entries State
-  const [entries, setEntries] = useState(INITIAL_TIMETABLE_ENTRIES);
-
-  // Modal States
-  const [editModalState, setEditModalState] = useState({
-    isOpen: false,
-    cellData: null,
-  });
-
+  const [selectedSubject, setSelectedSubject] = useState(null);
+  const [editModalState, setEditModalState] = useState({ isOpen: false, cellData: null });
   const [isManagePeriodsOpen, setIsManagePeriodsOpen] = useState(false);
-
-  // Toast Notification State
   const [toastMessage, setToastMessage] = useState('');
 
   const triggerToast = (msg) => {
     setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage('');
-    }, 3000);
+    setTimeout(() => setToastMessage(''), 3000);
   };
 
-  const classOptions = [
-    '1-A',
-    '1-B',
-    '2-A',
-    '2-B',
-    '3-A',
-    '3-B',
-    '4-A',
-    '4-B',
-    '5-A',
-    '5-B',
-    '6-A',
-    '6-B',
-    '7-A',
-    '7-B',
-    '8-A',
-    '8-B',
-    '9-A',
-    '9-B',
-    '10-A',
-    '10-B',
-  ];
+  const subjectsInUse = useMemo(
+    () => [...new Set((entries.data || []).map((e) => e.subject))].sort(),
+    [entries.data],
+  );
 
-  // Open Edit Entry Modal on cell click
   const handleCellClick = (day, period, entry) => {
-    setEditModalState({
-      isOpen: true,
-      cellData: {
-        classId: selectedClass,
-        day,
-        period,
-        entry,
-      },
-    });
+    setEditModalState({ isOpen: true, cellData: { classId: selectedClass, day, period, entry } });
   };
 
-  // Save Timetable Entry (Subject & Teacher / Substitute)
-  const handleSaveEntry = (updatedEntryData) => {
-    const { classId, day, periodId, subjectId, teacherName, substituteTeacherName } =
-      updatedEntryData;
+  const closeEditModal = () => setEditModalState({ isOpen: false, cellData: null });
 
-    setEntries((prev) => {
-      const existingIdx = prev.findIndex(
-        (e) => e.classId === classId && e.day === day && e.periodId === periodId
-      );
-
-      const newEntry = {
-        classId,
-        day,
-        periodId,
-        subjectId,
-        teacherName,
-        substituteTeacherName,
-      };
-
-      if (existingIdx >= 0) {
-        const copy = [...prev];
-        copy[existingIdx] = newEntry;
-        return copy;
-      }
-      return [...prev, newEntry];
-    });
-
-    setEditModalState({ isOpen: false, cellData: null });
-    if (substituteTeacherName) {
-      triggerToast('Substitute teacher assigned for this day.');
-    } else {
-      triggerToast('Timetable entry updated successfully.');
-    }
+  // PUT /timetable/entries — errors are shown inside the modal.
+  const handleSaveEntry = async (request) => {
+    await http.put('/timetable/entries', request);
+    closeEditModal();
+    triggerToast('Timetable entry saved.');
+    entries.reload();
   };
 
-  // Clear Timetable Entry
-  const handleClearEntry = ({ classId, day, periodId }) => {
-    setEntries((prev) =>
-      prev.filter(
-        (e) => !(e.classId === classId && e.day === day && e.periodId === periodId)
-      )
-    );
-
-    setEditModalState({ isOpen: false, cellData: null });
+  const handleClearEntry = async (entry) => {
+    await http.delete(`/timetable/entries/${encodeURIComponent(entry.id)}`);
+    closeEditModal();
     triggerToast('Timetable entry cleared.');
+    entries.reload();
   };
 
-  // Add Period Row
-  const handleAddPeriod = (newPeriod) => {
-    setPeriods((prev) => [...prev, newPeriod]);
-    triggerToast(`New period row "${newPeriod.label}" added.`);
+  // PUT /timetable/periods replaces the whole list.
+  const savePeriods = async (nextPeriods, message) => {
+    const saved = await http.put('/timetable/periods', { periods: nextPeriods });
+    periods.setData(saved);
+    triggerToast(message);
+    entries.reload();
   };
 
-  // Delete Period Row
-  const handleDeletePeriod = (periodId) => {
-    setPeriods((prev) => prev.filter((p) => p.id !== periodId));
-    setEntries((prev) => prev.filter((e) => e.periodId !== periodId));
-    triggerToast('Period row removed.');
-  };
+  const handleAddPeriod = (newPeriod) =>
+    savePeriods([...(periods.data || []), newPeriod], `New period row "${newPeriod.label}" added.`);
+
+  const handleDeletePeriod = (periodId) =>
+    savePeriods((periods.data || []).filter((p) => p.id !== periodId), 'Period row removed.');
 
   return (
     <div className="min-h-screen bg-slate-50/60 font-sans text-slate-900 antialiased flex flex-col relative">
-      {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-5 right-5 z-50 flex items-center gap-3 bg-emerald-600 text-white px-5 py-3.5 rounded-2xl shadow-xl border border-emerald-500 animate-bounce">
+        <div className="fixed top-5 right-5 z-50 flex items-center gap-3 bg-emerald-600 text-white px-5 py-3.5 rounded-2xl shadow-xl border border-emerald-500">
           <CheckCircle2 className="w-5 h-5 text-white" />
           <span className="font-semibold text-sm">{toastMessage}</span>
         </div>
       )}
 
-      {/* Sidebar Component */}
       <Sidebar
         activeItemId={activeSidebarId}
         onItemSelect={setActiveSidebarId}
@@ -160,31 +96,31 @@ export const TimetablePage = () => {
         onClose={() => setIsSidebarOpen(false)}
       />
 
-      {/* Main Content Area */}
       <div className="lg:pl-[310px] flex-1 flex flex-col transition-all duration-300">
         <DashboardHeader onToggleSidebar={() => setIsSidebarOpen(true)} />
 
-        {/* Timetable Main Body */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] w-full mx-auto pb-16">
-          {/* Top Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                 Weekly Timetable
               </h1>
               <p className="text-xs sm:text-sm font-normal text-slate-500 mt-1">
-                View and manage class schedules
+                View and manage class schedules. Click a cell to add or change a lesson.
               </p>
             </div>
 
-            {/* Top Right Controls (Class Selector & Manage Periods Button) */}
             <div className="flex flex-wrap items-center gap-3 shrink-0 self-start sm:self-auto">
-              {/* Class Selector Dropdown */}
               <select
                 value={selectedClass}
-                onChange={(e) => setSelectedClass(e.target.value)}
+                onChange={(e) => {
+                  setChosenClass(e.target.value);
+                  setSelectedSubject(null);
+                }}
+                disabled={classOptions.length === 0}
                 className="px-4 py-2.5 bg-white border border-slate-200/90 rounded-2xl text-xs sm:text-sm font-bold text-slate-800 shadow-xs focus:outline-none focus:border-[#FF6B2C] focus:ring-2 focus:ring-orange-100 cursor-pointer"
               >
+                {classOptions.length === 0 && <option value="">No classes</option>}
                 {classOptions.map((cls) => (
                   <option key={cls} value={cls}>
                     Class {cls}
@@ -192,11 +128,11 @@ export const TimetablePage = () => {
                 ))}
               </select>
 
-              {/* Manage Periods Button */}
               <button
                 type="button"
                 onClick={() => setIsManagePeriodsOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-200/90 text-slate-700 font-bold text-xs sm:text-sm rounded-2xl shadow-xs transition-all cursor-pointer"
+                disabled={!periods.data}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-200/90 text-slate-700 font-bold text-xs sm:text-sm rounded-2xl shadow-xs transition-all cursor-pointer disabled:opacity-60"
               >
                 <Settings className="w-4 h-4 text-slate-500" />
                 <span>Manage Periods</span>
@@ -204,36 +140,50 @@ export const TimetablePage = () => {
             </div>
           </div>
 
-          {/* Subject Legend Bar */}
-          <SubjectLegend
-            selectedSubjectId={selectedSubjectId}
-            onSelectSubject={setSelectedSubjectId}
-          />
-
-          {/* Timetable Grid */}
-          <TimetableGrid
-            periods={periods}
-            entries={entries}
-            classId={selectedClass}
-            selectedSubjectId={selectedSubjectId}
-            onCellClick={handleCellClick}
-          />
+          <AsyncState state={[classes, periods]} loadingText="Loading timetable…">
+            {([, periodList]) =>
+              !selectedClass ? (
+                <EmptyMessage text="No classes exist yet. Create a class first." />
+              ) : periodList.length === 0 ? (
+                <EmptyMessage text="No periods are defined. Use Manage Periods to add the school day's periods." />
+              ) : (
+                <AsyncState state={entries} loadingText="Loading timetable…">
+                  {(entryList) => (
+                    <>
+                      <SubjectLegend
+                        subjects={subjectsInUse}
+                        selectedSubject={selectedSubject}
+                        onSelectSubject={setSelectedSubject}
+                      />
+                      <TimetableGrid
+                        periods={periodList}
+                        entries={entryList}
+                        selectedSubject={selectedSubject}
+                        onCellClick={handleCellClick}
+                      />
+                    </>
+                  )}
+                </AsyncState>
+              )
+            }
+          </AsyncState>
         </main>
       </div>
 
-      {/* Edit Entry Modal */}
       <EditTimetableEntryModal
         isOpen={editModalState.isOpen}
         cellData={editModalState.cellData}
-        onClose={() => setEditModalState({ isOpen: false, cellData: null })}
+        subjects={meta.data?.subjects || []}
+        teachers={teachers.data || []}
+        optionsError={teachers.error || meta.error}
+        onClose={closeEditModal}
         onSave={handleSaveEntry}
         onClear={handleClearEntry}
       />
 
-      {/* Manage Periods Modal */}
       <ManagePeriodsModal
         isOpen={isManagePeriodsOpen}
-        periods={periods}
+        periods={periods.data || []}
         onClose={() => setIsManagePeriodsOpen(false)}
         onAddPeriod={handleAddPeriod}
         onDeletePeriod={handleDeletePeriod}

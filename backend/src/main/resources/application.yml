@@ -2,6 +2,22 @@ spring:
   application:
     name: ssa-school-erp
 
+  # Reads DB_PASSWORD etc. from backend/.env (git-ignored). Copy .env.example to .env and fill it in.
+  config:
+    import: optional:file:.env[.properties]
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:school_erp}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:}
+
+  jpa:
+    # Creates and updates tables from the entity classes. Fine for development; switch to Flyway
+    # migrations before production so schema changes are versioned.
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
   devtools:
     restart:
       enabled: true
@@ -27,3 +43,6 @@ app:
   timezone: ${APP_TIMEZONE:Asia/Kolkata}
   auth:
     session-ttl: ${SESSION_TTL:PT8H}
+  fees:
+    # Shown in the apps above the "Deposit fee" form. Put the school's real UPI ID / bank details here.
+    deposit-instructions: ${FEE_DEPOSIT_INSTRUCTIONS:Pay by UPI, bank transfer, cheque or DD using the school's account details from the fee office. Then enter the transaction or cheque number below. The office will verify it and issue a receipt.}

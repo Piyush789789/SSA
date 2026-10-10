@@ -2,6 +2,10 @@ package com.ssa.schoolerp.controller;
 
 import com.ssa.schoolerp.dto.ApiResponse;
 import com.ssa.schoolerp.dto.ClassView;
+import com.ssa.schoolerp.dto.ProfileDtos.ParentSelfUpdate;
+import com.ssa.schoolerp.dto.ProfileDtos.StudentContactUpdate;
+import com.ssa.schoolerp.dto.ProfileDtos.TeacherSelfUpdate;
+import com.ssa.schoolerp.model.Parent;
 import com.ssa.schoolerp.model.Role;
 import com.ssa.schoolerp.model.SchoolClass;
 import com.ssa.schoolerp.model.Student;
@@ -106,6 +110,30 @@ public class SchoolController {
     @PutMapping("/students/{id}")
     public ApiResponse<Student> updateStudent(@PathVariable String id, @Valid @RequestBody Student request) {
         return ApiResponse.success("Student updated", school.updateStudent(id, request));
+    }
+
+    /** Address and guardian phone/email; the student, their parent or an admin may change them. */
+    @RequireRole({Role.ADMIN, Role.STUDENT, Role.PARENT})
+    @PutMapping("/students/{id}/contact")
+    public ApiResponse<Student> updateStudentContact(@CurrentUser User user, @PathVariable String id,
+                                                     @Valid @RequestBody StudentContactUpdate request) {
+        return ApiResponse.success("Contact details updated", school.updateStudentContact(user, id, request));
+    }
+
+    // ---------------------------------------------------------------- own profile
+
+    @RequireRole(Role.TEACHER)
+    @PutMapping("/me/teacher-profile")
+    public ApiResponse<Teacher> updateOwnTeacherProfile(@CurrentUser User user,
+                                                        @Valid @RequestBody TeacherSelfUpdate request) {
+        return ApiResponse.success("Profile updated", school.updateOwnTeacherProfile(user, request));
+    }
+
+    @RequireRole(Role.PARENT)
+    @PutMapping("/me/parent-profile")
+    public ApiResponse<Parent> updateOwnParentProfile(@CurrentUser User user,
+                                                      @Valid @RequestBody ParentSelfUpdate request) {
+        return ApiResponse.success("Profile updated", school.updateOwnParentProfile(user, request));
     }
 
     @RequireRole(Role.ADMIN)

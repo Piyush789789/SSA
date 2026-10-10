@@ -1,72 +1,68 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Megaphone } from 'lucide-react';
 
-export const NoticeFormModal = ({ isOpen, noticeToEdit, onClose, onSave }) => {
-  const isEditing = Boolean(noticeToEdit);
+const DEFAULT_AUDIENCES = ['ALL', 'STAFF', 'STUDENTS', 'PARENTS'];
+const AUDIENCE_LABELS = {
+  ALL: 'Everyone',
+  STAFF: 'Staff only',
+  STUDENTS: 'Students',
+  PARENTS: 'Parents',
+};
 
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    priority: 'medium',
-    author: 'School Admin',
-  });
-
-  const [errors, setErrors] = useState({});
-
-  useEffect(() => {
-    if (isOpen) {
-      if (noticeToEdit) {
-        setFormData({
-          title: noticeToEdit.title || '',
-          description: noticeToEdit.description || '',
-          priority: (noticeToEdit.priority || 'medium').toLowerCase(),
-          author: noticeToEdit.author || 'School Admin',
-        });
-      } else {
-        setFormData({
-          title: '',
-          description: '',
-          priority: 'medium',
-          author: 'School Admin',
-        });
-      }
-      setErrors({});
-    }
-  }, [isOpen, noticeToEdit]);
-
+/**
+ * Create / edit a notice. `onSave({title, description, priority, audience})` returns a promise
+ * (POST/PUT /notices); its error message is shown. The author is set by the server.
+ */
+export const NoticeFormModal = ({ isOpen, ...props }) => {
   if (!isOpen) return null;
+  return <NoticeForm key={props.noticeToEdit?.id || 'new'} {...props} />;
+};
+
+const NoticeForm = ({ noticeToEdit, audiences, onClose, onSave }) => {
+  const isEditing = Boolean(noticeToEdit);
+  const [formData, setFormData] = useState(() => ({
+    title: noticeToEdit?.title || '',
+    description: noticeToEdit?.description || '',
+    priority: (noticeToEdit?.priority || 'medium').toLowerCase(),
+    audience: noticeToEdit?.audience || 'ALL',
+  }));
+  const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [serverError, setServerError] = useState('');
+
+  const audienceOptions = audiences && audiences.length ? audiences : DEFAULT_AUDIENCES;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: null }));
-    }
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
   };
 
   const validate = () => {
     const newErrors = {};
-    if (!formData.title.trim()) {
-      newErrors.title = 'Title is required.';
-    }
-    if (!formData.description.trim()) {
-      newErrors.description = 'Description is required.';
-    }
+    if (!formData.title.trim()) newErrors.title = 'Title is required.';
+    if (!formData.description.trim()) newErrors.description = 'Description is required.';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
-
-    onSave({
-      ...(noticeToEdit || {}),
-      title: formData.title.trim(),
-      description: formData.description.trim(),
-      priority: formData.priority,
-      author: formData.author.trim() || 'School Admin',
-    });
+    setSaving(true);
+    setServerError('');
+    try {
+      await onSave({
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        priority: formData.priority,
+        audience: formData.audience,
+      });
+    } catch (error) {
+      setServerError(error.message || 'Could not save the notice.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -94,6 +90,12 @@ export const NoticeFormModal = ({ isOpen, noticeToEdit, onClose, onSave }) => {
 
         {/* Modal Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-5 custom-scrollbar pr-1">
+          {serverError && (
+            <div className="bg-rose-50 text-rose-700 text-xs font-medium p-3 rounded-xl border border-rose-200">
+              {serverError}
+            </div>
+          )}
+
           {/* Title */}
           <div className="space-y-1.5">
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
@@ -111,9 +113,7 @@ export const NoticeFormModal = ({ isOpen, noticeToEdit, onClose, onSave }) => {
                   : 'border-slate-200 focus:border-[#FF6B2C] focus:ring-orange-100'
               }`}
             />
-            {errors.title && (
-              <p className="text-xs text-rose-500 font-medium">{errors.title}</p>
-            )}
+            {errors.title && <p className="text-xs text-rose-500 font-medium">{errors.title}</p>}
           </div>
 
           {/* Description */}
@@ -133,17 +133,13 @@ export const NoticeFormModal = ({ isOpen, noticeToEdit, onClose, onSave }) => {
                   : 'border-slate-200 focus:border-[#FF6B2C] focus:ring-orange-100'
               }`}
             />
-            {errors.description && (
-              <p className="text-xs text-rose-500 font-medium">{errors.description}</p>
-            )}
+            {errors.description && <p className="text-xs text-rose-500 font-medium">{errors.description}</p>}
           </div>
 
-          {/* Priority & Author */}
+          {/* Priority & Audience */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Priority
-              </label>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Priority</label>
               <select
                 name="priority"
                 value={formData.priority}
@@ -157,17 +153,19 @@ export const NoticeFormModal = ({ isOpen, noticeToEdit, onClose, onSave }) => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Author
-              </label>
-              <input
-                type="text"
-                name="author"
-                value={formData.author}
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Audience</label>
+              <select
+                name="audience"
+                value={formData.audience}
                 onChange={handleChange}
-                placeholder="Author name"
-                className="w-full px-4 py-2.5 rounded-2xl text-xs sm:text-sm border border-slate-200 bg-slate-50/30 text-slate-900 focus:border-[#FF6B2C] focus:ring-2 focus:ring-orange-100 focus:outline-none transition-all"
-              />
+                className="w-full px-4 py-2.5 rounded-2xl text-xs sm:text-sm border border-slate-200 bg-slate-50/30 text-slate-900 font-medium focus:border-[#FF6B2C] focus:ring-2 focus:ring-orange-100 focus:outline-none transition-all cursor-pointer"
+              >
+                {audienceOptions.map((a) => (
+                  <option key={a} value={a}>
+                    {AUDIENCE_LABELS[a] || a}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -182,9 +180,10 @@ export const NoticeFormModal = ({ isOpen, noticeToEdit, onClose, onSave }) => {
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] active:bg-[#D94E13] text-white font-semibold text-xs rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-colors cursor-pointer"
+              disabled={saving}
+              className="px-6 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] active:bg-[#D94E13] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-xs rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-colors cursor-pointer"
             >
-              {isEditing ? 'Save Changes' : 'Publish Notice'}
+              {saving ? 'Saving…' : isEditing ? 'Save Changes' : 'Publish Notice'}
             </button>
           </div>
         </form>

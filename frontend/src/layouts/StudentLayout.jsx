@@ -5,7 +5,7 @@ import { StudentHeader } from '@/components/student/StudentHeader';
 import { useAuth } from '@/context/AuthContext';
 
 export const StudentLayout = () => {
-  const { currentUser, role } = useAuth();
+  const { currentUser } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // If not logged in, redirect to login

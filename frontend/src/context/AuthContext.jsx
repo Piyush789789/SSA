@@ -1,253 +1,121 @@
-﻿import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { initialTeachersData } from '@/data/teacherData';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { TOKEN_STORAGE_KEY } from '@/api/apiClient';
+import { http } from '@/api/http';
+import { initialsOf } from '@/utils';
 
 const AuthContext = createContext();
+const CHILD_STORAGE_KEY = 'ssa_selected_child';
 
-export const DEFAULT_ADMIN_USER = {
-  role: 'admin',
-  id: 'admin-001',
-  name: 'School Administrator',
-  email: 'admin@ssa.edu',
-  avatar: 'SA',
-};
+/**
+ * Flattens the /auth/me response into the `currentUser` shape the pages use. Field names such as
+ * studentId, teacherId, assignedClasses and linkedChildren are kept from the earlier mock users.
+ */
+function buildCurrentUser({ user, profile, children }) {
+  const role = user.role.toLowerCase();
+  const base = { userId: user.id, id: user.id, role, name: user.name, email: user.email, avatar: initialsOf(user.name) };
 
-export const DEFAULT_TEACHER_USER = {
-  role: 'teacher',
-  teacherId: 'TCH-2026-001',
-  id: 'teacher-001',
-  name: 'Anjali Singh',
-  email: 'teacher@ssa.edu',
-  phone: '+91 98765 43210',
-  qualification: 'M.Sc Mathematics, B.Ed',
-  experience: '8 years',
-  joiningDate: '2018-06-15',
-  assignedClasses: ['5-B', '6-A'],
-  subjects: ['Mathematics', 'Science'],
-  avatar: 'AS',
-};
+  switch (role) {
+    case 'teacher':
+      return { ...base, ...profile, role, teacherId: profile.id, loginEmail: user.email, avatar: initialsOf(profile.name) };
+    case 'student':
+      return { ...base, ...toStudent(profile), role, loginEmail: user.email };
+    case 'parent':
+      return {
+        ...base,
+        ...profile,
+        role,
+        parentId: profile.id,
+        loginEmail: user.email,
+        avatar: initialsOf(profile.name),
+        linkedChildren: children.map(toStudent),
+      };
+    default:
+      return base;
+  }
+}
 
-export const DEFAULT_STUDENT_USER = {
-  role: 'student',
-  studentId: 'STU-2026-0503',
-  id: 'student-001',
-  name: 'Rohit Verma',
-  email: 'student@ssa.edu',
-  className: '5-B',
-  section: 'B',
-  rollNumber: 3,
-  avatar: 'RV',
-  classTeacher: 'Anjali Singh',
-  bloodGroup: 'B+',
-  dob: 'Mar 15, 2015',
-  parent: {
-    name: 'Sanjay Verma',
-    relation: 'Father',
-    phone: '+91 98765 12345',
-    email: 'sanjay.verma@example.com',
-  },
-  feeSummary: {
-    total: 10700,
-    paid: 7700,
-    pending: 3000,
-  },
-  attendanceStats: {
-    totalDays: 24,
-    present: 22,
-    absent: 2,
-    late: 0,
-    rate: 92,
-  },
-};
-
-export const DEFAULT_PARENT_USER = {
-  role: 'parent',
-  parentId: 'PRN-2026-001',
-  id: 'parent-001',
-  name: 'Rajesh Verma',
-  email: 'parent@ssa.edu',
-  phone: '+91 98765 43210',
-  avatar: 'YV',
-  linkedChildren: [
-    {
-      studentId: 'STU-2026-0824',
-      id: 101,
-      name: 'Yash Verma',
-      className: '8-A',
-      section: 'A',
-      rollNumber: 24,
-      avatar: 'YV',
-      classTeacher: 'Javed Akhtar',
-      bloodGroup: 'B+',
-      dob: 'Jun 12, 2012',
-      attendanceStats: {
-        totalDays: 120,
-        present: 110,
-        absent: 10,
-        rate: 92,
-      },
-      feeSummary: {
-        total: 10700,
-        paid: 7700,
-        pending: 3000,
-      },
-      academicStats: {
-        average: 84.6,
-        testsCount: 6,
-      },
-    },
-    {
-      studentId: 'STU-2026-0512',
-      id: 102,
-      name: 'Ananya Verma',
-      className: '5-B',
-      section: 'B',
-      rollNumber: 12,
-      avatar: 'AV',
-      classTeacher: 'Anjali Singh',
-      bloodGroup: 'O+',
-      dob: 'Apr 08, 2015',
-      attendanceStats: {
-        totalDays: 115,
-        present: 108,
-        absent: 7,
-        rate: 94,
-      },
-      feeSummary: {
-        total: 9800,
-        paid: 7800,
-        pending: 2000,
-      },
-      academicStats: {
-        average: 91.2,
-        testsCount: 6,
-      },
-    },
-  ],
-};
+function toStudent(student) {
+  return {
+    ...student,
+    studentId: student.id,
+    section: student.className?.split('-')[1],
+    dob: student.dateOfBirth,
+    parent: student.guardian,
+    avatar: initialsOf(student.name),
+  };
+}
 
 export const AuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem('ssa_auth_user');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        // Fallback
-      }
-    }
-    return DEFAULT_TEACHER_USER;
-  });
+  const [session, setSession] = useState(null); // { user, profile, children } from GET /auth/me
+  const [isLoading, setIsLoading] = useState(() => Boolean(localStorage.getItem(TOKEN_STORAGE_KEY)));
+  const [selectedChildId, setSelectedChildId] = useState(() => localStorage.getItem(CHILD_STORAGE_KEY));
 
-  const [selectedChildId, setSelectedChildId] = useState('STU-2026-0824');
+  const clearSession = useCallback(() => {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.removeItem('ssa_auth_user'); // left over from the old mock login
+    setSession(null);
+  }, []);
 
+  const loadSession = useCallback(async () => {
+    const me = await http.get('/auth/me');
+    const next = { user: me.user, profile: me.profile ?? null, children: me.children ?? [] };
+    setSession(next);
+    return next;
+  }, []);
+
+  // Restore the session saved in this browser.
   useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('ssa_auth_user', JSON.stringify(currentUser));
-      if (currentUser.role === 'parent' && currentUser.linkedChildren?.length > 0) {
-        if (!selectedChildId || !currentUser.linkedChildren.some((c) => c.studentId === selectedChildId)) {
-          setSelectedChildId(currentUser.linkedChildren[0].studentId);
-        }
-      }
-    } else {
-      localStorage.removeItem('ssa_auth_user');
-      localStorage.removeItem('ssa_auth_token');
-    }
-  }, [currentUser]);
+    if (!localStorage.getItem(TOKEN_STORAGE_KEY)) return;
+    loadSession()
+      .catch((error) => {
+        if (error.status === 401) clearSession();
+      })
+      .finally(() => setIsLoading(false));
+  }, [loadSession, clearSession]);
 
-  const selectedChild = useMemo(() => {
-    if (currentUser?.role === 'parent' && currentUser?.linkedChildren) {
-      return (
-        currentUser.linkedChildren.find((c) => c.studentId === selectedChildId) ||
-        currentUser.linkedChildren[0]
-      );
-    }
-    return null;
-  }, [currentUser, selectedChildId]);
+  // Any request answered with 401 (expired session, backend restarted) signs the user out.
+  useEffect(() => {
+    window.addEventListener('ssa:unauthorized', clearSession);
+    return () => window.removeEventListener('ssa:unauthorized', clearSession);
+  }, [clearSession]);
 
-  const switchChild = (childId) => {
+  const currentUser = useMemo(() => (session ? buildCurrentUser(session) : null), [session]);
+
+  const linkedChildren = currentUser?.linkedChildren ?? [];
+  const selectedChild = linkedChildren.find((c) => c.studentId === selectedChildId) ?? linkedChildren[0] ?? null;
+
+  const switchChild = useCallback((childId) => {
     setSelectedChildId(childId);
-  };
+    localStorage.setItem(CHILD_STORAGE_KEY, childId);
+  }, []);
 
-  const loginWithApi = (apiUserData, token) => {
-    const roleLower = (apiUserData.role || 'ADMIN').toLowerCase();
-    let userObj;
-    if (roleLower === 'teacher') {
-      const teacher = initialTeachersData.find((t) => t.email === apiUserData.email) || DEFAULT_TEACHER_USER;
-      userObj = {
-        ...teacher,
-        ...apiUserData,
-        role: 'teacher',
-      };
-    } else if (roleLower === 'student') {
-      userObj = {
-        ...DEFAULT_STUDENT_USER,
-        ...apiUserData,
-        role: 'student',
-      };
-    } else if (roleLower === 'parent') {
-      userObj = {
-        ...DEFAULT_PARENT_USER,
-        ...apiUserData,
-        role: 'parent',
-      };
-      setSelectedChildId('STU-2026-0824');
-    } else {
-      userObj = {
-        ...DEFAULT_ADMIN_USER,
-        ...apiUserData,
-        role: 'admin',
-      };
-    }
+  /** Called by the login form with the /auth/login response. Resolves once the profile is loaded. */
+  const loginWithApi = useCallback(
+    async (_apiUser, token) => {
+      localStorage.setItem(TOKEN_STORAGE_KEY, token);
+      const next = await loadSession();
+      return buildCurrentUser(next);
+    },
+    [loadSession],
+  );
 
-    if (token) {
-      localStorage.setItem('ssa_auth_token', token);
-    }
-    setCurrentUser(userObj);
-    return userObj;
-  };
-
-  const login = (role, id = null) => {
-    if (role === 'teacher') {
-      const teacher = initialTeachersData.find((t) => t.teacherId === (id || 'TCH-2026-001')) || DEFAULT_TEACHER_USER;
-      setCurrentUser({
-        ...teacher,
-        role: 'teacher',
-      });
-    } else if (role === 'student') {
-      setCurrentUser(DEFAULT_STUDENT_USER);
-    } else if (role === 'parent') {
-      setCurrentUser(DEFAULT_PARENT_USER);
-      setSelectedChildId('STU-2026-0824');
-    } else {
-      setCurrentUser(DEFAULT_ADMIN_USER);
-    }
-  };
-
-  const logout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('ssa_auth_user');
-    localStorage.removeItem('ssa_auth_token');
-  };
-
-  const updateTeacherProfile = (updatedFields) => {
-    setCurrentUser((prev) => ({
-      ...prev,
-      ...updatedFields,
-    }));
-  };
+  const logout = useCallback(() => {
+    http.post('/auth/logout').catch(() => {});
+    clearSession();
+  }, [clearSession]);
 
   return (
     <AuthContext.Provider
       value={{
         currentUser,
         role: currentUser?.role || null,
+        isLoading,
         selectedChild,
-        selectedChildId,
+        selectedChildId: selectedChild?.studentId ?? null,
         switchChild,
-        login,
         loginWithApi,
         logout,
-        updateTeacherProfile,
+        refreshSession: loadSession,
       }}
     >
       {children}

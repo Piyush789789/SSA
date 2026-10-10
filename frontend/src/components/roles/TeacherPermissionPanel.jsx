@@ -1,6 +1,6 @@
 import React from 'react';
 import { Save } from 'lucide-react';
-import { PERMISSION_GROUPS } from '@/data/permissionsData';
+import { PERMISSION_GROUPS } from './permissionGroups';
 import { PermissionGroup } from './PermissionGroup';
 
 export const TeacherPermissionPanel = ({
@@ -30,8 +30,13 @@ export const TeacherPermissionPanel = ({
             {teacher.name}
           </h2>
           <p className="text-xs font-medium text-slate-400 mt-0.5">
-            {teacher.email}
+            {teacher.email} · {teacher.id}
           </p>
+          {(teacher.assignedClasses || []).length > 0 && (
+            <p className="text-[11px] font-medium text-slate-400 mt-0.5">
+              Classes: {teacher.assignedClasses.join(', ')} · Subjects: {(teacher.subjects || []).join(', ') || '—'}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-3 self-end sm:self-auto">
@@ -49,7 +54,7 @@ export const TeacherPermissionPanel = ({
             }`}
           >
             <Save className="w-4 h-4 stroke-[2.2]" />
-            Save
+            Save (this tab only)
           </button>
         </div>
       </div>

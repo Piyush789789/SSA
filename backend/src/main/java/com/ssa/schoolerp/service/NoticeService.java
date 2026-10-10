@@ -7,6 +7,7 @@ import com.ssa.schoolerp.model.Role;
 import com.ssa.schoolerp.model.User;
 import com.ssa.schoolerp.repository.DataStore;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -14,6 +15,7 @@ import java.util.Comparator;
 import java.util.List;
 
 @Service
+@Transactional
 public class NoticeService {
 
     private final DataStore store;

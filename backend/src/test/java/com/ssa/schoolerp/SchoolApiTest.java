@@ -244,6 +244,132 @@ class SchoolApiTest extends ApiTestSupport {
                 .andExpect(status().isConflict());
     }
 
+    // ---------------------------------------------------------------- fee deposits reported from the app
+
+    @Test
+    void depositIsOnlyCountedAfterAdminApproval() throws Exception {
+        FeeDue due = childDueWithPending();
+        long amount = Math.min(500, due.pending());
+        JsonNode deposit = data(postAs(parent(), "/api/fees/deposits", Map.of("feeDueId", due.id(), "amount", amount,
+                "paymentMode", "UPI", "referenceNo", "UTR123456", "paidOn", today().toString()))
+                .andExpect(status().isCreated()));
+        assertThat(deposit.get("status").asText()).isEqualTo("PENDING");
+        assertThat(store.feeDues.getById(due.id()).pending()).isEqualTo(due.pending()); // not counted yet
+
+        postAs(admin(), "/api/fees/deposits/" + deposit.get("id").asText() + "/approve", Map.of())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("APPROVED"));
+        assertThat(store.feeDues.getById(due.id()).pending()).isEqualTo(due.pending() - amount);
+        postAs(admin(), "/api/fees/deposits/" + deposit.get("id").asText() + "/approve", Map.of())
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void parentDepositIsValidatedAndCanBeRejected() throws Exception {
+        String token = parent();
+        FeeDue due = childDueWithPending();
+
+        postAs(token, "/api/fees/deposits", Map.of("feeDueId", due.id(), "amount", due.pending() + 1,
+                "paymentMode", "UPI", "referenceNo", "UTR-1", "paidOn", today().toString()))
+                .andExpect(status().isBadRequest());
+        postAs(token, "/api/fees/deposits", Map.of("feeDueId", due.id(), "amount", 1,
+                "paymentMode", "UPI", "paidOn", today().toString()))
+                .andExpect(status().isBadRequest()); // reference number missing
+        JsonNode deposit = data(postAs(token, "/api/fees/deposits", Map.of("feeDueId", due.id(), "amount", 1,
+                "paymentMode", "Bank Transfer", "referenceNo", "NEFT-77", "paidOn", today().toString()))
+                .andExpect(status().isCreated()));
+        postAs(token, "/api/fees/deposits", Map.of("feeDueId", due.id(), "amount", 1,
+                "paymentMode", "UPI", "referenceNo", "neft-77", "paidOn", today().toString()))
+                .andExpect(status().isConflict()); // same reference again
+
+        postAs(admin(), "/api/fees/deposits/" + deposit.get("id").asText() + "/reject", Map.of("note", "Not received"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("REJECTED"));
+        assertThat(store.feeDues.getById(due.id()).pending()).isEqualTo(due.pending());
+    }
+
+    @Test
+    void familiesCannotDepositForOtherStudentsAndTeachersCannotDepositAtAll() throws Exception {
+        FeeDue someoneElses = store.feeDues.findWhere(d -> !d.studentId().equals(ROHIT) && d.pending() > 0).get(0);
+        postAs(student(), "/api/fees/deposits", Map.of("feeDueId", someoneElses.id(), "amount", 1,
+                "paymentMode", "UPI", "referenceNo", "X1", "paidOn", today().toString()))
+                .andExpect(status().isForbidden());
+        postAs(teacher(), "/api/fees/deposits", Map.of("feeDueId", someoneElses.id(), "amount", 1,
+                "paymentMode", "UPI", "referenceNo", "X2", "paidOn", today().toString()))
+                .andExpect(status().isForbidden());
+    }
+
+    private FeeDue childDueWithPending() {
+        return store.feeDues.findWhere(d -> (d.studentId().equals(ANANYA) || d.studentId().equals(YASH))
+                && d.pending() > 0).get(0);
+    }
+
+    // ---------------------------------------------------------------- self-service and admin extras
+
+    @Test
+    void teachersEditTheirOwnProfileButNotTheirClasses() throws Exception {
+        putAs(teacher(), "/api/me/teacher-profile", Map.of("name", "Anjali S. Singh", "email", "anjali@ssa.edu",
+                "phone", "+91 90000 00000", "qualification", "M.Sc", "experience", "9 years"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.assignedClasses[0]").value("5-B"));
+        // The rename is copied to the timetable so it keeps working.
+        assertThat(store.timetable.findWhere(e -> "TCH-2026-001".equals(e.teacherId())))
+                .allMatch(e -> e.teacherName().equals("Anjali S. Singh"));
+        putAs(student(), "/api/me/teacher-profile", Map.of("name", "X", "email", "x@ssa.edu"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void familiesUpdateContactDetailsOnlyForTheirOwnStudents() throws Exception {
+        Map<String, Object> contact = Map.of("address", "1 New Road", "guardianPhone", "+91 91111 11111",
+                "guardianEmail", "dad@example.com");
+        putAs(parent(), "/api/students/" + ANANYA + "/contact", contact).andExpect(status().isOk());
+        assertThat(store.students.getById(ANANYA).address()).isEqualTo("1 New Road");
+        putAs(parent(), "/api/students/" + ROHIT + "/contact", contact).andExpect(status().isForbidden());
+        putAs(teacher(), "/api/students/" + ROHIT + "/contact", contact).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void clearingAMarkRemovesIt() throws Exception {
+        String id = MarksRecord.idFor("SCH-008", "STU-2026-0501");
+        assertThat(store.marks.findById(id)).isPresent();
+        putAs(teacher(), "/api/exam-schedules/SCH-008/marks",
+                Map.of("entries", List.of(Map.of("studentId", "STU-2026-0501", "clear", true))))
+                .andExpect(status().isOk());
+        assertThat(store.marks.findById(id)).isEmpty();
+        getAs(admin(), "/api/exam-schedules/marks-progress?examId=EXM-2026-PT2")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].totalStudents").isNumber());
+    }
+
+    @Test
+    void withdrawingAConcessionRestoresTheAmountOwed() throws Exception {
+        FeeDue due = anyDueWithPendingOver(500);
+        JsonNode concession = data(postAs(admin(), "/api/fees/concessions", Map.of("feeDueId", due.id(), "type", "Merit",
+                "discountType", "FLAT", "discountValue", 500, "description", "Test")));
+        mockMvc.perform(delete("/api/fees/concessions/" + concession.get("id").asText())
+                        .header("Authorization", "Bearer " + admin()))
+                .andExpect(status().isOk());
+        assertThat(store.feeDues.getById(due.id()).pending()).isEqualTo(due.pending());
+    }
+
+    // ---------------------------------------------------------------- daily schedule
+
+    @Test
+    void studentDashboardIncludesTodaysFullSchedule() throws Exception {
+        JsonNode schedule = data(getAs(student(), "/api/dashboard")).get("todaySchedule");
+        if (today().getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
+            assertThat(schedule).isEmpty();
+        } else {
+            assertThat(schedule).hasSize(10); // every period and break of the day
+        }
+        getAs(student(), "/api/timetable/day?className=5-B&day=MONDAY")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].startTime").value("08:00"))
+                .andExpect(jsonPath("$.data[0].subject").value("Mathematics"));
+        getAs(student(), "/api/timetable/day?className=6-A&day=MONDAY").andExpect(status().isForbidden());
+    }
+
     @Test
     void periodTimesUseTheFrontendFormat() throws Exception {
         getAs(student(), "/api/timetable/periods")

@@ -2,15 +2,16 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Menu, Search, Bell, ChevronDown, Building2, User, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { initialsOf } from '@/utils';
 
 export const StudentHeader = ({ onToggleSidebar }) => {
   const navigate = useNavigate();
   const { currentUser, logout } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedSchool, setSelectedSchool] = useState('Alfalah');
+  const selectedSchool = 'Alfalah';
   const dropdownRef = useRef(null);
 
-  const studentAvatar = currentUser?.avatar || currentUser?.initials || 'RV';
+  const studentAvatar = currentUser?.avatar || initialsOf(currentUser?.name || '');
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -85,10 +86,11 @@ export const StudentHeader = ({ onToggleSidebar }) => {
             <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200/80 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
               <div className="px-4 py-2 border-b border-slate-100">
                 <p className="text-xs font-bold text-slate-900 truncate">
-                  {currentUser?.name || 'Rohit Verma'}
+                  {currentUser?.name || 'Student'}
                 </p>
                 <p className="text-[10px] text-slate-400 truncate">
-                  Class {currentUser?.className || '5-B'} • #{currentUser?.rollNumber || 3}
+                  {currentUser?.className ? `Class ${currentUser.className}` : ''}
+                  {currentUser?.rollNumber != null ? ` • Roll #${currentUser.rollNumber}` : ''}
                 </p>
               </div>
 

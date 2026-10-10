@@ -3,11 +3,14 @@ package com.ssa.schoolerp.controller;
 import com.ssa.schoolerp.dto.ApiResponse;
 import com.ssa.schoolerp.dto.FeeDtos.AssignRequest;
 import com.ssa.schoolerp.dto.FeeDtos.ConcessionRequest;
+import com.ssa.schoolerp.dto.FeeDtos.DepositRequest;
+import com.ssa.schoolerp.dto.FeeDtos.ReviewRequest;
 import com.ssa.schoolerp.dto.FeeDtos.DueView;
 import com.ssa.schoolerp.dto.FeeDtos.Overview;
 import com.ssa.schoolerp.dto.FeeDtos.PaymentRequest;
 import com.ssa.schoolerp.dto.FeeDtos.StudentSummary;
 import com.ssa.schoolerp.model.Concession;
+import com.ssa.schoolerp.model.FeeDeposit;
 import com.ssa.schoolerp.model.FeeHead;
 import com.ssa.schoolerp.model.FeePayment;
 import com.ssa.schoolerp.model.Role;
@@ -123,12 +126,51 @@ public class FeeController {
         return ApiResponse.success("Payment recorded", fees.collect(user, request));
     }
 
+    // ---------------------------------------------------------------- deposits reported by families
+
+    /** {@code status}: PENDING, APPROVED or REJECTED. */
+    @GetMapping("/deposits")
+    public ApiResponse<List<FeeDeposit>> deposits(@CurrentUser User user,
+                                                  @RequestParam(required = false) String studentId,
+                                                  @RequestParam(required = false) FeeDeposit.Status status) {
+        return ApiResponse.of(fees.deposits(user, studentId, status));
+    }
+
+    @RequireRole({Role.STUDENT, Role.PARENT})
+    @PostMapping("/deposits")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<FeeDeposit> submitDeposit(@CurrentUser User user, @Valid @RequestBody DepositRequest request) {
+        return ApiResponse.success("Deposit submitted for verification", fees.submitDeposit(user, request));
+    }
+
+    @RequireRole(Role.ADMIN)
+    @PostMapping("/deposits/{id}/approve")
+    public ApiResponse<FeeDeposit> approveDeposit(@CurrentUser User user, @PathVariable String id,
+                                                  @RequestBody(required = false) ReviewRequest review) {
+        return ApiResponse.success("Deposit approved and payment recorded",
+                fees.approveDeposit(user, id, review == null ? null : review.note()));
+    }
+
+    @RequireRole(Role.ADMIN)
+    @PostMapping("/deposits/{id}/reject")
+    public ApiResponse<FeeDeposit> rejectDeposit(@CurrentUser User user, @PathVariable String id,
+                                                 @RequestBody(required = false) ReviewRequest review) {
+        return ApiResponse.success("Deposit rejected", fees.rejectDeposit(user, id, review == null ? null : review.note()));
+    }
+
     // ---------------------------------------------------------------- concessions
 
     @GetMapping("/concessions")
     public ApiResponse<List<Concession>> concessions(@CurrentUser User user,
                                                      @RequestParam(required = false) String studentId) {
         return ApiResponse.of(fees.concessions(user, studentId));
+    }
+
+    @RequireRole(Role.ADMIN)
+    @DeleteMapping("/concessions/{id}")
+    public ApiResponse<Void> deleteConcession(@PathVariable String id) {
+        fees.deleteConcession(id);
+        return ApiResponse.success("Concession withdrawn");
     }
 
     @RequireRole(Role.ADMIN)

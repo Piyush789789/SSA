@@ -2,6 +2,7 @@ package com.ssa.schoolerp.controller;
 
 import com.ssa.schoolerp.dto.ApiResponse;
 import com.ssa.schoolerp.dto.ExamDtos.ClassResultRow;
+import com.ssa.schoolerp.dto.ExamDtos.MarksProgress;
 import com.ssa.schoolerp.dto.ExamDtos.MarksSaveRequest;
 import com.ssa.schoolerp.dto.ExamDtos.MarksSheet;
 import com.ssa.schoolerp.dto.ExamDtos.StudentResult;
@@ -117,6 +118,12 @@ public class ExamController {
     }
 
     // ---------------------------------------------------------------- marks
+
+    @RequireRole(Role.ADMIN)
+    @GetMapping("/exam-schedules/marks-progress")
+    public ApiResponse<List<MarksProgress>> marksProgress(@RequestParam(required = false) String examId) {
+        return ApiResponse.of(exams.marksProgress(examId));
+    }
 
     @RequireRole({Role.ADMIN, Role.TEACHER})
     @GetMapping("/exam-schedules/{id}/marks")

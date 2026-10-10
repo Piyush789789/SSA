@@ -23,6 +23,19 @@ public final class FeeDtos {
             String remarks) {
     }
 
+    /** A student or parent reporting a payment they made; {@code referenceNo} is the UPI/bank/cheque number. */
+    public record DepositRequest(
+            @NotBlank String feeDueId,
+            @Positive long amount,
+            @NotBlank String paymentMode,
+            String referenceNo,
+            @NotNull LocalDate paidOn,
+            String note) {
+    }
+
+    public record ReviewRequest(String note) {
+    }
+
     public record ConcessionRequest(
             @NotBlank String feeDueId,
             @NotBlank String type,

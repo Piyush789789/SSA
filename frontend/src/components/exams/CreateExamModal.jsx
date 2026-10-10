@@ -1,20 +1,57 @@
-import React, { useState } from 'react';
-import { X, Calendar, Plus } from 'lucide-react';
-import { EXAM_TYPES } from '@/data/examsData';
-import { CLASSES_LIST } from '@/data/attendanceData';
+import React, { useEffect, useState } from 'react';
+import { X, Calendar } from 'lucide-react';
+import { http } from '@/api/http';
 
-export const CreateExamModal = ({ isOpen, onClose, onCreateExam }) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    type: 'Mid-Term',
-    academicYear: '2026-27',
-    startDate: '',
-    endDate: '',
-    selectedClasses: ['10-A'],
-    description: '',
-  });
+const NONE = [];
 
+const emptyForm = (examTypes, academicYear) => ({
+  name: '',
+  type: examTypes[0] || '',
+  academicYear: academicYear || '',
+  startDate: '',
+  endDate: '',
+  selectedClasses: [],
+  description: '',
+});
+
+/**
+ * Create or edit an exam. Saves through the API itself and hands the saved exam to `onSaved`.
+ * `classes` are class ids ("5-B"), `examTypes` and `academicYear` come from GET /meta.
+ */
+export const CreateExamModal = ({
+  isOpen,
+  onClose,
+  onSaved,
+  examToEdit = null,
+  classes = NONE,
+  examTypes = NONE,
+  academicYear = '',
+}) => {
+  const isEditing = Boolean(examToEdit);
+  const [formData, setFormData] = useState(() => emptyForm(examTypes, academicYear));
   const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [serverError, setServerError] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (examToEdit) {
+      setFormData({
+        name: examToEdit.name || '',
+        type: examToEdit.type || examTypes[0] || '',
+        academicYear: examToEdit.academicYear || academicYear || '',
+        startDate: examToEdit.startDate || '',
+        endDate: examToEdit.endDate || '',
+        selectedClasses: examToEdit.classes || [],
+        description: examToEdit.description || '',
+      });
+    } else {
+      setFormData(emptyForm(examTypes, academicYear));
+    }
+    setErrors({});
+    setServerError('');
+    setSaving(false);
+  }, [isOpen, examToEdit, examTypes, academicYear]);
 
   if (!isOpen) return null;
 
@@ -28,21 +65,43 @@ export const CreateExamModal = ({ isOpen, onClose, onCreateExam }) => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = {};
     if (!formData.name.trim()) errs.name = 'Exam Name is required';
+    if (!formData.type) errs.type = 'Exam Type is required';
     if (!formData.startDate) errs.startDate = 'Start Date is required';
     if (!formData.endDate) errs.endDate = 'End Date is required';
+    if (formData.startDate && formData.endDate && formData.endDate < formData.startDate) {
+      errs.endDate = 'End Date cannot be before Start Date';
+    }
     if (formData.selectedClasses.length === 0) errs.classes = 'Select at least one class';
 
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs);
-      return;
-    }
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
 
-    onCreateExam(formData);
-    onClose();
+    const body = {
+      name: formData.name.trim(),
+      type: formData.type,
+      academicYear: formData.academicYear || undefined,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      classes: formData.selectedClasses,
+      description: formData.description.trim(),
+    };
+
+    setSaving(true);
+    setServerError('');
+    try {
+      const saved = isEditing
+        ? await http.put(`/exams/${examToEdit.id}`, body)
+        : await http.post('/exams', body);
+      onSaved?.(saved);
+      onClose();
+    } catch (err) {
+      setServerError(err.message);
+      setSaving(false);
+    }
   };
 
   return (
@@ -54,7 +113,9 @@ export const CreateExamModal = ({ isOpen, onClose, onCreateExam }) => {
               <Calendar className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-extrabold text-slate-900 text-lg">Create New Examination</h3>
+              <h3 className="font-extrabold text-slate-900 text-lg">
+                {isEditing ? 'Edit Examination' : 'Create New Examination'}
+              </h3>
               <p className="text-xs text-slate-400">Configure exam parameters and target classes</p>
             </div>
           </div>
@@ -91,19 +152,20 @@ export const CreateExamModal = ({ isOpen, onClose, onCreateExam }) => {
                 onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-800"
               >
-                {EXAM_TYPES.map((t) => (
+                {examTypes.map((t) => (
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
+              {errors.type && <p className="text-[11px] font-bold text-rose-500 mt-1">{errors.type}</p>}
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Academic Year *</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Academic Year</label>
               <input
                 type="text"
                 value={formData.academicYear}
-                onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-800"
+                readOnly
+                className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-500"
               />
             </div>
           </div>
@@ -137,20 +199,21 @@ export const CreateExamModal = ({ isOpen, onClose, onCreateExam }) => {
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">Target Classes *</label>
             <div className="flex flex-wrap gap-2 p-3 bg-slate-50 border border-slate-200 rounded-2xl max-h-36 overflow-y-auto">
-              {CLASSES_LIST.map((c) => {
-                const isSelected = formData.selectedClasses.includes(c.name);
+              {classes.length === 0 && <span className="text-xs text-slate-400">No classes found.</span>}
+              {classes.map((cls) => {
+                const isSelected = formData.selectedClasses.includes(cls);
                 return (
                   <button
-                    key={c.id}
+                    key={cls}
                     type="button"
-                    onClick={() => handleClassToggle(c.name)}
+                    onClick={() => handleClassToggle(cls)}
                     className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-[#FF6B2C] text-white shadow-xs'
                         : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                     }`}
                   >
-                    Class {c.name}
+                    Class {cls}
                   </button>
                 );
               })}
@@ -170,6 +233,8 @@ export const CreateExamModal = ({ isOpen, onClose, onCreateExam }) => {
             />
           </div>
 
+          {serverError && <p className="text-xs font-semibold text-rose-600">{serverError}</p>}
+
           {/* Buttons */}
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
             <button
@@ -181,9 +246,10 @@ export const CreateExamModal = ({ isOpen, onClose, onCreateExam }) => {
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 rounded-2xl bg-[#FF6B2C] hover:bg-[#e85a1c] text-white font-bold text-xs transition-all shadow-md shadow-[#FF6B2C]/20 cursor-pointer"
+              disabled={saving}
+              className="px-5 py-2.5 rounded-2xl bg-[#FF6B2C] hover:bg-[#e85a1c] text-white font-bold text-xs transition-all shadow-md shadow-[#FF6B2C]/20 cursor-pointer disabled:opacity-60"
             >
-              Create Exam
+              {saving ? 'Saving…' : isEditing ? 'Save Changes' : 'Create Exam'}
             </button>
           </div>
         </form>

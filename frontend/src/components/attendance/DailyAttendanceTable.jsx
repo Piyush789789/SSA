@@ -3,7 +3,7 @@ import { UserCheck, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AttendanceStatusBadge } from './AttendanceStatusBadge';
 
-export const DailyAttendanceTable = ({ dailyData }) => {
+export const DailyAttendanceTable = ({ dailyData, dateLabel }) => {
   const navigate = useNavigate();
 
   return (
@@ -14,7 +14,7 @@ export const DailyAttendanceTable = ({ dailyData }) => {
             <UserCheck className="w-4 h-4 stroke-[2.2]" />
           </div>
           <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">
-            Daily Student Attendance Roster
+            Daily Student Attendance Roster{dateLabel ? ` (${dateLabel})` : ''}
           </h3>
         </div>
         <span className="text-xs font-semibold text-slate-400">

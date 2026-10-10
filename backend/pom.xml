@@ -12,7 +12,7 @@
 	<artifactId>schoolerp</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>ssa-school-erp</name>
-	<description>School ERP Backend System (In-Memory Prototype)</description>
+	<description>School ERP Backend System (PostgreSQL)</description>
 
 	<properties>
 		<java.version>21</java.version>
@@ -23,6 +23,24 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+
+		<!-- Database: JPA/Hibernate over PostgreSQL -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
+		<!-- In-memory database for tests, so they run without a PostgreSQL server -->
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>test</scope>
 		</dependency>
 
 		<!-- Lombok -->

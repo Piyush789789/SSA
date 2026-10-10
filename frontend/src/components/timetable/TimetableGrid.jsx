@@ -1,31 +1,14 @@
 import React from 'react';
 import { Plus, Clock } from 'lucide-react';
-import { TIMETABLE_DAYS, SUBJECTS_LIST } from '@/data/timetableData';
+import { todayIso, weekdayName } from '@/utils';
+import { TIMETABLE_DAYS, subjectColors } from './subjectColors';
 
-export const TimetableGrid = ({
-  periods,
-  entries,
-  classId,
-  selectedSubjectId,
-  onCellClick,
-}) => {
-  // Determine current weekday name e.g. "THURSDAY"
-  const currentDayName = new Date()
-    .toLocaleDateString('en-US', { weekday: 'long' })
-    .toUpperCase();
+/** entries = GET /timetable?className= ({ id, day, periodId, subject, teacherName, room }). */
+export const TimetableGrid = ({ periods, entries, selectedSubject, onCellClick }) => {
+  // Current weekday name e.g. "THURSDAY"
+  const currentDayName = weekdayName(todayIso()).toUpperCase();
 
-  // Find subject details helper
-  const getSubjectDetails = (subjId) => {
-    return (
-      SUBJECTS_LIST.find((s) => s.id === subjId) || {
-        name: subjId,
-        badgeClass: 'bg-[#FFF5F0] text-[#FF6B2C] border-orange-200',
-        colorBg: 'bg-white',
-        colorText: 'text-slate-900',
-        colorBorder: 'border-slate-200',
-      }
-    );
-  };
+  const getSubjectDetails = (subject) => ({ name: subject, ...subjectColors(subject) });
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
@@ -92,32 +75,13 @@ export const TimetableGrid = ({
                   ) : (
                     /* Day Cells */
                     TIMETABLE_DAYS.map((day) => {
-                      // Find matching entry for this class, day, and period
-                      const entry = entries.find(
-                        (e) =>
-                          e.classId === classId &&
-                          e.day === day &&
-                          e.periodId === period.id
-                      );
+                      const entry = entries.find((e) => e.day === day && e.periodId === period.id);
 
-                      const hasSubject = Boolean(entry && entry.subjectId);
-                      const subjDetails = hasSubject
-                        ? getSubjectDetails(entry.subjectId)
-                        : null;
+                      const hasSubject = Boolean(entry && entry.subject);
+                      const subjDetails = hasSubject ? getSubjectDetails(entry.subject) : null;
 
-                      const isHighlighted =
-                        selectedSubjectId &&
-                        hasSubject &&
-                        entry.subjectId === selectedSubjectId;
-
-                      const isDimmed =
-                        selectedSubjectId &&
-                        (!hasSubject || entry.subjectId !== selectedSubjectId);
-
-                      const isSubstitute = Boolean(entry?.substituteTeacherName);
-                      const teacherDisplay = isSubstitute
-                        ? entry.substituteTeacherName
-                        : entry?.teacherName;
+                      const isHighlighted = selectedSubject && hasSubject && entry.subject === selectedSubject;
+                      const isDimmed = selectedSubject && (!hasSubject || entry.subject !== selectedSubject);
 
                       return (
                         <td
@@ -146,18 +110,16 @@ export const TimetableGrid = ({
                               </div>
 
                               {/* Teacher Name */}
-                              {teacherDisplay && (
+                              {entry.teacherName && (
                                 <div className="text-[11px] text-slate-500 font-medium truncate mt-1">
-                                  {teacherDisplay}
+                                  {entry.teacherName}
                                 </div>
                               )}
 
-                              {/* Substitute Badge */}
-                              {isSubstitute && (
-                                <div className="mt-1.5">
-                                  <span className="inline-block px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                                    Substitute
-                                  </span>
+                              {/* Room */}
+                              {entry.room && (
+                                <div className="text-[10px] text-slate-400 font-medium truncate mt-0.5">
+                                  Room {entry.room}
                                 </div>
                               )}
                             </div>

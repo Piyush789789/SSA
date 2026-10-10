@@ -1,8 +1,9 @@
 import React from 'react';
 import { Users, CheckCircle2, XCircle, Clock, CalendarOff, Percent } from 'lucide-react';
+import { formatRate } from './attendanceMath';
 
 export const AttendanceSummary = ({ summary }) => {
-  const { totalStudents, present, absent, late, leave, attendanceRate } = summary;
+  const { totalStudents, present, absent, late, leave, notMarked, attendanceRate } = summary;
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 sm:gap-4">
@@ -16,6 +17,9 @@ export const AttendanceSummary = ({ summary }) => {
           <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight mt-0.5">
             {totalStudents}
           </h3>
+          {notMarked ? (
+            <p className="text-[10px] font-semibold text-slate-400">{notMarked} not marked</p>
+          ) : null}
         </div>
       </div>
 
@@ -79,7 +83,7 @@ export const AttendanceSummary = ({ summary }) => {
         <div>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Rate %</p>
           <h3 className="text-lg sm:text-xl font-black text-[#FF6B2C] tracking-tight mt-0.5">
-            {attendanceRate}%
+            {formatRate(attendanceRate)}
           </h3>
         </div>
       </div>

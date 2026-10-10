@@ -11,6 +11,7 @@ import com.ssa.schoolerp.security.CurrentUser;
 import com.ssa.schoolerp.service.AttendanceService;
 import com.ssa.schoolerp.service.DashboardService;
 import com.ssa.schoolerp.service.Grading;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,10 +27,13 @@ public class DashboardController {
 
     private final DashboardService dashboard;
     private final DataStore store;
+    private final String depositInstructions;
 
-    public DashboardController(DashboardService dashboard, DataStore store) {
+    public DashboardController(DashboardService dashboard, DataStore store,
+                               @Value("${app.fees.deposit-instructions}") String depositInstructions) {
         this.dashboard = dashboard;
         this.store = store;
+        this.depositInstructions = depositInstructions;
     }
 
     /** The dashboard for the signed-in user's role. */
@@ -55,6 +59,8 @@ public class DashboardController {
         meta.put("noticeAudiences", List.of(Audience.values()));
         meta.put("materialCategories", ReferenceData.MATERIAL_CATEGORIES);
         meta.put("paymentModes", ReferenceData.PAYMENT_MODES);
+        meta.put("depositModes", ReferenceData.DEPOSIT_MODES);
+        meta.put("depositInstructions", depositInstructions);
         meta.put("feeFrequencies", ReferenceData.FEE_FREQUENCIES);
         meta.put("concessionTypes", ReferenceData.CONCESSION_TYPES);
         return ApiResponse.of(meta);

@@ -1,14 +1,28 @@
 import React, { useState, useMemo } from 'react';
-import { BookOpenCheck, Plus, Search, Filter, Eye, Edit3, Trash2, CheckCircle2, Calendar, FileText, X } from 'lucide-react';
+import { BookOpenCheck, Plus, Search, Eye, Edit3, Trash2, CheckCircle2, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { useData } from '@/context/DataContext';
+import { http } from '@/api/http';
+import { useApi } from '@/hooks/useApi';
+import { AsyncState } from '@/components/common/AsyncState';
+import { formatDate, todayIso } from '@/utils';
+
+const emptyForm = (className, subject) => ({
+  title: '',
+  description: '',
+  className: className ?? '',
+  subject: subject ?? '',
+  dueDate: '',
+  instructions: '',
+  attachments: '',
+});
 
 export const TeacherHomeworkPage = () => {
   const { currentUser } = useAuth();
-  const { homeworkList, addHomework, updateHomework, deleteHomework } = useData();
+  const homework = useApi('/homework');
 
-  const assignedClasses = currentUser?.assignedClasses || ['5-B', '6-A'];
-  const teacherSubjects = currentUser?.subjects || ['Mathematics', 'Science'];
+  const assignedClasses = useMemo(() => currentUser?.assignedClasses ?? [], [currentUser]);
+  const teacherSubjects = useMemo(() => currentUser?.subjects ?? [], [currentUser]);
+  const today = todayIso();
 
   // Filters
   const [selectedClass, setSelectedClass] = useState('ALL');
@@ -21,124 +35,109 @@ export const TeacherHomeworkPage = () => {
   const [editingHomework, setEditingHomework] = useState(null);
   const [viewingHomework, setViewingHomework] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [deletingId, setDeletingId] = useState(null);
 
-  // Form state
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    className: assignedClasses[0] || '5-B',
-    subject: teacherSubjects[0] || 'Mathematics',
-    assignedDate: new Date().toISOString().split('T')[0],
-    dueDate: '',
-    instructions: '',
-    attachments: '',
-  });
+  const [formData, setFormData] = useState(() => emptyForm(assignedClasses[0], teacherSubjects[0]));
 
   const triggerToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 3000);
   };
 
-  // Filtered Homework List
+  // Only the signed-in teacher's own homework.
   const filteredHomework = useMemo(() => {
-    return homeworkList.filter((hw) => {
-      // Must belong to teacher's assigned classes
-      if (!assignedClasses.includes(hw.className)) return false;
+    return (homework.data ?? [])
+      .filter((hw) => {
+        if (hw.teacherId !== currentUser?.id) return false;
+        if (selectedClass !== 'ALL' && hw.className !== selectedClass) return false;
+        if (selectedSubject !== 'ALL' && hw.subject !== selectedSubject) return false;
+        if (selectedStatus === 'Open' && hw.dueDate < today) return false;
+        if (selectedStatus === 'Closed' && hw.dueDate >= today) return false;
 
-      if (selectedClass !== 'ALL' && hw.className !== selectedClass) return false;
-      if (selectedSubject !== 'ALL' && hw.subject !== selectedSubject) return false;
-      if (selectedStatus !== 'ALL' && hw.status !== selectedStatus) return false;
-
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const titleMatch = hw.title.toLowerCase().includes(q);
-        const descMatch = hw.description.toLowerCase().includes(q);
-        if (!titleMatch && !descMatch) return false;
-      }
-
-      return true;
-    });
-  }, [homeworkList, assignedClasses, selectedClass, selectedSubject, selectedStatus, searchQuery]);
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase().trim();
+          const titleMatch = (hw.title ?? '').toLowerCase().includes(q);
+          const descMatch = (hw.description ?? '').toLowerCase().includes(q);
+          if (!titleMatch && !descMatch) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => (a.dueDate < b.dueDate ? 1 : a.dueDate > b.dueDate ? -1 : 0));
+  }, [homework.data, currentUser, selectedClass, selectedSubject, selectedStatus, searchQuery, today]);
 
   const handleOpenCreateModal = () => {
     setEditingHomework(null);
-    setFormData({
-      title: '',
-      description: '',
-      className: assignedClasses[0] || '5-B',
-      subject: teacherSubjects[0] || 'Mathematics',
-      assignedDate: new Date().toISOString().split('T')[0],
-      dueDate: '',
-      instructions: '',
-      attachments: '',
-    });
+    setFormData(emptyForm(assignedClasses[0], teacherSubjects[0]));
+    setFormError('');
     setIsAssignModalOpen(true);
   };
 
   const handleOpenEditModal = (hw) => {
     setEditingHomework(hw);
     setFormData({
-      title: hw.title,
-      description: hw.description,
+      title: hw.title ?? '',
+      description: hw.description ?? '',
       className: hw.className,
       subject: hw.subject,
-      assignedDate: hw.assignedDate,
-      dueDate: hw.dueDate,
+      dueDate: hw.dueDate ?? '',
       instructions: hw.instructions || '',
       attachments: hw.attachments?.join(', ') || '',
     });
+    setFormError('');
     setIsAssignModalOpen(true);
   };
 
-  const handleSubmitForm = (e) => {
+  const handleSubmitForm = async (e) => {
     e.preventDefault();
-    if (!formData.title || !formData.dueDate) {
-      alert('Please fill out all required fields.');
+    if (!formData.title.trim() || !formData.dueDate) {
+      setFormError('Please fill out all required fields.');
       return;
     }
-
-    if (editingHomework) {
-      const updated = {
-        ...editingHomework,
-        title: formData.title,
-        description: formData.description,
-        className: formData.className,
-        subject: formData.subject,
-        assignedDate: formData.assignedDate,
-        dueDate: formData.dueDate,
-        instructions: formData.instructions,
-        attachments: formData.attachments ? formData.attachments.split(',').map((s) => s.trim()) : [],
-      };
-      updateHomework(updated);
-      triggerToast('Homework updated successfully.');
-    } else {
-      const newHw = {
-        id: `HW-2026-${String(Date.now()).slice(-4)}`,
-        title: formData.title,
-        description: formData.description,
-        className: formData.className,
-        subject: formData.subject,
-        assignedDate: formData.assignedDate,
-        dueDate: formData.dueDate,
-        submissionsCount: 0,
-        totalStudents: formData.className === '5-B' ? 34 : 34,
-        status: 'Assigned',
-        instructions: formData.instructions,
-        attachments: formData.attachments ? formData.attachments.split(',').map((s) => s.trim()) : [],
-        teacherId: currentUser?.teacherId || 'TCH-2026-001',
-        teacherName: currentUser?.name || 'Anjali Singh',
-      };
-      addHomework(newHw);
-      triggerToast('New homework assigned successfully.');
+    const body = {
+      title: formData.title.trim(),
+      description: formData.description,
+      subject: formData.subject,
+      className: formData.className,
+      dueDate: formData.dueDate,
+      instructions: formData.instructions,
+      attachments: formData.attachments
+        ? formData.attachments.split(',').map((s) => s.trim()).filter(Boolean)
+        : [],
+    };
+    setSaving(true);
+    setFormError('');
+    try {
+      if (editingHomework) {
+        await http.put(`/homework/${encodeURIComponent(editingHomework.id)}`, body);
+        triggerToast('Homework updated successfully.');
+      } else {
+        await http.post('/homework', body);
+        triggerToast('New homework assigned successfully.');
+      }
+      setIsAssignModalOpen(false);
+      homework.reload();
+    } catch (error) {
+      setFormError(error.message);
+    } finally {
+      setSaving(false);
     }
-
-    setIsAssignModalOpen(false);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this homework?')) {
-      deleteHomework(id);
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this homework?')) return;
+    setDeletingId(id);
+    setActionError('');
+    try {
+      await http.delete(`/homework/${encodeURIComponent(id)}`);
       triggerToast('Homework deleted.');
+      homework.reload();
+    } catch (error) {
+      setActionError(error.message);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -223,9 +222,8 @@ export const TeacherHomeworkPage = () => {
             className="h-9 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-[#FF6B2C]"
           >
             <option value="ALL">All Statuses</option>
-            <option value="Assigned">Assigned</option>
-            <option value="Draft">Draft</option>
-            <option value="Completed">Completed / Closed</option>
+            <option value="Open">Open (due today or later)</option>
+            <option value="Closed">Past due</option>
           </select>
         </div>
 
@@ -234,8 +232,14 @@ export const TeacherHomeworkPage = () => {
         </span>
       </div>
 
+      {actionError && (
+        <div className="p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-semibold">{actionError}</div>
+      )}
+
       {/* Homework Cards & Table List */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <AsyncState state={homework} loadingText="Loading homework…">
+        {() => (
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
@@ -244,7 +248,6 @@ export const TeacherHomeworkPage = () => {
                 <th className="py-3.5 px-4">Subject</th>
                 <th className="py-3.5 px-4">Class</th>
                 <th className="py-3.5 px-4">Assigned / Due</th>
-                <th className="py-3.5 px-4">Submissions</th>
                 <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-6 text-right">Actions</th>
               </tr>
@@ -252,7 +255,7 @@ export const TeacherHomeworkPage = () => {
             <tbody className="divide-y divide-slate-100">
               {filteredHomework.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="py-12 text-center text-slate-400">
+                  <td colSpan="6" className="py-12 text-center text-slate-400">
                     No homework found matching your filters.
                   </td>
                 </tr>
@@ -274,41 +277,19 @@ export const TeacherHomeworkPage = () => {
 
                     <td className="py-4 px-4">
                       <div className="text-[11px]">
-                        <p className="text-slate-500">Assigned: {hw.assignedDate}</p>
-                        <p className="font-bold text-slate-800">Due: {hw.dueDate}</p>
+                        <p className="text-slate-500">Assigned: {formatDate(hw.assignedDate)}</p>
+                        <p className="font-bold text-slate-800">Due: {formatDate(hw.dueDate)}</p>
                       </div>
                     </td>
 
                     <td className="py-4 px-4">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 text-xs">
-                          {hw.submissionsCount} / {hw.totalStudents}
-                        </span>
-                        <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-[#FF6B2C] rounded-full"
-                            style={{
-                              width: `${Math.round((hw.submissionsCount / hw.totalStudents) * 100)}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-4">
-                      {hw.status === 'Assigned' && (
+                      {hw.dueDate >= today ? (
                         <span className="inline-block px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl font-bold text-[11px]">
-                          Assigned
+                          Open
                         </span>
-                      )}
-                      {hw.status === 'Draft' && (
+                      ) : (
                         <span className="inline-block px-2.5 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-xl font-bold text-[11px]">
-                          Draft
-                        </span>
-                      )}
-                      {hw.status === 'Completed' && (
-                        <span className="inline-block px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl font-bold text-[11px]">
-                          Completed
+                          Past due
                         </span>
                       )}
                     </td>
@@ -333,7 +314,8 @@ export const TeacherHomeworkPage = () => {
 
                         <button
                           onClick={() => handleDelete(hw.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                          disabled={deletingId === hw.id}
+                          className="disabled:opacity-40 p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                           title="Delete Homework"
                         >
                           <Trash2 className="w-4 h-4 stroke-[2]" />
@@ -346,6 +328,8 @@ export const TeacherHomeworkPage = () => {
             </tbody>
           </table>
         </div>
+        )}
+        </AsyncState>
       </div>
 
       {/* Assign / Edit Homework Modal */}
@@ -415,19 +399,7 @@ export const TeacherHomeworkPage = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Assigned Date
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.assignedDate}
-                    onChange={(e) => setFormData({ ...formData, assignedDate: e.target.value })}
-                    className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-[#FF6B2C]"
-                  />
-                </div>
-
+              <div className="grid grid-cols-1 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
                     Due Date <span className="text-rose-500">*</span>
@@ -435,6 +407,7 @@ export const TeacherHomeworkPage = () => {
                   <input
                     type="date"
                     required
+                    min={editingHomework ? undefined : today}
                     value={formData.dueDate}
                     onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                     className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-[#FF6B2C]"
@@ -468,6 +441,22 @@ export const TeacherHomeworkPage = () => {
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Attachment names (comma separated)
+                </label>
+                <input
+                  type="text"
+                  value={formData.attachments}
+                  onChange={(e) => setFormData({ ...formData, attachments: e.target.value })}
+                  placeholder="e.g. worksheet-4.pdf"
+                  className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-[#FF6B2C]"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">File upload is not available yet. Only the names are saved.</p>
+              </div>
+
+              {formError && <p className="text-xs font-semibold text-rose-600">{formError}</p>}
+
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
@@ -478,9 +467,10 @@ export const TeacherHomeworkPage = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold rounded-2xl text-xs shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer"
+                  disabled={saving}
+                  className="disabled:opacity-50 px-5 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold rounded-2xl text-xs shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer"
                 >
-                  {editingHomework ? 'Save Changes' : 'Assign Homework'}
+                  {saving ? 'Saving…' : editingHomework ? 'Save Changes' : 'Assign Homework'}
                 </button>
               </div>
             </form>
@@ -509,8 +499,8 @@ export const TeacherHomeworkPage = () => {
             <div className="bg-slate-50 p-3.5 rounded-2xl text-xs text-slate-700 space-y-2">
               <p><strong>Description:</strong> {viewingHomework.description}</p>
               <p><strong>Instructions:</strong> {viewingHomework.instructions || 'None'}</p>
-              <p><strong>Assigned:</strong> {viewingHomework.assignedDate} | <strong>Due:</strong> {viewingHomework.dueDate}</p>
-              <p><strong>Submissions:</strong> {viewingHomework.submissionsCount} of {viewingHomework.totalStudents} submitted</p>
+              <p><strong>Assigned:</strong> {formatDate(viewingHomework.assignedDate)} | <strong>Due:</strong> {formatDate(viewingHomework.dueDate)}</p>
+              <p><strong>Attachments:</strong> {viewingHomework.attachments?.length ? viewingHomework.attachments.join(', ') : 'None'}</p>
             </div>
 
             <div className="flex justify-end pt-2">

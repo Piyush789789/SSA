@@ -1,57 +1,25 @@
 import React, { useState } from 'react';
-import { Megaphone, Calendar, Search, Tag, X } from 'lucide-react';
+import { Megaphone, Calendar, Search, X } from 'lucide-react';
+import { useApi } from '@/hooks/useApi';
+import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
+import { formatDate, formatDateTime } from '@/utils';
+
+const PRIORITY_STYLES = {
+  high: 'bg-rose-50 text-rose-700 border-rose-100',
+  medium: 'bg-orange-50 text-[#EA580C] border-orange-100',
+  low: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+};
 
 export const ParentNoticesPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNotice, setSelectedNotice] = useState(null);
 
-  const noticesList = [
-    {
-      id: 'NOT-01',
-      title: 'Half Yearly Examination Datesheet Released',
-      category: 'Exams',
-      date: '15/08/2026',
-      content:
-        'The datesheet for the Half Yearly Examination (2026-27) has been published on the notice board and in the school portal. Exams will commence from 15th September 2026. Please ensure students prepare thoroughly according to the prescribed syllabus.',
-    },
-    {
-      id: 'NOT-02',
-      title: 'Parent–Teacher Meeting (PTM)',
-      category: 'Academics',
-      date: '13/08/2026',
-      content:
-        'A Parent–Teacher Meeting for all classes will be held on Saturday, 23rd August from 9:00 AM to 1:00 PM. Parents can discuss student progress, attendance, and quarterly test evaluation with respective class teachers and subject instructors.',
-    },
-    {
-      id: 'NOT-03',
-      title: 'Quarter 2 Fee Payment Reminder',
-      category: 'Accounts',
-      date: '11/08/2026',
-      content:
-        'Parents are reminded to clear the Quarter 2 tuition fee at the earliest. A late fee will be applicable on fees submitted after the 25th of this month. Online payments can be made conveniently through the parent fee portal.',
-    },
-    {
-      id: 'NOT-04',
-      title: 'Class 10 & Class 8 Board Preparation Extra Classes',
-      category: 'Academics',
-      date: '09/08/2026',
-      content:
-        'Extra preparatory classes for Class 10 and Class 8 will be conducted every Saturday from 9:00 AM to 12:00 PM covering Science numericals and Mathematics problem-solving.',
-    },
-    {
-      id: 'NOT-05',
-      title: 'Independence Day Celebration',
-      category: 'Events',
-      date: '08/08/2026',
-      content:
-        'The school will celebrate Independence Day with flag hoisting at 8:00 AM followed by student march-past and cultural programs in the school auditorium. All parents are warmly invited.',
-    },
-  ];
+  const notices = useApi('/notices');
 
-  const filteredNotices = noticesList.filter((n) => {
+  const filteredNotices = (notices.data || []).filter((n) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
-    return n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q);
+    return n.title.toLowerCase().includes(q) || (n.description || '').toLowerCase().includes(q);
   });
 
   return (
@@ -80,6 +48,11 @@ export const ParentNoticesPage = () => {
       </div>
 
       {/* Notices Cards Grid */}
+      <AsyncState state={notices} loadingText="Loading notices…">
+        {() =>
+          filteredNotices.length === 0 ? (
+            <EmptyMessage text={searchQuery.trim() ? 'No notices match your search.' : 'No notices have been published yet.'} />
+          ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {filteredNotices.map((notice) => (
           <div
@@ -89,12 +62,16 @@ export const ParentNoticesPage = () => {
           >
             <div>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-orange-50 text-[#EA580C] border border-orange-100">
-                  {notice.category}
+                <span
+                  className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border capitalize ${
+                    PRIORITY_STYLES[notice.priority] || PRIORITY_STYLES.medium
+                  }`}
+                >
+                  {notice.priority} priority
                 </span>
                 <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5" />
-                  {notice.date}
+                  {formatDate(notice.createdAt)}
                 </span>
               </div>
 
@@ -102,8 +79,11 @@ export const ParentNoticesPage = () => {
                 {notice.title}
               </h3>
               <p className="text-xs sm:text-sm text-slate-500 line-clamp-3 leading-relaxed">
-                {notice.content}
+                {notice.description}
               </p>
+              {notice.authorName && (
+                <p className="text-[11px] text-slate-400 font-medium mt-2">By {notice.authorName}</p>
+              )}
             </div>
 
             <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-[#FF6B2C]">
@@ -113,6 +93,9 @@ export const ParentNoticesPage = () => {
           </div>
         ))}
       </div>
+          )
+        }
+      </AsyncState>
 
       {/* Notice Detail Modal */}
       {selectedNotice && (
@@ -125,7 +108,10 @@ export const ParentNoticesPage = () => {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">{selectedNotice.title}</h3>
-                  <p className="text-xs text-slate-500">{selectedNotice.category} • {selectedNotice.date}</p>
+                  <p className="text-xs text-slate-500">
+                    {selectedNotice.authorName ? `${selectedNotice.authorName} • ` : ''}
+                    {formatDateTime(selectedNotice.createdAt)}
+                  </p>
                 </div>
               </div>
               <button
@@ -136,8 +122,8 @@ export const ParentNoticesPage = () => {
               </button>
             </div>
 
-            <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 text-xs sm:text-sm text-slate-700 leading-relaxed">
-              <p>{selectedNotice.content}</p>
+            <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-line">
+              <p>{selectedNotice.description}</p>
             </div>
 
             <div className="flex justify-end pt-1">

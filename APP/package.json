@@ -1,0 +1,14 @@
+{
+  "name": "ssa-erp-mobile",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "student": "npm run start --workspace ssa-student",
+    "parent": "npm run start --workspace ssa-parent",
+    "teacher": "npm run start --workspace ssa-teacher",
+    "admin": "npm run start --workspace ssa-admin"
+  }
+}

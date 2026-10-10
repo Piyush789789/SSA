@@ -1,55 +1,73 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { X, CheckCircle2 } from 'lucide-react';
-import { CLASSES_LIST, ATTENDANCE_STUDENTS } from '@/data/attendanceData';
+import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
+import { useApi } from '@/hooks/useApi';
+import { http, withQuery } from '@/api/http';
+import { formatDate, todayIso } from '@/utils';
 
-export const MarkAttendanceModal = ({ isOpen, onClose, onSaveAttendance, hasPermission = true }) => {
-  const [selectedClass, setSelectedClass] = useState('1-A');
-  const [selectedDate, setSelectedDate] = useState('2026-09-28');
-  const [studentStates, setStudentStates] = useState({});
+const STATUSES = ['present', 'absent', 'late', 'leave'];
+const ACTIVE_STYLES = {
+  present: 'bg-emerald-500 text-white shadow-xs',
+  absent: 'bg-rose-500 text-white shadow-xs',
+  late: 'bg-amber-500 text-white shadow-xs',
+  leave: 'bg-sky-500 text-white shadow-xs',
+  holiday: 'bg-slate-500 text-white shadow-xs',
+};
 
-  useEffect(() => {
-    // Filter students belonging to selectedClass
-    const classStudents = ATTENDANCE_STUDENTS.filter(
-      (s) => s.className === selectedClass
-    );
-    const initial = {};
-    classStudents.forEach((s) => {
-      initial[s.id] = 'present';
-    });
-    setStudentStates(initial);
-  }, [selectedClass]);
+/**
+ * Marks one class for one day: loads the roster (GET /classes/{id}/students) and anything already marked
+ * (GET /attendance?className=&date=), then saves with PUT /attendance (re-marking a day overwrites it).
+ * Mounted only while open.
+ */
+export const MarkAttendanceModal = ({ classOptions = [], initialClass = '', initialDate, onClose, onSaved }) => {
+  const today = todayIso();
+  const [selectedClass, setSelectedClass] = useState(initialClass || classOptions[0] || '');
+  const [selectedDate, setSelectedDate] = useState(initialDate || today);
+  // Changes made in this dialog, keyed by "class|date" so switching class/date starts fresh.
+  const [edits, setEdits] = useState({ key: '', statuses: {} });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
-  if (!isOpen) return null;
+  const key = `${selectedClass}|${selectedDate}`;
+  const roster = useApi(selectedClass ? `/classes/${encodeURIComponent(selectedClass)}/students` : null);
+  const existing = useApi(selectedClass ? withQuery('/attendance', { className: selectedClass, date: selectedDate }) : null);
 
-  const handleStatusChange = (studentId, status) => {
-    setStudentStates((prev) => ({ ...prev, [studentId]: status }));
-  };
+  const existingByStudent = useMemo(
+    () => new Map((existing.data || []).map((r) => [r.studentId, r.status])),
+    [existing.data],
+  );
+  const changes = edits.key === key ? edits.statuses : {};
+  const statusOf = (studentId) => changes[studentId] || existingByStudent.get(studentId) || 'present';
+  const alreadyMarked = (existing.data || []).length > 0;
 
-  const handleSave = (e) => {
-    e.preventDefault();
-    if (!hasPermission) {
-      alert('You do not have permission to mark attendance.');
+  const setStatus = (studentId, status) =>
+    setEdits((prev) => ({ key, statuses: { ...(prev.key === key ? prev.statuses : {}), [studentId]: status } }));
+
+  const setAll = (status) =>
+    setEdits({ key, statuses: Object.fromEntries((roster.data || []).map((s) => [s.id, status])) });
+
+  const handleSave = async () => {
+    if (!selectedClass || !roster.data?.length) return;
+    if (selectedDate > today) {
+      setError('Attendance cannot be marked for a future date.');
       return;
     }
-    const newRecords = Object.entries(studentStates).map(([studentId, status]) => {
-      const student = ATTENDANCE_STUDENTS.find((s) => s.id === studentId);
-      return {
-        id: `ATT-NEW-${Date.now()}-${studentId}`,
-        studentId,
-        classId: student?.classId || 'CLASS-1-A',
+    setSaving(true);
+    setError('');
+    try {
+      await http.put('/attendance', {
+        className: selectedClass,
         date: selectedDate,
-        status,
-        checkInTime: status === 'absent' ? '—' : '08:00 AM',
-        remarks: 'Marked manually',
-      };
-    });
-    onSaveAttendance(newRecords);
-    onClose();
+        entries: roster.data.map((s) => ({ studentId: s.id, status: statusOf(s.id) })),
+      });
+      onSaved(`Attendance saved for Class ${selectedClass} on ${formatDate(selectedDate)}.`);
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
   };
-
-  const currentClassStudents = ATTENDANCE_STUDENTS.filter(
-    (s) => s.className === selectedClass
-  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
@@ -62,7 +80,7 @@ export const MarkAttendanceModal = ({ isOpen, onClose, onSaveAttendance, hasPerm
             </div>
             <div>
               <h3 className="font-extrabold text-slate-900 text-lg">Mark Class Attendance</h3>
-              <p className="text-xs text-slate-400">Select class and mark student status</p>
+              <p className="text-xs text-slate-400">Select class and date, then mark each student</p>
             </div>
           </div>
           <button
@@ -76,7 +94,7 @@ export const MarkAttendanceModal = ({ isOpen, onClose, onSaveAttendance, hasPerm
         </div>
 
         {/* Filters Top Row */}
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-2 gap-4 mb-3">
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5">Class *</label>
             <select
@@ -84,9 +102,10 @@ export const MarkAttendanceModal = ({ isOpen, onClose, onSaveAttendance, hasPerm
               onChange={(e) => setSelectedClass(e.target.value)}
               className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-800"
             >
-              {CLASSES_LIST.map((c) => (
-                <option key={c.id} value={c.name}>
-                  Class {c.name}
+              {classOptions.length === 0 && <option value="">No classes</option>}
+              {classOptions.map((c) => (
+                <option key={c} value={c}>
+                  Class {c}
                 </option>
               ))}
             </select>
@@ -97,54 +116,78 @@ export const MarkAttendanceModal = ({ isOpen, onClose, onSaveAttendance, hasPerm
             <input
               type="date"
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              max={today}
+              onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
               className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-800"
             />
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <p className="text-[11px] font-semibold text-slate-500">
+            {existing.data ? (alreadyMarked ? 'Already marked — saving will overwrite this day.' : 'Not marked yet.') : ''}
+          </p>
+          <div className="flex items-center gap-1.5 text-[11px] font-bold">
+            <span className="text-slate-400">Set all:</span>
+            {['present', 'holiday'].map((st) => (
+              <button
+                key={st}
+                type="button"
+                onClick={() => setAll(st)}
+                className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 capitalize cursor-pointer"
+              >
+                {st}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Student Rows List */}
         <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar my-2">
-          {currentClassStudents.length === 0 ? (
-            <p className="text-center text-xs text-slate-400 py-6">No students found in Class {selectedClass}</p>
-          ) : (
-            currentClassStudents.map((s) => {
-              const currentStatus = studentStates[s.id] || 'present';
-              return (
-                <div
-                  key={s.id}
-                  className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between"
-                >
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-xs sm:text-sm">{s.name}</h4>
-                    <p className="text-[11px] text-slate-400">Roll No. {s.rollNumber} • {s.id}</p>
-                  </div>
+          <AsyncState state={[roster, existing]} loadingText="Loading students…">
+            {([students]) =>
+              students.length === 0 ? (
+                <EmptyMessage text={`No students found in Class ${selectedClass}.`} />
+              ) : (
+                students.map((s) => {
+                  const currentStatus = statusOf(s.id);
+                  return (
+                    <div
+                      key={s.id}
+                      className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                    >
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-xs sm:text-sm">{s.name}</h4>
+                        <p className="text-[11px] text-slate-400">
+                          Roll No. {s.rollNumber} • {s.id}
+                        </p>
+                      </div>
 
-                  <div className="inline-flex p-1 bg-white rounded-xl border border-slate-200">
-                    {['present', 'absent', 'late'].map((st) => (
-                      <button
-                        key={st}
-                        type="button"
-                        onClick={() => handleStatusChange(s.id, st)}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition-all cursor-pointer ${
-                          currentStatus === st
-                            ? st === 'present'
-                              ? 'bg-emerald-500 text-white shadow-xs'
-                              : st === 'absent'
-                              ? 'bg-rose-500 text-white shadow-xs'
-                              : 'bg-amber-500 text-white shadow-xs'
-                            : 'text-slate-500 hover:text-slate-900'
-                        }`}
-                      >
-                        {st}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })
-          )}
+                      <div className="inline-flex p-1 bg-white rounded-xl border border-slate-200 self-start sm:self-auto">
+                        {(currentStatus === 'holiday' ? [...STATUSES, 'holiday'] : STATUSES).map((st) => (
+                          <button
+                            key={st}
+                            type="button"
+                            onClick={() => setStatus(s.id, st)}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition-all cursor-pointer ${
+                              currentStatus === st ? ACTIVE_STYLES[st] : 'text-slate-500 hover:text-slate-900'
+                            }`}
+                          >
+                            {st}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })
+              )
+            }
+          </AsyncState>
         </div>
+
+        {error && (
+          <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3 text-xs font-medium text-rose-700">{error}</div>
+        )}
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 mt-2">
@@ -158,9 +201,10 @@ export const MarkAttendanceModal = ({ isOpen, onClose, onSaveAttendance, hasPerm
           <button
             type="button"
             onClick={handleSave}
-            className="px-5 py-2.5 rounded-2xl bg-[#FF6B2C] hover:bg-[#e85a1c] text-white font-bold text-xs transition-all shadow-md shadow-[#FF6B2C]/20 cursor-pointer"
+            disabled={saving || !roster.data?.length}
+            className="px-5 py-2.5 rounded-2xl bg-[#FF6B2C] hover:bg-[#e85a1c] disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold text-xs transition-all shadow-md shadow-[#FF6B2C]/20 cursor-pointer"
           >
-            Save Attendance
+            {saving ? 'Saving…' : 'Save Attendance'}
           </button>
         </div>
       </div>

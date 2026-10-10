@@ -1,25 +1,24 @@
 import React from 'react';
-import { SUBJECTS_LIST } from '@/data/timetableData';
+import { subjectColors } from './subjectColors';
 
-export const SubjectLegend = ({ selectedSubjectId, onSelectSubject }) => {
+/** Subjects of the shown timetable; clicking one highlights its periods. */
+export const SubjectLegend = ({ subjects = [], selectedSubject, onSelectSubject }) => {
+  if (subjects.length === 0) return null;
+
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {SUBJECTS_LIST.map((subject) => {
-        const isSelected = selectedSubjectId === subject.id;
+      {subjects.map((subject) => {
+        const isSelected = selectedSubject === subject;
         return (
           <button
-            key={subject.id}
+            key={subject}
             type="button"
-            onClick={() => onSelectSubject(isSelected ? null : subject.id)}
+            onClick={() => onSelectSubject(isSelected ? null : subject)}
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-all duration-150 cursor-pointer ${
-              subject.badgeClass
-            } ${
-              isSelected
-                ? 'ring-2 ring-offset-1 ring-[#FF6B2C] shadow-sm scale-105'
-                : 'hover:opacity-90'
-            }`}
+              subjectColors(subject).badgeClass
+            } ${isSelected ? 'ring-2 ring-offset-1 ring-[#FF6B2C] shadow-sm scale-105' : 'hover:opacity-90'}`}
           >
-            {subject.name}
+            {subject}
           </button>
         );
       })}

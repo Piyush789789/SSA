@@ -15,10 +15,26 @@ export const ManagePeriodsModal = ({
 
   const [error, setError] = useState('');
   const [periodToDelete, setPeriodToDelete] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleAddPeriod = (e) => {
+  /** onAddPeriod / onDeletePeriod return promises (PUT /timetable/periods); show the server's message on failure. */
+  const run = async (action) => {
+    setSaving(true);
+    setError('');
+    try {
+      await action();
+      return true;
+    } catch (err) {
+      setError(err.message || 'Could not save the periods.');
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddPeriod = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -49,20 +65,22 @@ export const ManagePeriodsModal = ({
       return;
     }
 
-    onAddPeriod({
-      id: `period-${Date.now()}`,
-      label: label.trim(),
-      startTime,
-      endTime,
-      type: isBreak ? 'break' : 'period',
-    });
+    const ok = await run(() =>
+      onAddPeriod({
+        id: `period-${Date.now()}`,
+        label: label.trim(),
+        startTime,
+        endTime,
+        type: isBreak ? 'break' : 'period',
+      }),
+    );
+    if (!ok) return;
 
     // Reset form
     setLabel('');
     setStartTime('');
     setEndTime('');
     setIsBreak(false);
-    setError('');
   };
 
   return (
@@ -141,7 +159,7 @@ export const ManagePeriodsModal = ({
                 <span>Delete Period "{periodToDelete.label}"?</span>
               </div>
               <p className="text-[11px] text-rose-700">
-                Deleting this period will remove this row from the timetable for all classes.
+                Deleting this period removes this row, and every lesson scheduled in it, from the timetable of all classes.
               </p>
               <div className="flex items-center justify-end gap-2 pt-1">
                 <button
@@ -153,13 +171,13 @@ export const ManagePeriodsModal = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    onDeletePeriod(periodToDelete.id);
-                    setPeriodToDelete(null);
+                  disabled={saving}
+                  onClick={async () => {
+                    if (await run(() => onDeletePeriod(periodToDelete.id))) setPeriodToDelete(null);
                   }}
-                  className="px-3.5 py-1.5 bg-rose-600 text-white text-xs font-bold rounded-xl shadow-xs"
+                  className="px-3.5 py-1.5 bg-rose-600 disabled:opacity-60 text-white text-xs font-bold rounded-xl shadow-xs"
                 >
-                  Delete Period
+                  {saving ? 'Deleting…' : 'Delete Period'}
                 </button>
               </div>
             </div>
@@ -230,10 +248,11 @@ export const ManagePeriodsModal = ({
 
               <button
                 type="submit"
-                className="w-full inline-flex items-center justify-center gap-2 py-3 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold text-xs rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer"
+                disabled={saving}
+                className="disabled:opacity-60 disabled:cursor-not-allowed w-full inline-flex items-center justify-center gap-2 py-3 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold text-xs rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer"
               >
                 <Plus className="w-4 h-4 stroke-[2.5]" />
-                <span>Add Period</span>
+                <span>{saving ? 'Saving…' : 'Add Period'}</span>
               </button>
             </form>
           </div>

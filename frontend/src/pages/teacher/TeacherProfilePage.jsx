@@ -1,42 +1,49 @@
 import React, { useState } from 'react';
-import { User, Mail, Phone, BookOpen, GraduationCap, Calendar, Award, Edit3, CheckCircle2, X } from 'lucide-react';
+import { User, Mail, Phone, GraduationCap, Calendar, Award, Edit3, CheckCircle2, X, AlertCircle } from 'lucide-react';
+import { http } from '@/api/http';
 import { useAuth } from '@/context/AuthContext';
+import { formatDate, initialsOf } from '@/utils';
 
 export const TeacherProfilePage = () => {
-  const { currentUser, updateTeacherProfile } = useAuth();
+  const { currentUser, refreshSession } = useAuth();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
 
-  const [editForm, setEditForm] = useState({
-    name: currentUser?.name || 'Anjali Singh',
-    email: currentUser?.email || 'anjali.singh@teacher.example',
-    phone: currentUser?.phone || '+91 98765 43210',
-    qualification: currentUser?.qualification || 'M.Sc Mathematics, B.Ed',
-    experience: currentUser?.experience || '8 years',
-  });
+  const [editForm, setEditForm] = useState({ name: '', email: '', phone: '', qualification: '', experience: '' });
 
   const triggerToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 3000);
   };
 
-  const handleSaveProfile = (e) => {
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
-    updateTeacherProfile(editForm);
-    setIsEditModalOpen(false);
-    triggerToast('Profile information updated successfully.');
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await http.put('/me/teacher-profile', editForm);
+      await refreshSession();
+      setIsEditModalOpen(false);
+      triggerToast('Profile saved.');
+    } catch (error) {
+      setSaveError(error);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const teacherName = currentUser?.name || 'Anjali Singh';
-  const teacherId = currentUser?.teacherId || 'TCH-2026-001';
-  const teacherEmail = currentUser?.email || 'anjali.singh@teacher.example';
-  const teacherPhone = currentUser?.phone || '+91 98765 43210';
-  const qualification = currentUser?.qualification || 'M.Sc Mathematics, B.Ed';
-  const experience = currentUser?.experience || '8 years';
-  const joiningDate = currentUser?.joiningDate || '2018-06-15';
-  const assignedClasses = currentUser?.assignedClasses || ['5-B', '6-A'];
-  const subjects = currentUser?.subjects || ['Mathematics', 'Science'];
-  const avatar = currentUser?.avatar || 'AS';
+  const teacherName = currentUser?.name ?? '';
+  const teacherId = currentUser?.teacherId ?? currentUser?.id;
+  const teacherEmail = currentUser?.email || '—';
+  const teacherPhone = currentUser?.phone || '—';
+  const qualification = currentUser?.qualification || '—';
+  const experience = currentUser?.experience || '—';
+  const joiningDate = currentUser?.joiningDate;
+  const assignedClasses = currentUser?.assignedClasses ?? [];
+  const subjects = currentUser?.subjects ?? [];
+  const avatar = currentUser?.avatar || initialsOf(teacherName);
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -62,7 +69,7 @@ export const TeacherProfilePage = () => {
                 {teacherId}
               </span>
               <span className="px-3 py-1 bg-slate-100 text-slate-700 font-bold rounded-full text-xs">
-                Senior Educator
+                Teacher
               </span>
             </div>
 
@@ -70,7 +77,8 @@ export const TeacherProfilePage = () => {
               {teacherName}
             </h1>
             <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
-              Mathematics & Science Department • SSA Academy
+              {subjects.length ? subjects.join(' & ') : 'No subjects assigned'}
+              {currentUser?.loginEmail ? ` • Login: ${currentUser.loginEmail}` : ''}
             </p>
           </div>
         </div>
@@ -79,10 +87,10 @@ export const TeacherProfilePage = () => {
           onClick={() => {
             setEditForm({
               name: teacherName,
-              email: teacherEmail,
-              phone: teacherPhone,
-              qualification: qualification,
-              experience: experience,
+              email: currentUser?.email ?? '',
+              phone: currentUser?.phone ?? '',
+              qualification: currentUser?.qualification ?? '',
+              experience: currentUser?.experience ?? '',
             });
             setIsEditModalOpen(true);
           }}
@@ -124,7 +132,7 @@ export const TeacherProfilePage = () => {
                 <Calendar className="w-4 h-4 text-slate-400" />
                 Date of Joining:
               </span>
-              <span className="font-bold text-slate-900">{joiningDate}</span>
+              <span className="font-bold text-slate-900">{formatDate(joiningDate)}</span>
             </div>
 
             <div className="flex items-center justify-between py-1">
@@ -155,6 +163,7 @@ export const TeacherProfilePage = () => {
             <div>
               <span className="text-slate-400 font-semibold block mb-1.5">Assigned Subjects:</span>
               <div className="flex flex-wrap gap-2">
+                {subjects.length === 0 && <span className="text-slate-400">None</span>}
                 {subjects.map((sub) => (
                   <span
                     key={sub}
@@ -169,6 +178,7 @@ export const TeacherProfilePage = () => {
             <div>
               <span className="text-slate-400 font-semibold block mb-1.5">Assigned Classes:</span>
               <div className="flex flex-wrap gap-2">
+                {assignedClasses.length === 0 && <span className="text-slate-400">None</span>}
                 {assignedClasses.map((cls) => (
                   <span
                     key={cls}
@@ -197,6 +207,16 @@ export const TeacherProfilePage = () => {
               </button>
             </div>
 
+            <p className="text-[11px] font-semibold text-slate-500">
+              Subjects and classes are assigned by the administrator and cannot be changed here.
+            </p>
+            {saveError ? (
+              <div className="flex items-start gap-2 p-3 rounded-xl border border-red-200 bg-red-50 text-red-700 text-[11px] font-semibold">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{saveError.message}</span>
+              </div>
+            ) : null}
+
             <form onSubmit={handleSaveProfile} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Full Name</label>
@@ -224,7 +244,6 @@ export const TeacherProfilePage = () => {
                 <label className="block text-xs font-bold text-slate-700 mb-1">Phone Number</label>
                 <input
                   type="text"
-                  required
                   value={editForm.phone}
                   onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                   className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#FF6B2C]"
@@ -261,9 +280,10 @@ export const TeacherProfilePage = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold rounded-2xl text-xs shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer"
+                  disabled={saving}
+                  className="px-5 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] disabled:opacity-60 text-white font-bold rounded-2xl text-xs shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer"
                 >
-                  Save Profile Changes
+                  {saving ? 'Saving…' : 'Save Changes'}
                 </button>
               </div>
             </form>

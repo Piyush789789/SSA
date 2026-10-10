@@ -1,6 +1,9 @@
 import React from 'react';
-import { Pencil, Trash2, Calendar, User } from 'lucide-react';
+import { Pencil, Trash2, Calendar, User, Users } from 'lucide-react';
 import { PriorityBadge, PriorityIcon } from './PriorityBadge';
+import { formatDate } from '@/utils';
+
+const AUDIENCE_LABELS = { ALL: 'Everyone', STAFF: 'Staff only', STUDENTS: 'Students', PARENTS: 'Parents' };
 
 export const NoticeCard = ({ notice, onEdit, onDelete }) => {
   return (
@@ -45,21 +48,29 @@ export const NoticeCard = ({ notice, onEdit, onDelete }) => {
         </div>
 
         {/* Description */}
-        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed pl-8">
+        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed pl-8 whitespace-pre-line">
           {notice.description}
         </p>
       </div>
 
       {/* Footer Metadata (Date & Author) */}
-      <div className="flex items-center gap-4 text-xs font-semibold text-slate-400 pt-3 border-t border-slate-100 pl-8">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold text-slate-400 pt-3 border-t border-slate-100 pl-8">
         <div className="flex items-center gap-1.5">
           <Calendar className="w-3.5 h-3.5 text-slate-400" />
-          <span>{notice.createdAt}</span>
+          <span>
+            {formatDate(notice.createdAt)}
+            {notice.updatedAt && notice.updatedAt !== notice.createdAt ? ` (edited ${formatDate(notice.updatedAt)})` : ''}
+          </span>
         </div>
         <span>•</span>
         <div className="flex items-center gap-1.5">
           <User className="w-3.5 h-3.5 text-slate-400" />
-          <span>By {notice.author || 'School Admin'}</span>
+          <span>By {notice.authorName || '—'}</span>
+        </div>
+        <span>•</span>
+        <div className="flex items-center gap-1.5">
+          <Users className="w-3.5 h-3.5 text-slate-400" />
+          <span>{AUDIENCE_LABELS[notice.audience] || notice.audience || 'Everyone'}</span>
         </div>
       </div>
     </div>

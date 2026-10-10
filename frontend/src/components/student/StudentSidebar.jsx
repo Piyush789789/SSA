@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { GraduationCap, X, LogOut } from 'lucide-react';
 import { STUDENT_SIDEBAR_ITEMS } from '@/constants/sidebar';
 import { useAuth } from '@/context/AuthContext';
+import { initialsOf } from '@/utils';
 
 export const StudentSidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
@@ -19,8 +20,8 @@ export const StudentSidebar = ({ isOpen, onClose }) => {
     navigate('/login');
   };
 
-  const studentName = currentUser?.name || 'Rohit Verma';
-  const studentAvatar = currentUser?.avatar || currentUser?.initials || 'RV';
+  const studentName = currentUser?.name || 'Student';
+  const studentAvatar = currentUser?.avatar || initialsOf(studentName);
 
   return (
     <>
@@ -117,7 +118,7 @@ export const StudentSidebar = ({ isOpen, onClose }) => {
                   {studentName}
                 </h4>
                 <p className="text-[11px] font-medium text-slate-400 truncate">
-                  Class {currentUser?.className || '5-B'}
+                  {currentUser?.className ? `Class ${currentUser.className}` : ''}
                 </p>
               </div>
             </div>

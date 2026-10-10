@@ -2,6 +2,7 @@ package com.ssa.schoolerp.service;
 
 import com.ssa.schoolerp.dto.FeeDtos.AssignRequest;
 import com.ssa.schoolerp.dto.FeeDtos.ConcessionRequest;
+import com.ssa.schoolerp.dto.FeeDtos.DepositRequest;
 import com.ssa.schoolerp.dto.FeeDtos.DueView;
 import com.ssa.schoolerp.dto.FeeDtos.Overview;
 import com.ssa.schoolerp.dto.FeeDtos.PaymentRequest;
@@ -9,6 +10,7 @@ import com.ssa.schoolerp.dto.FeeDtos.StudentSummary;
 import com.ssa.schoolerp.exception.ApiErrors;
 import com.ssa.schoolerp.model.Concession;
 import com.ssa.schoolerp.model.DiscountType;
+import com.ssa.schoolerp.model.FeeDeposit;
 import com.ssa.schoolerp.model.FeeDue;
 import com.ssa.schoolerp.model.FeeHead;
 import com.ssa.schoolerp.model.FeePayment;
@@ -18,6 +20,7 @@ import com.ssa.schoolerp.model.User;
 import com.ssa.schoolerp.repository.DataStore;
 import com.ssa.schoolerp.security.AccessGuard;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -31,6 +34,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional
 public class FeeService {
 
     private final DataStore store;
@@ -169,13 +173,96 @@ public class FeeService {
         if (request.amount() > due.pending()) {
             throw ApiErrors.badRequest("Amount exceeds the pending balance of ₹" + due.pending());
         }
-        store.feeDues.save(due.withPaid(due.paid() + request.amount()));
+        return recordPayment(due, request.amount(), request.paymentMode(), request.remarks(), collector.getName());
+    }
+
+    private FeePayment recordPayment(FeeDue due, long amount, String mode, String remarks, String collectedBy) {
+        store.feeDues.save(due.withPaid(due.paid() + amount));
         Student student = store.students.getById(due.studentId());
         LocalDateTime now = LocalDateTime.now(clock);
         FeePayment payment = new FeePayment(store.nextId("PAY"), store.nextId("RCP-" + now.getYear()), student.id(),
-                student.name(), student.className(), due.id(), due.title(), request.amount(), request.paymentMode(),
-                now, request.remarks(), collector.getName());
+                student.name(), student.className(), due.id(), due.title(), amount, mode, now, remarks, collectedBy);
         return store.payments.save(payment);
+    }
+
+    // ---------------------------------------------------------------- deposits reported by families
+
+    /** A student or parent reports a payment made outside the office; it waits for an admin to verify it. */
+    public synchronized FeeDeposit submitDeposit(User user, DepositRequest request) {
+        FeeDue due = store.feeDues.getById(request.feeDueId());
+        Student student = guard.checkStudentAccess(user, due.studentId());
+        if (!ReferenceData.DEPOSIT_MODES.contains(request.paymentMode())) {
+            throw ApiErrors.badRequest("Payment mode must be one of " + ReferenceData.DEPOSIT_MODES);
+        }
+        String reference = request.referenceNo() == null ? "" : request.referenceNo().trim();
+        if (reference.isEmpty()) {
+            throw ApiErrors.badRequest("Enter the transaction / cheque reference number");
+        }
+        if (request.paidOn().isAfter(LocalDate.now(clock))) {
+            throw ApiErrors.badRequest("The payment date cannot be in the future");
+        }
+        boolean referenceUsed = store.deposits.stream()
+                .anyMatch(d -> d.status() != FeeDeposit.Status.REJECTED && reference.equalsIgnoreCase(d.referenceNo()));
+        if (referenceUsed) {
+            throw ApiErrors.conflict("A deposit with reference " + reference + " was already submitted");
+        }
+        long available = due.pending() - pendingDepositTotal(due.id());
+        if (request.amount() > available) {
+            throw ApiErrors.badRequest("Amount exceeds what is still owed (₹" + Math.max(0, available)
+                    + " after deposits awaiting verification)");
+        }
+        FeeDeposit deposit = new FeeDeposit(store.nextId("DEP"), student.id(), student.name(), student.className(),
+                due.id(), due.title(), request.amount(), request.paymentMode(), reference, request.paidOn(),
+                request.note(), FeeDeposit.Status.PENDING, user.getName(), LocalDateTime.now(clock), null, null, null,
+                null);
+        return store.deposits.save(deposit);
+    }
+
+    public List<FeeDeposit> deposits(User user, String studentId, FeeDeposit.Status status) {
+        if (studentId != null) {
+            guard.checkStudentAccess(user, studentId);
+        }
+        Set<String> visible = guard.readableStudentIds(user);
+        return store.deposits.stream()
+                .filter(d -> visible.contains(d.studentId()))
+                .filter(d -> studentId == null || d.studentId().equals(studentId))
+                .filter(d -> status == null || d.status() == status)
+                .sorted(Comparator.comparing(FeeDeposit::submittedAt).reversed())
+                .toList();
+    }
+
+    /** Admin confirms the money arrived: records the payment (with a receipt) and closes the deposit. */
+    public synchronized FeeDeposit approveDeposit(User admin, String id, String note) {
+        FeeDeposit deposit = pendingDeposit(id);
+        FeeDue due = store.feeDues.getById(deposit.feeDueId());
+        if (deposit.amount() > due.pending()) {
+            throw ApiErrors.conflict("Only ₹" + due.pending() + " is still owed on this fee; reject this deposit instead");
+        }
+        String remarks = "App deposit " + deposit.referenceNo() + " paid on " + deposit.paidOn();
+        FeePayment payment = recordPayment(due, deposit.amount(), deposit.paymentMode(), remarks, admin.getName());
+        return store.deposits.save(deposit.reviewed(FeeDeposit.Status.APPROVED, admin.getName(),
+                LocalDateTime.now(clock), note, payment.id()));
+    }
+
+    public synchronized FeeDeposit rejectDeposit(User admin, String id, String note) {
+        FeeDeposit deposit = pendingDeposit(id);
+        return store.deposits.save(deposit.reviewed(FeeDeposit.Status.REJECTED, admin.getName(),
+                LocalDateTime.now(clock), note, null));
+    }
+
+    private FeeDeposit pendingDeposit(String id) {
+        FeeDeposit deposit = store.deposits.getById(id);
+        if (deposit.status() != FeeDeposit.Status.PENDING) {
+            throw ApiErrors.conflict("This deposit was already " + deposit.status().name().toLowerCase());
+        }
+        return deposit;
+    }
+
+    private long pendingDepositTotal(String dueId) {
+        return store.deposits.stream()
+                .filter(d -> d.feeDueId().equals(dueId) && d.status() == FeeDeposit.Status.PENDING)
+                .mapToLong(FeeDeposit::amount)
+                .sum();
     }
 
     public List<FeePayment> payments(User user, String studentId, LocalDate from, LocalDate to) {
@@ -220,6 +307,14 @@ public class FeeService {
                 request.type(), request.discountType(), request.discountValue(), discount, request.description(),
                 approver.getName(), LocalDate.now(clock));
         return store.concessions.save(concession);
+    }
+
+    /** Withdraws a concession; the student owes that amount again. */
+    public synchronized void deleteConcession(String id) {
+        Concession concession = store.concessions.getById(id);
+        store.feeDues.findById(concession.feeDueId()).ifPresent(due ->
+                store.feeDues.save(due.withConcession(Math.max(0, due.concession() - concession.discountAmount()))));
+        store.concessions.deleteById(id);
     }
 
     public List<Concession> concessions(User user, String studentId) {

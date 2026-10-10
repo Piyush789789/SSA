@@ -7,7 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 export const ParentSidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser, selectedChild, logout } = useAuth();
+  const { currentUser, selectedChild, switchChild, logout } = useAuth();
 
   const handleNavigation = (route) => {
     if (onClose) onClose();
@@ -19,9 +19,10 @@ export const ParentSidebar = ({ isOpen, onClose }) => {
     navigate('/login');
   };
 
-  const displayName = selectedChild?.name || currentUser?.name || 'Yash Verma';
-  const displayEmail = currentUser?.email || 'parent075.stu20260081@alfalah.edu';
-  const avatarText = selectedChild?.avatar || currentUser?.avatar || 'YV';
+  const displayName = currentUser?.name || '';
+  const displayEmail = currentUser?.email || '';
+  const avatarText = currentUser?.avatar || '';
+  const linkedChildren = currentUser?.linkedChildren || [];
 
   return (
     <>
@@ -67,6 +68,41 @@ export const ParentSidebar = ({ isOpen, onClose }) => {
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Child Switcher */}
+        {linkedChildren.length > 0 && (
+          <div className="px-4 pt-4">
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3 mb-2 flex items-center gap-1.5">
+              <Users className="w-3 h-3" />
+              {linkedChildren.length > 1 ? 'Select Child' : 'Child'}
+            </div>
+            <div className="space-y-1">
+              {linkedChildren.map((child) => {
+                const active = selectedChild?.studentId === child.studentId;
+                return (
+                  <button
+                    key={child.studentId}
+                    type="button"
+                    onClick={() => switchChild(child.studentId)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-2xl text-xs font-semibold text-left transition-colors cursor-pointer ${
+                      active ? 'bg-[#FFF5F0] text-[#FF6B2C] ring-1 ring-orange-200' : 'text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="w-7 h-7 rounded-full bg-orange-100 text-[#EA580C] text-[10px] font-bold flex items-center justify-center shrink-0">
+                      {child.avatar}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate">{child.name}</span>
+                      <span className="block text-[10px] font-medium text-slate-400 truncate">
+                        Class {child.className} · {child.studentId}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Navigation List */}
         <div className="flex-1 overflow-y-auto px-4 py-5 space-y-1.5 custom-scrollbar">

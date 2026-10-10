@@ -46,7 +46,7 @@ const renderStatusCell = (status) => {
   );
 };
 
-export const WeeklyAttendanceTable = ({ weeklyData }) => {
+export const WeeklyAttendanceTable = ({ weeklyData, periodLabel }) => {
   const navigate = useNavigate();
 
   return (
@@ -57,7 +57,7 @@ export const WeeklyAttendanceTable = ({ weeklyData }) => {
             <CalendarRange className="w-4 h-4 stroke-[2.2]" />
           </div>
           <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">
-            Weekly Student Attendance Breakdown (21 Sep – 26 Sep 2026)
+            Weekly Student Attendance Breakdown{periodLabel ? ` (${periodLabel})` : ''}
           </h3>
         </div>
         <span className="text-xs font-semibold text-slate-400">
@@ -113,13 +113,15 @@ export const WeeklyAttendanceTable = ({ weeklyData }) => {
                   <td className="py-3 px-3 text-center">{renderStatusCell(row.sat)}</td>
                   <td className="py-3 px-3 text-center font-black text-slate-900">
                     <span className={`px-2 py-0.5 rounded-md ${
-                      Number(row.rate) >= 90
+                      row.rate === null
+                        ? 'bg-slate-50 text-slate-400'
+                        : Number(row.rate) >= 90
                         ? 'bg-emerald-50 text-emerald-700'
                         : Number(row.rate) >= 75
                         ? 'bg-amber-50 text-amber-700'
                         : 'bg-rose-50 text-rose-700'
                     }`}>
-                      {row.rate}%
+                      {row.rate === null ? '—' : `${Math.round(row.rate)}%`}
                     </span>
                   </td>
                   <td className="py-3 px-3 text-right">

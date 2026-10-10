@@ -29,11 +29,21 @@ export const TeacherCard = ({ teacher, onEdit, onDelete }) => {
                 {teacher.name}
               </h3>
               {/* Subject Badge */}
-              <div className="mt-1">
-                <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#FFF5F0] text-[#FF6B2C] border border-[#FF6B2C]/20">
-                  {teacher.subject}
-                </span>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {(teacher.subjects || []).length > 0 ? (
+                  teacher.subjects.map((subject) => (
+                    <span
+                      key={subject}
+                      className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#FFF5F0] text-[#FF6B2C] border border-[#FF6B2C]/20"
+                    >
+                      {subject}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-[11px] text-slate-400 italic">No subjects</span>
+                )}
               </div>
+              <p className="text-[11px] text-slate-400 mt-1">{teacher.id}</p>
             </div>
           </div>
 
@@ -65,17 +75,17 @@ export const TeacherCard = ({ teacher, onEdit, onDelete }) => {
         <div className="space-y-2.5 text-xs text-slate-600">
           <div className="flex items-center gap-2.5 min-w-0">
             <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span className="truncate">{teacher.email}</span>
+            <span className="truncate">{teacher.email || 'No email'}</span>
           </div>
 
           <div className="flex items-center gap-2.5 min-w-0">
             <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span className="truncate">{teacher.phone || 'N/A'}</span>
+            <span className="truncate">{teacher.phone || 'No phone'}</span>
           </div>
 
           <div className="flex items-center gap-2.5 min-w-0">
             <GraduationCap className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span className="truncate">{teacher.qualification || 'B.Ed'}</span>
+            <span className="truncate">{teacher.qualification || 'Qualification not set'}{teacher.experience ? ` · ${teacher.experience}` : ''}</span>
           </div>
         </div>
       </div>

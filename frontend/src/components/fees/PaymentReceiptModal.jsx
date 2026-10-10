@@ -1,19 +1,23 @@
 import React from 'react';
 import { X, Printer, GraduationCap } from 'lucide-react';
-import { formatCurrency } from '@/data/feeData';
+import { formatCurrency, formatDateTime } from '@/utils';
 
+// When printing, show only the receipt (not the page behind the modal).
+const PRINT_CSS = `
+@media print {
+  body * { visibility: hidden !important; }
+  #printable-receipt, #printable-receipt * { visibility: visible !important; }
+  #printable-receipt { position: absolute; left: 0; top: 0; width: 100%; overflow: visible !important; }
+}`;
+
+/** Receipt for a Payment returned by the API (POST /fees/payments or GET /fees/payments). */
 export const PaymentReceiptModal = ({ isOpen, transaction, onClose }) => {
   if (!isOpen || !transaction) return null;
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in">
-      {/* Modal Container */}
+      <style>{PRINT_CSS}</style>
       <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 relative space-y-6 flex flex-col max-h-[90vh]">
-        {/* Close Button (Hidden on Print) */}
         <button
           type="button"
           onClick={onClose}
@@ -22,34 +26,23 @@ export const PaymentReceiptModal = ({ isOpen, transaction, onClose }) => {
           <X className="w-5 h-5" />
         </button>
 
-        {/* Printable Area */}
         <div id="printable-receipt" className="space-y-6 flex-1 overflow-y-auto pr-1">
-          {/* Receipt Branding Header */}
           <div className="text-center border-b border-slate-100 pb-5">
             <div className="w-12 h-12 rounded-2xl bg-[#FF6B2C] text-white flex items-center justify-center mx-auto mb-2 shadow-md shadow-[#FF6B2C]/20">
               <GraduationCap className="w-6 h-6" />
             </div>
-            <h2 className="text-base font-extrabold text-slate-900 uppercase tracking-tight">
-              SSA SHIV SHANTI ADARSH ACADEMY
-            </h2>
-            <p className="text-xs font-semibold text-[#FF6B2C] mt-0.5">
-              Fee Payment Receipt
-            </p>
+            <h2 className="text-base font-extrabold text-slate-900 uppercase tracking-tight">SSA SHIV SHANTI ADARSH ACADEMY</h2>
+            <p className="text-xs font-semibold text-[#FF6B2C] mt-0.5">Fee Payment Receipt</p>
           </div>
 
-          {/* Key Receipt Meta */}
           <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50/70 p-4 rounded-2xl border border-slate-100">
             <div>
               <span className="text-slate-400 block font-medium">Receipt No</span>
-              <strong className="text-slate-900 font-bold font-mono text-[11px]">
-                {transaction.receiptNo}
-              </strong>
+              <strong className="text-slate-900 font-bold font-mono text-[11px]">{transaction.receiptNo}</strong>
             </div>
             <div>
               <span className="text-slate-400 block font-medium">Date & Time</span>
-              <strong className="text-slate-900 font-semibold">
-                {transaction.date} {transaction.time ? `• ${transaction.time}` : ''}
-              </strong>
+              <strong className="text-slate-900 font-semibold">{formatDateTime(transaction.paidAt)}</strong>
             </div>
             <div>
               <span className="text-slate-400 block font-medium">Student</span>
@@ -57,21 +50,18 @@ export const PaymentReceiptModal = ({ isOpen, transaction, onClose }) => {
             </div>
             <div>
               <span className="text-slate-400 block font-medium">Student ID</span>
-              <strong className="text-slate-900 font-semibold">
-                {transaction.studentIdStr || `STU-2026-000${transaction.studentId}`}
-              </strong>
+              <strong className="text-slate-900 font-semibold">{transaction.studentId}</strong>
             </div>
             <div>
               <span className="text-slate-400 block font-medium">Class</span>
               <strong className="text-slate-900 font-semibold">{transaction.className}</strong>
             </div>
             <div>
-              <span className="text-slate-400 block font-medium">Roll No</span>
-              <strong className="text-slate-900 font-semibold">{transaction.rollNo || 1}</strong>
+              <span className="text-slate-400 block font-medium">Collected By</span>
+              <strong className="text-slate-900 font-semibold">{transaction.collectedBy || '—'}</strong>
             </div>
           </div>
 
-          {/* Amount Paid Table */}
           <div className="border border-slate-100 rounded-2xl overflow-hidden text-xs">
             <table className="w-full text-left">
               <thead>
@@ -82,22 +72,17 @@ export const PaymentReceiptModal = ({ isOpen, transaction, onClose }) => {
               </thead>
               <tbody>
                 <tr className="border-b border-slate-100">
-                  <td className="py-3 px-4 font-medium text-slate-800">{transaction.feeHead}</td>
-                  <td className="py-3 px-4 text-right font-bold text-slate-900">
-                    {formatCurrency(transaction.amount)}
-                  </td>
+                  <td className="py-3 px-4 font-medium text-slate-800">{transaction.feeTitle}</td>
+                  <td className="py-3 px-4 text-right font-bold text-slate-900">{formatCurrency(transaction.amount)}</td>
                 </tr>
                 <tr className="bg-slate-50 font-bold">
                   <td className="py-3 px-4 text-slate-900">Amount Paid</td>
-                  <td className="py-3 px-4 text-right text-[#FF6B2C] text-sm">
-                    {formatCurrency(transaction.amount)}
-                  </td>
+                  <td className="py-3 px-4 text-right text-[#FF6B2C] text-sm">{formatCurrency(transaction.amount)}</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          {/* Payment Mode & Notes */}
           <div className="flex flex-col sm:flex-row justify-between gap-2 text-xs text-slate-600 pt-1">
             <div>
               <span className="text-slate-400">Mode:</span>{' '}
@@ -111,17 +96,15 @@ export const PaymentReceiptModal = ({ isOpen, transaction, onClose }) => {
             )}
           </div>
 
-          {/* Computer Generated Footer */}
           <div className="text-center pt-4 border-t border-slate-100 text-[11px] text-slate-400 font-medium">
             Computer-generated receipt · No signature required
           </div>
         </div>
 
-        {/* Modal Action Buttons (Hidden on Print) */}
         <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 print:hidden shrink-0">
           <button
             type="button"
-            onClick={handlePrint}
+            onClick={() => window.print()}
             className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] active:bg-[#D94E13] text-white font-semibold text-xs rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-colors cursor-pointer"
           >
             <Printer className="w-4 h-4" />

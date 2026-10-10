@@ -1,26 +1,14 @@
 import React from 'react';
-import { Building2, ChevronRight, ExternalLink } from 'lucide-react';
+import { Building2, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { CLASSES_LIST } from '@/data/attendanceData';
+import { formatRate } from './attendanceMath';
 
-export const ClassAttendanceTable = ({ onSelectClass, selectedClass }) => {
+/**
+ * rows = [{ name: '5-B', total, present (incl. late), absent, rate }] for the shown period.
+ * Clicking a row filters the page to that class.
+ */
+export const ClassAttendanceTable = ({ rows = [], periodLabel, onSelectClass, selectedClass }) => {
   const navigate = useNavigate();
-
-  // Generate sample class performance statistics
-  const classStats = CLASSES_LIST.slice(0, 8).map((c, index) => {
-    const total = c.totalStudents;
-    const absent = (index % 3) + 1;
-    const present = total - absent;
-    const rate = ((present / total) * 100).toFixed(1);
-    return {
-      id: c.id,
-      name: c.name,
-      total,
-      present,
-      absent,
-      rate,
-    };
-  });
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs space-y-4">
@@ -33,9 +21,7 @@ export const ClassAttendanceTable = ({ onSelectClass, selectedClass }) => {
             Class-wise Attendance Comparison
           </h3>
         </div>
-        <span className="text-xs font-semibold text-slate-400">
-          Showing top classes
-        </span>
+        <span className="text-xs font-semibold text-slate-400">{periodLabel}</span>
       </div>
 
       <div className="overflow-x-auto custom-scrollbar">
@@ -44,64 +30,66 @@ export const ClassAttendanceTable = ({ onSelectClass, selectedClass }) => {
             <tr className="border-b border-slate-100 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
               <th className="py-2.5 px-3">Class</th>
               <th className="py-2.5 px-3">Students</th>
-              <th className="py-2.5 px-3">Present</th>
-              <th className="py-2.5 px-3">Absent</th>
+              <th className="py-2.5 px-3">Present (student-days)</th>
+              <th className="py-2.5 px-3">Absent (student-days)</th>
               <th className="py-2.5 px-3">Attendance Rate</th>
               <th className="py-2.5 px-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-xs font-semibold">
-            {classStats.map((item) => {
-              const isSelected = selectedClass === item.name;
-              return (
-                <tr
-                  key={item.id}
-                  onClick={() => {
-                    onSelectClass(item.name);
-                    navigate(`/admin/classes/${item.name}`);
-                  }}
-                  className={`cursor-pointer transition-colors ${
-                    isSelected ? 'bg-[#FFF5F0]/70' : 'hover:bg-slate-50'
-                  }`}
-                >
-                  <td className="py-3 px-3 font-extrabold text-slate-900 group-hover:text-[#FF6B2C]">
-                    Class {item.name}
-                  </td>
-                  <td className="py-3 px-3 text-slate-600">{item.total}</td>
-                  <td className="py-3 px-3 text-emerald-600 font-bold">{item.present}</td>
-                  <td className="py-3 px-3 text-rose-600 font-bold">{item.absent}</td>
-                  <td className="py-3 px-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 bg-slate-100 rounded-full h-2 overflow-hidden">
-                        <div
-                          style={{ width: `${item.rate}%` }}
-                          className={`h-full rounded-full ${
-                            Number(item.rate) >= 90
-                              ? 'bg-emerald-500'
-                              : Number(item.rate) >= 75
-                              ? 'bg-amber-500'
-                              : 'bg-rose-500'
-                          }`}
-                        />
-                      </div>
-                      <span className="font-extrabold text-slate-800">{item.rate}%</span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-3 text-right">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/admin/classes/${item.name}`);
-                      }}
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF6B2C] hover:underline"
-                    >
-                      View Class <ExternalLink className="w-3.5 h-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="text-center py-8 text-slate-400 font-medium">
+                  No classes found.
+                </td>
+              </tr>
+            ) : (
+              rows.map((item) => {
+                const isSelected = selectedClass === item.name;
+                const rate = item.rate;
+                return (
+                  <tr
+                    key={item.name}
+                    onClick={() => onSelectClass(isSelected ? 'ALL' : item.name)}
+                    className={`cursor-pointer transition-colors ${isSelected ? 'bg-[#FFF5F0]/70' : 'hover:bg-slate-50'}`}
+                  >
+                    <td className="py-3 px-3 font-extrabold text-slate-900">Class {item.name}</td>
+                    <td className="py-3 px-3 text-slate-600">{item.total}</td>
+                    <td className="py-3 px-3 text-emerald-600 font-bold">{item.present}</td>
+                    <td className="py-3 px-3 text-rose-600 font-bold">{item.absent}</td>
+                    <td className="py-3 px-3">
+                      {rate === null ? (
+                        <span className="text-slate-400">Not marked</span>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div className="w-16 bg-slate-100 rounded-full h-2 overflow-hidden">
+                            <div
+                              style={{ width: `${rate}%` }}
+                              className={`h-full rounded-full ${
+                                rate >= 90 ? 'bg-emerald-500' : rate >= 75 ? 'bg-amber-500' : 'bg-rose-500'
+                              }`}
+                            />
+                          </div>
+                          <span className="font-extrabold text-slate-800">{formatRate(rate)}</span>
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/admin/classes/${item.name}`);
+                        }}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF6B2C] hover:underline"
+                      >
+                        View Class <ExternalLink className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>

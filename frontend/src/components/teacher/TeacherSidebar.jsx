@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { GraduationCap, X, LogOut, BookOpen } from 'lucide-react';
 import { TEACHER_SIDEBAR_ITEMS } from '@/constants/sidebar';
 import { useAuth } from '@/context/AuthContext';
+import { initialsOf } from '@/utils';
 
 export const TeacherSidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
@@ -19,9 +20,9 @@ export const TeacherSidebar = ({ isOpen, onClose }) => {
     navigate('/login');
   };
 
-  const teacherName = currentUser?.name || 'Anjali Singh';
-  const teacherEmail = currentUser?.email || 'anjali.singh@teacher.example';
-  const teacherAvatar = currentUser?.avatar || 'AS';
+  const teacherName = currentUser?.name ?? '';
+  const teacherEmail = currentUser?.email || currentUser?.loginEmail || '';
+  const teacherAvatar = currentUser?.avatar || initialsOf(teacherName);
 
   return (
     <>

@@ -2,6 +2,7 @@ package com.ssa.schoolerp.service;
 
 import com.ssa.schoolerp.dto.ExamDtos.ClassResultRow;
 import com.ssa.schoolerp.dto.ExamDtos.MarksEntry;
+import com.ssa.schoolerp.dto.ExamDtos.MarksProgress;
 import com.ssa.schoolerp.dto.ExamDtos.MarksSaveRequest;
 import com.ssa.schoolerp.dto.ExamDtos.MarksSheet;
 import com.ssa.schoolerp.dto.ExamDtos.MarksSheetRow;
@@ -21,6 +22,7 @@ import com.ssa.schoolerp.model.User;
 import com.ssa.schoolerp.repository.DataStore;
 import com.ssa.schoolerp.security.AccessGuard;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -35,6 +37,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional
 public class ExamService {
 
     private final DataStore store;
@@ -262,6 +265,7 @@ public class ExamService {
         String status = request.submit() ? MarksRecord.SUBMITTED : MarksRecord.DRAFT;
         Set<String> seen = new HashSet<>();
         List<MarksRecord> records = new ArrayList<>();
+        List<String> cleared = new ArrayList<>();
         // Validate everything before saving anything, so a bad row cannot leave a half-saved sheet.
         for (MarksEntry entry : request.entries()) {
             Student student = roster.get(entry.studentId());
@@ -270,6 +274,10 @@ public class ExamService {
             }
             if (!seen.add(student.id())) {
                 throw ApiErrors.badRequest("Student " + student.id() + " appears more than once");
+            }
+            if (entry.clear()) {
+                cleared.add(MarksRecord.idFor(scheduleId, student.id()));
+                continue;
             }
             if (!entry.absent() && entry.obtainedMarks() == null) {
                 continue; // left blank: not entered yet, not zero
@@ -283,7 +291,27 @@ public class ExamService {
                     user.getName()));
         }
         records.forEach(store.marks::save);
+        cleared.forEach(store.marks::deleteById);
         return marksSheet(user, scheduleId);
+    }
+
+    /** Entered/submitted counts per paper, for the admin's "marks pending" view. */
+    public List<MarksProgress> marksProgress(String examId) {
+        if (examId != null) {
+            store.exams.getById(examId);
+        }
+        Map<String, List<MarksRecord>> bySchedule = store.marks.stream()
+                .collect(Collectors.groupingBy(MarksRecord::scheduleId));
+        return store.schedules.stream()
+                .filter(s -> examId == null || s.examId().equals(examId))
+                .sorted(Comparator.comparing(ExamSchedule::date).thenComparing(ExamSchedule::className))
+                .map(s -> {
+                    List<MarksRecord> marks = bySchedule.getOrDefault(s.id(), List.of());
+                    int submitted = (int) marks.stream().filter(m -> MarksRecord.SUBMITTED.equals(m.status())).count();
+                    return new MarksProgress(s.id(), s.examId(), s.subject(), s.className(), s.date(), marks.size(),
+                            submitted, store.studentsOf(s.className()).size());
+                })
+                .toList();
     }
 
     // ---------------------------------------------------------------- results

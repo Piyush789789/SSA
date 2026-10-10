@@ -1,7 +1,11 @@
 package com.ssa.schoolerp.service;
 
 import com.ssa.schoolerp.dto.ClassView;
+import com.ssa.schoolerp.dto.ProfileDtos.ParentSelfUpdate;
+import com.ssa.schoolerp.dto.ProfileDtos.StudentContactUpdate;
+import com.ssa.schoolerp.dto.ProfileDtos.TeacherSelfUpdate;
 import com.ssa.schoolerp.exception.ApiErrors;
+import com.ssa.schoolerp.model.Guardian;
 import com.ssa.schoolerp.model.Homework;
 import com.ssa.schoolerp.model.Parent;
 import com.ssa.schoolerp.model.ReferenceData;
@@ -14,6 +18,7 @@ import com.ssa.schoolerp.model.User;
 import com.ssa.schoolerp.repository.DataStore;
 import com.ssa.schoolerp.security.AccessGuard;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -26,6 +31,7 @@ import java.util.stream.Collectors;
 
 /** Classes, students and teachers: the school's master data. */
 @Service
+@Transactional
 public class SchoolService {
 
     private final DataStore store;
@@ -180,10 +186,11 @@ public class SchoolService {
 
     /** Also renames the teacher everywhere their name is copied, so a rename never breaks a timetable. */
     public Teacher updateTeacher(String id, Teacher request) {
-        Teacher existing = store.teachers.getById(id);
+        // Read the old name before saving: inside a transaction the save updates `existing` in place.
+        String previousName = store.teachers.getById(id).name();
         validateTeacher(request, id);
         Teacher updated = store.teachers.save(request.withId(id));
-        if (!Objects.equals(existing.name(), updated.name())) {
+        if (!Objects.equals(previousName, updated.name())) {
             store.timetable.findWhere(e -> id.equals(e.teacherId())).forEach(e -> store.timetable.save(
                     new TimetableEntry(e.id(), e.className(), e.day(), e.periodId(),
                             e.subject(), id, updated.name(), e.room())));
@@ -196,6 +203,31 @@ public class SchoolService {
                             m.category(), m.uploadedDate(), m.fileType(), m.fileSize(), id, updated.name())));
         }
         return updated;
+    }
+
+    /** A teacher editing their own contact details; subjects and classes stay as the admin set them. */
+    public Teacher updateOwnTeacherProfile(User user, TeacherSelfUpdate request) {
+        Teacher current = guard.teacherOf(user);
+        Teacher updated = new Teacher(current.id(), request.name().trim(), request.email().trim(), request.phone(),
+                request.qualification(), request.experience(), current.joiningDate(), current.subjects(),
+                current.assignedClasses());
+        return updateTeacher(current.id(), updated);
+    }
+
+    public Parent updateOwnParentProfile(User user, ParentSelfUpdate request) {
+        Parent current = guard.parentOf(user);
+        return store.parents.save(new Parent(current.id(), current.name(), request.email(), request.phone(),
+                current.relation(), current.childIds()));
+    }
+
+    public Student updateStudentContact(User user, String studentId, StudentContactUpdate request) {
+        Student s = guard.checkStudentAccess(user, studentId);
+        Guardian g = s.guardian();
+        Guardian guardian = g == null
+                ? null
+                : new Guardian(g.name(), g.relation(), request.guardianPhone(), request.guardianEmail());
+        return store.students.save(new Student(s.id(), s.name(), s.className(), s.rollNumber(), s.gender(),
+                s.dateOfBirth(), s.bloodGroup(), s.email(), request.address(), s.admissionDate(), guardian));
     }
 
     public void deleteTeacher(String id) {

@@ -1,5 +1,6 @@
 package com.ssa.schoolerp.service;
 
+import com.ssa.schoolerp.dto.ScheduleSlot;
 import com.ssa.schoolerp.dto.TimetableEntryRequest;
 import com.ssa.schoolerp.exception.ApiErrors;
 import com.ssa.schoolerp.model.Role;
@@ -11,7 +12,9 @@ import com.ssa.schoolerp.model.User;
 import com.ssa.schoolerp.repository.DataStore;
 import com.ssa.schoolerp.security.AccessGuard;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -22,6 +25,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional
 public class TimetableService {
 
     private final DataStore store;
@@ -34,6 +38,30 @@ public class TimetableService {
 
     public List<TimetablePeriod> periods() {
         return store.periods.stream().sorted(Comparator.comparing(TimetablePeriod::startTime)).toList();
+    }
+
+    /** The full school day for a class: every period in order, with breaks and free periods. Empty on Sundays. */
+    public List<ScheduleSlot> daySchedule(String className, DayOfWeek day) {
+        if (day == DayOfWeek.SUNDAY) {
+            return List.of();
+        }
+        Map<String, TimetableEntry> entries = store.timetable.stream()
+                .filter(e -> e.className().equals(className) && e.day() == day)
+                .collect(Collectors.toMap(TimetableEntry::periodId, e -> e, (a, b) -> a));
+        return periods().stream()
+                .map(p -> {
+                    TimetableEntry e = entries.get(p.id());
+                    return new ScheduleSlot(p.id(), p.label(), p.startTime(), p.endTime(), p.type(),
+                            e == null ? null : e.subject(), e == null ? null : e.teacherName(),
+                            e == null ? null : e.room());
+                })
+                .toList();
+    }
+
+    public List<ScheduleSlot> daySchedule(User user, String className, DayOfWeek day) {
+        store.classes.getById(className);
+        guard.checkClassAccess(user, className);
+        return daySchedule(className, day);
     }
 
     /** Replaces the day's period structure. Entries in periods that no longer exist are removed. */

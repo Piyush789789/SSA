@@ -9,6 +9,7 @@ import com.ssa.schoolerp.model.User;
 import com.ssa.schoolerp.repository.DataStore;
 import com.ssa.schoolerp.security.AccessGuard;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -21,6 +22,7 @@ import java.util.Set;
  * class and subject they teach and change only their own items; admins can change anything.
  */
 @Service
+@Transactional
 public class ClassContentService {
 
     private final DataStore store;

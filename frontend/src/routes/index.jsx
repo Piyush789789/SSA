@@ -61,25 +61,25 @@ import { ParentProfilePage } from '@/pages/parent/ParentProfilePage';
 
 import { ROUTES } from '@/constants/routes';
 
-// Role Protection Components
-const AdminRoute = ({ children }) => {
-  const { role } = useAuth();
-  if (role === 'teacher') {
-    return <Navigate to="/teacher/dashboard" replace />;
-  }
-  if (role === 'student') {
-    return <Navigate to="/student/dashboard" replace />;
-  }
-  if (role === 'parent') {
-    return <Navigate to="/parent/dashboard" replace />;
-  }
-  return children;
+import { HOME_BY_ROLE, RequireRole } from '@/routes/RequireRole';
+
+const AdminRoute = ({ children }) => <RequireRole role="admin">{children}</RequireRole>;
+
+/** "/" and unknown addresses: signed-in users go to their portal, everyone else to the login page. */
+const HomeRedirect = () => {
+  const { currentUser, isLoading } = useAuth();
+  if (isLoading) return null;
+  return <Navigate to={currentUser ? HOME_BY_ROLE[currentUser.role] : ROUTES.LOGIN} replace />;
 };
 
 const router = createBrowserRouter([
   {
     path: ROUTES.HOME,
-    element: <Navigate to={ROUTES.LOGIN} replace />,
+    element: <HomeRedirect />,
+  },
+  {
+    path: '*',
+    element: <HomeRedirect />,
   },
   {
     path: ROUTES.LOGIN,
@@ -263,7 +263,11 @@ const router = createBrowserRouter([
   // TEACHER ROUTES
   {
     path: '/teacher',
-    element: <TeacherLayout />,
+    element: (
+      <RequireRole role="teacher">
+        <TeacherLayout />
+      </RequireRole>
+    ),
     children: [
       {
         index: true,
@@ -319,7 +323,11 @@ const router = createBrowserRouter([
   // STUDENT ROUTES
   {
     path: '/student',
-    element: <StudentLayout />,
+    element: (
+      <RequireRole role="student">
+        <StudentLayout />
+      </RequireRole>
+    ),
     children: [
       {
         index: true,
@@ -379,7 +387,11 @@ const router = createBrowserRouter([
   // PARENT ROUTES
   {
     path: '/parent',
-    element: <ParentLayout />,
+    element: (
+      <RequireRole role="parent">
+        <ParentLayout />
+      </RequireRole>
+    ),
     children: [
       {
         index: true,

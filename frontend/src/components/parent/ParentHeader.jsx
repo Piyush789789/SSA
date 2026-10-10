@@ -7,10 +7,10 @@ export const ParentHeader = ({ onToggleSidebar }) => {
   const navigate = useNavigate();
   const { currentUser, selectedChild, switchChild, logout } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedSchool, setSelectedSchool] = useState('My School');
+  const selectedSchool = 'My School';
   const dropdownRef = useRef(null);
 
-  const avatarText = selectedChild?.avatar || currentUser?.avatar || 'YV';
+  const avatarText = currentUser?.avatar || '';
   const linkedChildren = currentUser?.linkedChildren || [];
 
   // Close dropdown on click outside
@@ -86,11 +86,16 @@ export const ParentHeader = ({ onToggleSidebar }) => {
             <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200/80 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
               <div className="px-4 py-2 border-b border-slate-100">
                 <p className="text-xs font-bold text-slate-900 truncate">
-                  {currentUser?.name || 'Rajesh Verma'} (Parent)
+                  {currentUser?.name} (Parent)
                 </p>
                 <p className="text-[10px] text-slate-400 truncate">
-                  {currentUser?.email || 'parent@alfalah.edu'}
+                  {currentUser?.email}
                 </p>
+                {selectedChild && (
+                  <p className="text-[10px] font-semibold text-[#FF6B2C] truncate mt-0.5">
+                    Viewing: {selectedChild.name} (Class {selectedChild.className})
+                  </p>
+                )}
               </div>
 
               {/* Child Switcher in Dropdown */}

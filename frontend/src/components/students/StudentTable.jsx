@@ -1,7 +1,7 @@
 import React from 'react';
 import { StudentRow } from './StudentRow';
 
-export const StudentTable = ({ students }) => {
+export const StudentTable = ({ students, onDelete }) => {
   return (
     <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
       <div className="overflow-x-auto custom-scrollbar">
@@ -18,9 +18,7 @@ export const StudentTable = ({ students }) => {
           </thead>
           <tbody>
             {students.length > 0 ? (
-              students.map((student) => (
-                <StudentRow key={student.id} student={student} />
-              ))
+              students.map((student) => <StudentRow key={student.id} student={student} onDelete={onDelete} />)
             ) : (
               <tr>
                 <td colSpan={6} className="py-12 text-center text-slate-400 text-sm font-medium">

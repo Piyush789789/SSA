@@ -1,36 +1,18 @@
 import React, { useState } from 'react';
-import {
-  User,
-  Mail,
-  Phone,
-  GraduationCap,
-  Heart,
-  ShieldCheck,
-  CheckCircle2,
-  Edit3,
-  X,
-  MapPin,
-  Users,
-} from 'lucide-react';
+import { User, Mail, Phone, CheckCircle2, Users, Info, Calendar, Droplet, MapPin } from 'lucide-react';
+import { ParentContactEditor, StudentContactEditor } from '@/components/common/ContactEditors';
 import { useAuth } from '@/context/AuthContext';
+import { useApi } from '@/hooks/useApi';
+import { formatCurrency, formatDate } from '@/utils';
 
 export const ParentProfilePage = () => {
-  const { currentUser, selectedChild, switchChild } = useAuth();
-
+  const { currentUser, selectedChild, switchChild, refreshSession } = useAuth();
   const linkedChildren = currentUser?.linkedChildren || [];
-  const parentName = currentUser?.name || 'Rajesh Verma';
-  const parentEmail = currentUser?.email || 'parent075.stu20260081@alfalah.edu';
-  const parentPhone = currentUser?.phone || '+91 98765 43210';
 
-  const [contactInfo, setContactInfo] = useState({
-    name: parentName,
-    email: parentEmail,
-    phone: parentPhone,
-    address: 'Flat 402, Sunshine Heights, New Delhi - 110025',
-    occupation: 'Senior Software Engineer',
-  });
+  // Per-child attendance and fee figures come from the parent dashboard.
+  const dashboard = useApi('/dashboard');
+  const overviewFor = (studentId) => (dashboard.data?.children || []).find((c) => c.student?.id === studentId);
 
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
   const triggerToast = (msg) => {
@@ -38,10 +20,10 @@ export const ParentProfilePage = () => {
     setTimeout(() => setToastMessage(''), 3000);
   };
 
-  const handleSaveContactInfo = (e) => {
-    e.preventDefault();
-    setIsEditModalOpen(false);
-    triggerToast('Parent contact information updated successfully.');
+  const statValue = (value) => {
+    if (dashboard.loading) return '…';
+    if (dashboard.error) return '—';
+    return value;
   };
 
   return (
@@ -65,43 +47,57 @@ export const ParentProfilePage = () => {
             Guardian records and enrolled children summary.
           </p>
         </div>
-
-        <button
-          onClick={() => setIsEditModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-2xs cursor-pointer"
-        >
-          <Edit3 className="w-4 h-4 text-slate-500" />
-          Update Contact Info
-        </button>
       </div>
 
       {/* Profile Overview Card */}
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
         <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
           <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#FF6B2C] to-[#E04E15] text-white flex items-center justify-center font-black text-2xl shadow-md ring-4 ring-orange-100 shrink-0">
-            {currentUser?.avatar || 'RV'}
+            {currentUser?.avatar}
           </div>
 
           <div>
-            <div className="flex items-center gap-2 justify-center sm:justify-start">
-              <h2 className="text-xl sm:text-2xl font-bold text-slate-900">{contactInfo.name}</h2>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
-                Verified Guardian
-              </span>
+            <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900">{currentUser?.name}</h2>
+              {currentUser?.relation && (
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
+                  {currentUser.relation}
+                </span>
+              )}
             </div>
             <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
-              Parent ID: <strong className="text-slate-800">{currentUser?.parentId || 'PRN-2026-001'}</strong> •{' '}
-              {linkedChildren.length} Children Enrolled
+              Parent ID: <strong className="text-slate-800">{currentUser?.parentId}</strong> • {linkedChildren.length}{' '}
+              {linkedChildren.length === 1 ? 'Child' : 'Children'} Enrolled
             </p>
             <div className="flex flex-wrap items-center gap-3 mt-3 text-xs text-slate-500 justify-center sm:justify-start">
-              <span className="flex items-center gap-1.5 bg-slate-100 px-3 py-1 rounded-xl font-medium">
-                <Mail className="w-3.5 h-3.5 text-slate-400" /> {contactInfo.email}
-              </span>
-              <span className="flex items-center gap-1.5 bg-slate-100 px-3 py-1 rounded-xl font-medium">
-                <Phone className="w-3.5 h-3.5 text-slate-400" /> {contactInfo.phone}
-              </span>
+              {currentUser?.email && (
+                <span className="flex items-center gap-1.5 bg-slate-100 px-3 py-1 rounded-xl font-medium">
+                  <Mail className="w-3.5 h-3.5 text-slate-400" /> {currentUser.email}
+                </span>
+              )}
+              {currentUser?.phone && (
+                <span className="flex items-center gap-1.5 bg-slate-100 px-3 py-1 rounded-xl font-medium">
+                  <Phone className="w-3.5 h-3.5 text-slate-400" /> {currentUser.phone}
+                </span>
+              )}
+              {currentUser?.loginEmail && currentUser.loginEmail !== currentUser.email && (
+                <span className="flex items-center gap-1.5 bg-slate-100 px-3 py-1 rounded-xl font-medium">
+                  <User className="w-3.5 h-3.5 text-slate-400" /> Login: {currentUser.loginEmail}
+                </span>
+              )}
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {currentUser ? <ParentContactEditor parent={currentUser} onSaved={refreshSession} /> : null}
+        <div className="flex items-start gap-2 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-xs text-sky-800">
+          <Info className="w-4 h-4 shrink-0 mt-0.5" />
+          <p>
+            You can update your own phone and email, and each child&apos;s address and guardian contact below. To change
+            linked children or other school records, please contact the school office.
+          </p>
         </div>
       </div>
 
@@ -112,19 +108,23 @@ export const ParentProfilePage = () => {
           <span>Enrolled Children in Shiv Shanti Adarsh Academy</span>
         </h3>
 
+        {linkedChildren.length === 0 && (
+          <p className="text-sm text-slate-500">No children are linked to this account yet.</p>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {linkedChildren.map((child) => {
             const isSelected = selectedChild?.studentId === child.studentId;
+            const overview = overviewFor(child.studentId);
+            const rate = overview?.attendance?.rate;
             return (
               <div
                 key={child.studentId}
                 className={`bg-white rounded-3xl border transition-all p-6 space-y-4 ${
-                  isSelected
-                    ? 'border-[#FF6B2C] ring-2 ring-[#FF6B2C]/20 shadow-sm'
-                    : 'border-slate-200/80 shadow-xs'
+                  isSelected ? 'border-[#FF6B2C] ring-2 ring-[#FF6B2C]/20 shadow-sm' : 'border-slate-200/80 shadow-xs'
                 }`}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-2xl bg-orange-100 text-[#EA580C] font-black text-base flex items-center justify-center">
                       {child.avatar}
@@ -132,30 +132,58 @@ export const ParentProfilePage = () => {
                     <div>
                       <h4 className="text-base font-bold text-slate-900">{child.name}</h4>
                       <p className="text-xs text-slate-500 font-medium">
-                        Grade {child.className} • Roll #{child.rollNumber} • ID: {child.studentId}
+                        Roll #{child.rollNumber} • ID: {child.studentId}
                       </p>
                     </div>
                   </div>
 
-                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">
+                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 shrink-0">
                     Class {child.className}
                   </span>
                 </div>
 
+                <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600">
+                  <span className="flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" /> DOB: {formatDate(child.dateOfBirth)}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-slate-400" /> {child.gender || '—'}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Droplet className="w-3.5 h-3.5 text-slate-400" /> Blood group: {child.bloodGroup || '—'}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" /> Admitted: {formatDate(child.admissionDate)}
+                  </span>
+                  {child.address && (
+                    <span className="col-span-2 flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" /> {child.address}
+                    </span>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-slate-100">
                   <div className="bg-slate-50 p-2.5 rounded-xl">
-                    <div className="text-xs font-bold text-[#EA580C]">{child.attendanceStats?.rate}%</div>
+                    <div className="text-xs font-bold text-[#EA580C]">
+                      {statValue(rate == null ? '—' : `${rate}%`)}
+                    </div>
                     <div className="text-[10px] text-slate-400">Attendance</div>
                   </div>
                   <div className="bg-slate-50 p-2.5 rounded-xl">
-                    <div className="text-xs font-bold text-purple-700">{child.academicStats?.average}%</div>
-                    <div className="text-[10px] text-slate-400">Avg Score</div>
+                    <div className="text-xs font-bold text-purple-700">
+                      {statValue(overview ? overview.upcomingExams?.length ?? 0 : '—')}
+                    </div>
+                    <div className="text-[10px] text-slate-400">Upcoming Papers</div>
                   </div>
                   <div className="bg-slate-50 p-2.5 rounded-xl">
-                    <div className="text-xs font-bold text-emerald-600">₹{child.feeSummary?.pending?.toLocaleString()}</div>
+                    <div className="text-xs font-bold text-emerald-600">
+                      {statValue(overview?.fees ? formatCurrency(overview.fees.pending) : '—')}
+                    </div>
                     <div className="text-[10px] text-slate-400">Pending Fee</div>
                   </div>
                 </div>
+
+                <StudentContactEditor student={child} onSaved={refreshSession} />
 
                 <button
                   onClick={() => {
@@ -163,9 +191,7 @@ export const ParentProfilePage = () => {
                     triggerToast(`Switched active child view to ${child.name}.`);
                   }}
                   className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-[#FF6B2C] text-white shadow-xs'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    isSelected ? 'bg-[#FF6B2C] text-white shadow-xs' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                   }`}
                 >
                   {isSelected ? '✓ Currently Selected Child' : `Switch to ${child.name}`}
@@ -174,86 +200,10 @@ export const ParentProfilePage = () => {
             );
           })}
         </div>
+        {dashboard.error && (
+          <p className="text-xs text-rose-600">Could not load attendance and fee figures: {dashboard.error.message}</p>
+        )}
       </div>
-
-      {/* Edit Guardian Details Modal */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 sm:p-8 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900">Update Guardian Contact</h3>
-              <button
-                onClick={() => setIsEditModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveContactInfo} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Guardian Name</label>
-                <input
-                  type="text"
-                  value={contactInfo.name}
-                  onChange={(e) => setContactInfo({ ...contactInfo, name: e.target.value })}
-                  className="w-full h-11 bg-white border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 px-3.5 focus:outline-none focus:border-[#FF6B2C]"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
-                <input
-                  type="tel"
-                  value={contactInfo.phone}
-                  onChange={(e) => setContactInfo({ ...contactInfo, phone: e.target.value })}
-                  className="w-full h-11 bg-white border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 px-3.5 focus:outline-none focus:border-[#FF6B2C]"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Guardian Email</label>
-                <input
-                  type="email"
-                  value={contactInfo.email}
-                  onChange={(e) => setContactInfo({ ...contactInfo, email: e.target.value })}
-                  className="w-full h-11 bg-white border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 px-3.5 focus:outline-none focus:border-[#FF6B2C]"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Residential Address</label>
-                <textarea
-                  rows={2}
-                  value={contactInfo.address}
-                  onChange={(e) => setContactInfo({ ...contactInfo, address: e.target.value })}
-                  className="w-full bg-white border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 p-3 focus:outline-none focus:border-[#FF6B2C] resize-none"
-                  required
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -1,5 +1,6 @@
 package com.ssa.schoolerp.service;
 
+import com.ssa.schoolerp.model.FeeDeposit;
 import com.ssa.schoolerp.model.Homework;
 import com.ssa.schoolerp.model.Student;
 import com.ssa.schoolerp.model.Teacher;
@@ -9,6 +10,7 @@ import com.ssa.schoolerp.model.User;
 import com.ssa.schoolerp.repository.DataStore;
 import com.ssa.schoolerp.security.AccessGuard;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -21,6 +23,7 @@ import java.util.stream.Collectors;
 
 /** Role-specific dashboards, computed from the live data rather than hard-coded figures. */
 @Service
+@Transactional(readOnly = true)
 public class DashboardService {
 
     private final DataStore store;
@@ -29,16 +32,18 @@ public class DashboardService {
     private final ExamService exams;
     private final FeeService fees;
     private final NoticeService notices;
+    private final TimetableService timetable;
     private final Clock clock;
 
     public DashboardService(DataStore store, AccessGuard guard, AttendanceService attendance, ExamService exams,
-                            FeeService fees, NoticeService notices, Clock clock) {
+                            FeeService fees, NoticeService notices, TimetableService timetable, Clock clock) {
         this.store = store;
         this.guard = guard;
         this.attendance = attendance;
         this.exams = exams;
         this.fees = fees;
         this.notices = notices;
+        this.timetable = timetable;
         this.clock = clock;
     }
 
@@ -62,6 +67,7 @@ public class DashboardService {
         data.put("fees", fees.overview(null));
         data.put("upcomingExams", exams.upcomingPapers(s -> true, 5));
         data.put("lowAttendance", attendance.lowAttendance(store.students.findAll()));
+        data.put("depositsToVerify", fees.deposits(user, null, FeeDeposit.Status.PENDING).size());
         data.put("recentNotices", notices.visibleTo(user).stream().limit(5).toList());
         return data;
     }
@@ -103,6 +109,7 @@ public class DashboardService {
         data.put("date", today);
         data.put("student", student);
         data.put("attendance", attendance.statsForStudent(user, student.id(), null, null));
+        data.put("todaySchedule", timetable.daySchedule(student.className(), today.getDayOfWeek()));
         data.put("fees", fees.studentSummary(user, student.id()));
         data.put("upcomingExams", exams.upcomingPapers(s -> s.className().equals(student.className()), 5));
         List<?> results = exams.studentResult(user, student.id(), null).subjects();

@@ -21,7 +21,21 @@ public final class ExamDtos {
     public record MarksSaveRequest(@NotEmpty List<@Valid MarksEntry> entries, boolean submit) {
     }
 
-    public record MarksEntry(@NotBlank String studentId, @PositiveOrZero Double obtainedMarks, boolean absent) {
+    /** {@code clear: true} deletes the student's saved marks for this paper (back to "Not Entered"). */
+    public record MarksEntry(@NotBlank String studentId, @PositiveOrZero Double obtainedMarks, boolean absent,
+                             boolean clear) {
+    }
+
+    /** How far marks entry has got for one paper. */
+    public record MarksProgress(
+            String scheduleId,
+            String examId,
+            String subject,
+            String className,
+            LocalDate date,
+            int entered,
+            int submitted,
+            int totalStudents) {
     }
 
     /** The marks-entry grid for a paper: every student of the class, whether or not marks exist yet. */

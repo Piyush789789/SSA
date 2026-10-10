@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -12,16 +12,26 @@ import {
   Edit2,
   Trash2,
   FileSpreadsheet,
-  AlertCircle
+  AlertCircle,
 } from "lucide-react";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-import {
-  INITIAL_EXAMS,
-  INITIAL_SCHEDULES,
-  EXAM_STATUS_STYLES
-} from "@/data/examsData";
+import { http, withQuery } from "@/api/http";
+import { useApi } from "@/hooks/useApi";
+import { AsyncState, EmptyMessage } from "@/components/common/AsyncState";
+import { formatDate, todayIso } from "@/utils";
 import { AddExamScheduleModal } from "@/components/exams/AddExamScheduleModal";
+import { ConfirmDialog } from "@/components/fees/ConfirmDialog";
+
+const NONE = [];
+
+const EXAM_STATUS_STYLES = {
+  Completed: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+  Upcoming: "bg-orange-50 text-[#FF6B2C] border border-orange-200",
+  Ongoing: "bg-amber-50 text-amber-700 border border-amber-200",
+};
+
+const pct = (value) => (value == null ? "—" : `${value}%`);
 
 export const ExamDetailPage = () => {
   const { examId } = useParams();
@@ -29,44 +39,50 @@ export const ExamDetailPage = () => {
   const [activeSidebarId, setActiveSidebarId] = useState("exams");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Find exam
-  const exam = INITIAL_EXAMS.find(
-    (e) => e.id === examId || e.name.toLowerCase().replace(/\s+/g, "-") === examId
-  ) || INITIAL_EXAMS[0];
+  const examApi = useApi(`/exams/${encodeURIComponent(examId)}`);
+  const schedulesApi = useApi(examApi.data ? `/exams/${encodeURIComponent(examId)}/schedules` : null);
+  const classesApi = useApi("/classes");
+  const metaApi = useApi("/meta");
 
-  const [schedules, setSchedules] = useState(
-    INITIAL_SCHEDULES.filter(
-      (s) => s.examId === exam.id || s.examName === exam.name
-    )
-  );
-
-  const [isAddScheduleOpen, setIsAddScheduleOpen] = useState(false);
+  const [scheduleModal, setScheduleModal] = useState({ isOpen: false, schedule: null });
+  const [scheduleToDelete, setScheduleToDelete] = useState(null);
   const [selectedClassFilter, setSelectedClassFilter] = useState("ALL");
 
-  const handleAddSchedule = (newSched) => {
-    setSchedules((prev) => [
-      ...prev,
-      {
-        id: `SCH-${Date.now()}`,
-        examId: exam.id,
-        examName: exam.name,
-        status: "Scheduled",
-        ...newSched
-      }
-    ]);
-  };
+  const exam = examApi.data;
+  const schedules = schedulesApi.data || NONE;
 
-  const handleDeleteSchedule = (id) => {
-    if (window.confirm("Are you sure you want to remove this subject schedule?")) {
-      setSchedules((prev) => prev.filter((s) => s.id !== id));
-    }
-  };
+  // Class results are ranked per class, so they are shown for the chosen class (or the first one).
+  const resultsClass = exam
+    ? selectedClassFilter !== "ALL" && exam.classes.includes(selectedClassFilter)
+      ? selectedClassFilter
+      : exam.classes[0]
+    : null;
+  const resultsApi = useApi(
+    exam && resultsClass ? withQuery(`/results/exams/${encodeURIComponent(exam.id)}`, { className: resultsClass }) : null,
+  );
+
+  const studentsCount = useMemo(() => {
+    if (!exam || !classesApi.data) return null;
+    return classesApi.data
+      .filter((c) => exam.classes.includes(c.id))
+      .reduce((sum, c) => sum + (c.studentCount || 0), 0);
+  }, [exam, classesApi.data]);
 
   const filteredSchedules = selectedClassFilter === "ALL"
     ? schedules
     : schedules.filter((s) => s.className === selectedClassFilter);
 
-  const totalClasses = exam.classes ? exam.classes.length : 10;
+  const today = todayIso();
+  const papersHeld = schedules.filter((s) => s.date <= today).length;
+
+  const handleDeleteSchedule = async () => {
+    await http.delete(`/exam-schedules/${scheduleToDelete.id}`);
+    setScheduleToDelete(null);
+    schedulesApi.reload();
+    resultsApi.reload();
+  };
+
+  const notFound = examApi.error?.status === 404;
 
   return (
     <div className="min-h-screen bg-slate-50/60 font-sans text-slate-900 antialiased flex flex-col relative">
@@ -93,244 +109,326 @@ export const ExamDetailPage = () => {
               </button>
             </div>
 
-            {/* Header Banner */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${EXAM_STATUS_STYLES[exam.status] || "bg-slate-100 text-slate-700"}`}>
-                    {exam.status}
-                  </span>
-                  <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md">
-                    Academic Year: {exam.academicYear}
-                  </span>
-                  <span className="text-xs font-medium text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100">
-                    {exam.type}
-                  </span>
-                </div>
-                <h1 className="text-2xl font-bold text-slate-900">{exam.name}</h1>
-                <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-slate-400" />
-                  <span>{exam.startDate} — {exam.endDate}</span>
+            {notFound ? (
+              <div className="bg-white rounded-2xl p-10 border border-slate-200/80 shadow-sm text-center">
+                <AlertCircle className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+                <h1 className="text-xl font-bold text-slate-900">Exam not found</h1>
+                <p className="text-sm text-slate-500 mt-1">
+                  There is no examination with the id “{examId}”. It may have been deleted.
                 </p>
               </div>
+            ) : (
+              <AsyncState state={examApi} loadingText="Loading examination…">
+                {(ex) => (
+                  <>
+                    {/* Header Banner */}
+                    <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${EXAM_STATUS_STYLES[ex.status] || "bg-slate-100 text-slate-700"}`}>
+                            {ex.status}
+                          </span>
+                          <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md">
+                            Academic Year: {ex.academicYear}
+                          </span>
+                          <span className="text-xs font-medium text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100">
+                            {ex.type}
+                          </span>
+                        </div>
+                        <h1 className="text-2xl font-bold text-slate-900">{ex.name}</h1>
+                        <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-slate-400" />
+                          <span>{formatDate(ex.startDate)} — {formatDate(ex.endDate)}</span>
+                        </p>
+                        {ex.description && <p className="text-xs text-slate-500 mt-2 max-w-2xl">{ex.description}</p>}
+                      </div>
 
-              <div className="flex items-center gap-3">
-                <Link
-                  to="/admin/exams"
-                  state={{ activeTab: "marksEntry", selectedExam: exam.id }}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl transition-all shadow-sm shadow-blue-200"
-                >
-                  <FileSpreadsheet className="w-4 h-4" />
-                  Enter Marks
-                </Link>
-                <button
-                  onClick={() => setIsAddScheduleOpen(true)}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm rounded-xl transition-all shadow-sm"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Subject / Schedule
-                </button>
-              </div>
-            </div>
+                      <div className="flex items-center gap-3">
+                        <Link
+                          to="/admin/exams"
+                          state={{ activeTab: "marksEntry", selectedExam: ex.id }}
+                          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl transition-all shadow-sm shadow-blue-200"
+                        >
+                          <FileSpreadsheet className="w-4 h-4" />
+                          Enter Marks
+                        </Link>
+                        <button
+                          onClick={() => setScheduleModal({ isOpen: true, schedule: null })}
+                          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm rounded-xl transition-all shadow-sm"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add Subject / Schedule
+                        </button>
+                      </div>
+                    </div>
 
-            {/* Summary Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-500">Classes</span>
-                  <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                    <Layers className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="text-2xl font-bold text-slate-900 mt-2">{totalClasses}</div>
-                <div className="text-xs text-slate-400 mt-1">Target Classes</div>
-              </div>
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-slate-500">Classes</span>
+                          <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                            <Layers className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <div className="text-2xl font-bold text-slate-900 mt-2">{ex.classes.length}</div>
+                        <div className="text-xs text-slate-400 mt-1">Target Classes</div>
+                      </div>
 
-              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-500">Subjects</span>
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                    <BookOpen className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="text-2xl font-bold text-slate-900 mt-2">{schedules.length}</div>
-                <div className="text-xs text-slate-400 mt-1">Scheduled papers</div>
-              </div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-slate-500">Subjects</span>
+                          <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                            <BookOpen className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <div className="text-2xl font-bold text-slate-900 mt-2">{schedulesApi.data ? schedules.length : "—"}</div>
+                        <div className="text-xs text-slate-400 mt-1">Scheduled papers</div>
+                      </div>
 
-              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-500">Students</span>
-                  <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                    <Users className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="text-2xl font-bold text-slate-900 mt-2">{exam.studentsCount || 420}</div>
-                <div className="text-xs text-slate-400 mt-1">Total Enrolled</div>
-              </div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-slate-500">Students</span>
+                          <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                            <Users className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <div className="text-2xl font-bold text-slate-900 mt-2">{studentsCount ?? "—"}</div>
+                        <div className="text-xs text-slate-400 mt-1">Enrolled in target classes</div>
+                      </div>
 
-              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-500">Marks Completion</span>
-                  <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="text-2xl font-bold text-slate-900 mt-2">{exam.completionRate || 86}%</div>
-                <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden">
-                  <div
-                    className="bg-amber-500 h-1.5 rounded-full"
-                    style={{ width: `${exam.completionRate || 86}%` }}
-                  />
-                </div>
-              </div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-slate-500">Papers Held</span>
+                          <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                            <CheckCircle2 className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <div className="text-2xl font-bold text-slate-900 mt-2">
+                          {schedulesApi.data ? `${papersHeld} / ${schedules.length}` : "—"}
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden">
+                          <div
+                            className="bg-amber-500 h-1.5 rounded-full"
+                            style={{ width: `${schedules.length ? Math.round((papersHeld / schedules.length) * 100) : 0}%` }}
+                          />
+                        </div>
+                      </div>
 
-              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-500">Results</span>
-                  <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
-                    <Clock className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="text-xl font-bold text-slate-900 mt-2">{exam.resultStatus || "Pending"}</div>
-                <div className="text-xs text-slate-400 mt-1">Publication status</div>
-              </div>
-            </div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-slate-500">Results</span>
+                          <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                            <Clock className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <div className="text-xl font-bold text-slate-900 mt-2">{ex.resultsStatus}</div>
+                        <div className="text-xs text-slate-400 mt-1">Publication status</div>
+                      </div>
+                    </div>
 
-            {/* Classes Assigned List */}
-            {exam.classes && (
-              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-                <h3 className="text-sm font-semibold text-slate-700 mb-3">Target Classes for this Examination</h3>
-                <div className="flex flex-wrap gap-2">
-                  {exam.classes.map((cls) => (
-                    <button
-                      key={cls}
-                      onClick={() => setSelectedClassFilter(cls === selectedClassFilter ? "ALL" : cls)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                        selectedClassFilter === cls
-                          ? "bg-slate-900 text-white shadow-sm"
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      }`}
-                    >
-                      Class {cls}
-                    </button>
-                  ))}
-                  {selectedClassFilter !== "ALL" && (
-                    <button
-                      onClick={() => setSelectedClassFilter("ALL")}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100"
-                    >
-                      Show All Classes
-                    </button>
-                  )}
-                </div>
-              </div>
+                    {/* Classes Assigned List */}
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                      <h3 className="text-sm font-semibold text-slate-700 mb-3">Target Classes for this Examination</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {ex.classes.map((cls) => (
+                          <button
+                            key={cls}
+                            onClick={() => setSelectedClassFilter(cls === selectedClassFilter ? "ALL" : cls)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                              selectedClassFilter === cls
+                                ? "bg-slate-900 text-white shadow-sm"
+                                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                            }`}
+                          >
+                            Class {cls}
+                          </button>
+                        ))}
+                        {selectedClassFilter !== "ALL" && (
+                          <button
+                            onClick={() => setSelectedClassFilter("ALL")}
+                            className="px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100"
+                          >
+                            Show All Classes
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Subject Exam Schedule Section */}
+                    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                      <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                          <h2 className="text-lg font-bold text-slate-900">Exam Subject Schedule</h2>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Date, timings, maximum and passing marks for each paper
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setScheduleModal({ isOpen: true, schedule: null })}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          Add Subject / Schedule
+                        </button>
+                      </div>
+
+                      <AsyncState state={schedulesApi} loadingText="Loading papers…">
+                        {() => (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                              <thead>
+                                <tr className="bg-slate-50/80 border-b border-slate-200/80 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                  <th className="py-3.5 px-4">Subject</th>
+                                  <th className="py-3.5 px-4">Class</th>
+                                  <th className="py-3.5 px-4">Exam Date</th>
+                                  <th className="py-3.5 px-4">Timings</th>
+                                  <th className="py-3.5 px-4 text-center">Max Marks</th>
+                                  <th className="py-3.5 px-4 text-center">Passing Marks</th>
+                                  <th className="py-3.5 px-4">Status</th>
+                                  <th className="py-3.5 px-4 text-right">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 text-sm">
+                                {filteredSchedules.length > 0 ? (
+                                  filteredSchedules.map((sched) => (
+                                    <tr key={sched.id} className="hover:bg-slate-50/60 transition-colors">
+                                      <td className="py-3.5 px-4 font-semibold text-slate-900">{sched.subject}</td>
+                                      <td className="py-3.5 px-4">
+                                        <span className="inline-block px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700">
+                                          {sched.className}
+                                        </span>
+                                      </td>
+                                      <td className="py-3.5 px-4 text-slate-600 font-medium">{formatDate(sched.date)}</td>
+                                      <td className="py-3.5 px-4 text-slate-500 text-xs font-mono">
+                                        {sched.startTime || "—"} - {sched.endTime || "—"}
+                                      </td>
+                                      <td className="py-3.5 px-4 text-center font-bold text-slate-800">{sched.maxMarks}</td>
+                                      <td className="py-3.5 px-4 text-center font-medium text-slate-600">{sched.passingMarks}</td>
+                                      <td className="py-3.5 px-4">
+                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                          {sched.status || (sched.date <= today ? "Held" : "Scheduled")}
+                                        </span>
+                                      </td>
+                                      <td className="py-3.5 px-4 text-right">
+                                        <div className="flex items-center justify-end gap-1">
+                                          <button
+                                            title="Edit schedule"
+                                            onClick={() => setScheduleModal({ isOpen: true, schedule: sched })}
+                                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                                          >
+                                            <Edit2 className="w-4 h-4" />
+                                          </button>
+                                          <button
+                                            onClick={() => setScheduleToDelete(sched)}
+                                            title="Delete schedule"
+                                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))
+                                ) : (
+                                  <tr>
+                                    <td colSpan={8} className="py-12 text-center text-slate-400">
+                                      <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                      No subject exam schedule found for the selected criteria.
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </AsyncState>
+                    </div>
+
+                    {/* Class Results */}
+                    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                      <div className="p-5 border-b border-slate-100">
+                        <h2 className="text-lg font-bold text-slate-900">Class Results — Class {resultsClass}</h2>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Ranked by percentage. Pick a class above to see its results.
+                        </p>
+                      </div>
+                      <div className="p-5">
+                        <AsyncState state={resultsApi} loadingText="Loading results…">
+                          {(rows) =>
+                            rows.length === 0 ? (
+                              <EmptyMessage text="No marks have been entered for this class yet." />
+                            ) : (
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse text-sm">
+                                  <thead>
+                                    <tr className="border-b border-slate-200/80 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                      <th className="py-2.5 px-3">Rank</th>
+                                      <th className="py-2.5 px-3">Student</th>
+                                      <th className="py-2.5 px-3">Roll No</th>
+                                      <th className="py-2.5 px-3 text-center">Total</th>
+                                      <th className="py-2.5 px-3 text-center">Percentage</th>
+                                      <th className="py-2.5 px-3 text-center">Grade</th>
+                                      <th className="py-2.5 px-3 text-center">Result</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100">
+                                    {rows.map((r) => (
+                                      <tr key={r.studentId}>
+                                        <td className="py-2.5 px-3 text-slate-600">{r.rank}</td>
+                                        <td className="py-2.5 px-3 font-semibold text-slate-900">{r.studentName}</td>
+                                        <td className="py-2.5 px-3 text-slate-600">{r.rollNumber}</td>
+                                        <td className="py-2.5 px-3 text-center font-medium">{r.totalObtained} / {r.totalMaxMarks}</td>
+                                        <td className="py-2.5 px-3 text-center font-bold text-slate-900">{pct(r.percentage)}</td>
+                                        <td className="py-2.5 px-3 text-center font-bold">{r.grade}</td>
+                                        <td className="py-2.5 px-3 text-center">
+                                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+                                            r.passedAll
+                                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                              : "bg-red-50 text-red-700 border-red-200"
+                                          }`}>
+                                            {r.passedAll ? "Pass" : "Fail"}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )
+                          }
+                        </AsyncState>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </AsyncState>
             )}
-
-            {/* Subject Exam Schedule Section */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-              <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900">Exam Subject Schedule</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Date, timings, maximum and passing marks for each paper
-                  </p>
-                </div>
-                <button
-                  onClick={() => setIsAddScheduleOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Add Subject / Schedule
-                </button>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/80 border-b border-slate-200/80 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                      <th className="py-3.5 px-4">Subject</th>
-                      <th className="py-3.5 px-4">Class</th>
-                      <th className="py-3.5 px-4">Exam Date</th>
-                      <th className="py-3.5 px-4">Timings</th>
-                      <th className="py-3.5 px-4 text-center">Max Marks</th>
-                      <th className="py-3.5 px-4 text-center">Passing Marks</th>
-                      <th className="py-3.5 px-4">Status</th>
-                      <th className="py-3.5 px-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-sm">
-                    {filteredSchedules.length > 0 ? (
-                      filteredSchedules.map((sched) => (
-                        <tr key={sched.id} className="hover:bg-slate-50/60 transition-colors">
-                          <td className="py-3.5 px-4 font-semibold text-slate-900">
-                            {sched.subject}
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <span className="inline-block px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700">
-                              {sched.className}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-slate-600 font-medium">
-                            {sched.date}
-                          </td>
-                          <td className="py-3.5 px-4 text-slate-500 text-xs font-mono">
-                            {sched.startTime} - {sched.endTime}
-                          </td>
-                          <td className="py-3.5 px-4 text-center font-bold text-slate-800">
-                            {sched.maxMarks}
-                          </td>
-                          <td className="py-3.5 px-4 text-center font-medium text-slate-600">
-                            {sched.passingMarks}
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              {sched.status || "Scheduled"}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <button
-                                title="Edit schedule"
-                                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteSchedule(sched.id)}
-                                title="Delete schedule"
-                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={8} className="py-12 text-center text-slate-400">
-                          <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                          No subject exam schedule found for the selected criteria.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
           </div>
         </main>
       </div>
 
-      {/* Add Schedule Modal */}
-      {isAddScheduleOpen && (
-        <AddExamScheduleModal
-          isOpen={isAddScheduleOpen}
-          onClose={() => setIsAddScheduleOpen(false)}
-          onAdd={handleAddSchedule}
-          examName={exam.name}
-        />
-      )}
+      <AddExamScheduleModal
+        isOpen={scheduleModal.isOpen}
+        scheduleToEdit={scheduleModal.schedule}
+        exam={exam}
+        subjects={metaApi.data?.subjects || NONE}
+        onClose={() => setScheduleModal({ isOpen: false, schedule: null })}
+        onSaved={() => {
+          schedulesApi.reload();
+          resultsApi.reload();
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(scheduleToDelete)}
+        title="Delete this paper?"
+        message="Marks already entered for this paper will be deleted too."
+        detail={scheduleToDelete ? `${scheduleToDelete.subject} — Class ${scheduleToDelete.className}, ${formatDate(scheduleToDelete.date)}` : null}
+        confirmLabel="Delete"
+        onClose={() => setScheduleToDelete(null)}
+        onConfirm={handleDeleteSchedule}
+      />
     </div>
   );
 };

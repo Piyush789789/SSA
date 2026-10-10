@@ -1,28 +1,43 @@
 import React, { useState, useMemo } from 'react';
-import { Library, Plus, Download, Trash2, Eye, FileText, Search, CheckCircle2, X } from 'lucide-react';
+import { Library, Plus, Trash2, FileText, Search, CheckCircle2, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { useData } from '@/context/DataContext';
+import { http } from '@/api/http';
+import { useApi } from '@/hooks/useApi';
+import { AsyncState } from '@/components/common/AsyncState';
+import { formatDate } from '@/utils';
+
+const formatBytes = (bytes) => {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+};
 
 export const TeacherStudyMaterialsPage = () => {
   const { currentUser } = useAuth();
-  const { studyMaterials, addStudyMaterial, deleteStudyMaterial } = useData();
+  const materials = useApi('/study-materials');
+  const meta = useApi('/meta');
+  const categories = meta.data?.materialCategories ?? [];
 
-  const assignedClasses = currentUser?.assignedClasses || ['5-B', '6-A'];
-  const teacherSubjects = currentUser?.subjects || ['Mathematics', 'Science'];
+  const assignedClasses = useMemo(() => currentUser?.assignedClasses ?? [], [currentUser]);
+  const teacherSubjects = useMemo(() => currentUser?.subjects ?? [], [currentUser]);
 
   const [activeCategory, setActiveCategory] = useState('ALL');
   const [selectedClassFilter, setSelectedClassFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [actionError, setActionError] = useState('');
 
-  const [uploadForm, setUploadForm] = useState({
+  const blankForm = () => ({
     title: '',
-    className: assignedClasses[0] || '5-B',
-    subject: teacherSubjects[0] || 'Mathematics',
-    category: 'Notes',
-    fileType: 'PDF',
+    className: assignedClasses[0] ?? '',
+    subject: teacherSubjects[0] ?? '',
+    category: '',
+    fileType: '',
+    fileSize: '',
   });
+  const [uploadForm, setUploadForm] = useState(blankForm);
 
   const triggerToast = (msg) => {
     setToastMessage(msg);
@@ -30,58 +45,77 @@ export const TeacherStudyMaterialsPage = () => {
   };
 
   const filteredMaterials = useMemo(() => {
-    return studyMaterials.filter((mat) => {
+    return (materials.data ?? []).filter((mat) => {
       if (!assignedClasses.includes(mat.className)) return false;
       if (selectedClassFilter !== 'ALL' && mat.className !== selectedClassFilter) return false;
       if (activeCategory !== 'ALL' && mat.category !== activeCategory) return false;
 
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
-        const titleMatch = mat.title.toLowerCase().includes(q);
-        const subjMatch = mat.subject.toLowerCase().includes(q);
+        const titleMatch = (mat.title ?? '').toLowerCase().includes(q);
+        const subjMatch = (mat.subject ?? '').toLowerCase().includes(q);
         if (!titleMatch && !subjMatch) return false;
       }
       return true;
     });
-  }, [studyMaterials, assignedClasses, selectedClassFilter, activeCategory, searchQuery]);
+  }, [materials.data, assignedClasses, selectedClassFilter, activeCategory, searchQuery]);
 
-  const handleUploadSubmit = (e) => {
+  const openUploadModal = () => {
+    setUploadForm({ ...blankForm(), category: categories[0] ?? '' });
+    setFormError('');
+    setIsUploadModalOpen(true);
+  };
+
+  const handleFilePicked = (file) => {
+    if (!file) {
+      setUploadForm((prev) => ({ ...prev, fileType: '', fileSize: '' }));
+      return;
+    }
+    const extension = file.name.includes('.') ? file.name.split('.').pop().toUpperCase() : '';
+    setUploadForm((prev) => ({
+      ...prev,
+      title: prev.title || file.name.replace(/\.[^.]+$/, ''),
+      fileType: extension,
+      fileSize: formatBytes(file.size),
+    }));
+  };
+
+  const handleUploadSubmit = async (e) => {
     e.preventDefault();
-    if (!uploadForm.title) return;
-
-    const newMat = {
-      id: `MAT-${Date.now()}`,
-      title: uploadForm.title,
-      subject: uploadForm.subject,
-      className: uploadForm.className,
-      category: uploadForm.category,
-      uploadedDate: new Date().toISOString().split('T')[0],
-      fileType: uploadForm.fileType,
-      fileSize: '2.5 MB',
-      teacherId: currentUser?.teacherId || 'TCH-2026-001',
-      teacherName: currentUser?.name || 'Anjali Singh',
-    };
-
-    addStudyMaterial(newMat);
-    setIsUploadModalOpen(false);
-    setUploadForm({
-      title: '',
-      className: assignedClasses[0] || '5-B',
-      subject: teacherSubjects[0] || 'Mathematics',
-      category: 'Notes',
-      fileType: 'PDF',
-    });
-    triggerToast('Study material uploaded successfully.');
+    if (!uploadForm.title.trim() || !uploadForm.category) {
+      setFormError('Please enter a title and choose a category.');
+      return;
+    }
+    setSaving(true);
+    setFormError('');
+    try {
+      await http.post('/study-materials', {
+        title: uploadForm.title.trim(),
+        subject: uploadForm.subject,
+        className: uploadForm.className,
+        category: uploadForm.category,
+        fileType: uploadForm.fileType || undefined,
+        fileSize: uploadForm.fileSize || undefined,
+      });
+      setIsUploadModalOpen(false);
+      triggerToast('Study material added.');
+      materials.reload();
+    } catch (error) {
+      setFormError(error.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDownload = (title) => {
-    triggerToast(`Downloaded "${title}".`);
-  };
-
-  const handleDelete = (id) => {
-    if (window.confirm('Delete this study material?')) {
-      deleteStudyMaterial(id);
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this study material?')) return;
+    setActionError('');
+    try {
+      await http.delete(`/study-materials/${encodeURIComponent(id)}`);
       triggerToast('Study material deleted.');
+      materials.reload();
+    } catch (error) {
+      setActionError(error.message);
     }
   };
 
@@ -108,7 +142,8 @@ export const TeacherStudyMaterialsPage = () => {
         </div>
 
         <button
-          onClick={() => setIsUploadModalOpen(true)}
+          onClick={openUploadModal}
+          disabled={meta.loading}
           className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold rounded-2xl shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer text-xs sm:text-sm shrink-0"
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />
@@ -119,8 +154,8 @@ export const TeacherStudyMaterialsPage = () => {
       {/* Category Tabs & Filters */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-4">
         {/* Category Tabs */}
-        <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200/80">
-          {['ALL', 'Notes', 'Worksheets', 'Assignments', 'Reference Material'].map((cat) => (
+        <div className="flex flex-wrap items-center bg-slate-100 p-1 rounded-2xl border border-slate-200/80">
+          {['ALL', ...categories].map((cat) => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
@@ -163,11 +198,17 @@ export const TeacherStudyMaterialsPage = () => {
         </div>
       </div>
 
+      {actionError && (
+        <div className="p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-semibold">{actionError}</div>
+      )}
+
       {/* Study Materials Grid */}
+      <AsyncState state={materials} loadingText="Loading study materials…">
+      {() => (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredMaterials.length === 0 ? (
           <div className="col-span-full bg-white p-12 rounded-2xl border border-slate-200/80 text-center text-slate-400">
-            No study materials uploaded for this category yet.
+            No study materials for this selection yet.
           </div>
         ) : (
           filteredMaterials.map((mat) => (
@@ -191,26 +232,28 @@ export const TeacherStudyMaterialsPage = () => {
                   </div>
                   <div>
                     <h3 className="text-sm font-extrabold text-slate-900 line-clamp-2">{mat.title}</h3>
-                    <p className="text-xs font-semibold text-slate-500 mt-0.5">{mat.subject}</p>
+                    <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                      {mat.subject} • {mat.teacherId === currentUser?.id ? 'You' : mat.teacherName}
+                    </p>
                   </div>
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 font-medium">
-                  <span>Uploaded: {mat.uploadedDate}</span>
-                  <span>{mat.fileType} • {mat.fileSize}</span>
+                  <span>Added: {formatDate(mat.uploadedDate)}</span>
+                  <span>{[mat.fileType, mat.fileSize].filter(Boolean).join(' • ') || 'No file details'}</span>
                 </div>
               </div>
 
               {/* Action buttons */}
               <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                <button
-                  onClick={() => handleDownload(mat.title)}
-                  className="flex-1 h-9 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                <span
+                  className="flex-1 h-9 bg-slate-50 border border-slate-200 text-slate-400 font-semibold rounded-xl text-[11px] flex items-center justify-center"
+                  title="File storage is not available yet"
                 >
-                  <Download className="w-3.5 h-3.5 stroke-[2]" />
-                  <span>Download</span>
-                </button>
+                  Download not available yet
+                </span>
 
+                {mat.teacherId === currentUser?.id && (
                 <button
                   onClick={() => handleDelete(mat.id)}
                   className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
@@ -218,18 +261,21 @@ export const TeacherStudyMaterialsPage = () => {
                 >
                   <Trash2 className="w-4 h-4 stroke-[2]" />
                 </button>
+                )}
               </div>
             </div>
           ))
         )}
       </div>
+      )}
+      </AsyncState>
 
       {/* Upload Material Modal */}
       {isUploadModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-lg font-bold text-slate-900">Upload Study Material</h3>
+              <h3 className="text-lg font-bold text-slate-900">Add Study Material</h3>
               <button
                 onClick={() => setIsUploadModalOpen(false)}
                 className="p-1 text-slate-400 hover:text-slate-600 rounded-xl"
@@ -291,26 +337,30 @@ export const TeacherStudyMaterialsPage = () => {
                     onChange={(e) => setUploadForm({ ...uploadForm, category: e.target.value })}
                     className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-[#FF6B2C]"
                   >
-                    <option value="Notes">Notes</option>
-                    <option value="Worksheets">Worksheets</option>
-                    <option value="Assignments">Assignments</option>
-                    <option value="Reference Material">Reference Material</option>
+                    {categories.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">File Format</label>
-                  <select
-                    value={uploadForm.fileType}
-                    onChange={(e) => setUploadForm({ ...uploadForm, fileType: e.target.value })}
-                    className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-[#FF6B2C]"
-                  >
-                    <option value="PDF">PDF</option>
-                    <option value="DOCX">DOCX</option>
-                    <option value="PPTX">PPTX</option>
-                  </select>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">File (optional)</label>
+                  <input
+                    type="file"
+                    onChange={(e) => handleFilePicked(e.target.files?.[0])}
+                    className="w-full text-[11px] text-slate-600 file:mr-2 file:px-2 file:py-1.5 file:rounded-lg file:border-0 file:bg-slate-100 file:text-xs file:font-bold"
+                  />
                 </div>
               </div>
+
+              <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+                File storage is not available yet: only the title, category and file details
+                {uploadForm.fileType ? ` (${uploadForm.fileType}, ${uploadForm.fileSize})` : ''} are saved, not the file itself.
+              </p>
+
+              {formError && <p className="text-xs font-semibold text-rose-600">{formError}</p>}
 
               <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
                 <button
@@ -322,9 +372,10 @@ export const TeacherStudyMaterialsPage = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold rounded-2xl text-xs shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer"
+                  disabled={saving}
+                  className="disabled:opacity-50 px-5 py-2.5 bg-[#FF6B2C] hover:bg-[#F25A1B] text-white font-bold rounded-2xl text-xs shadow-md shadow-[#FF6B2C]/20 transition-all cursor-pointer"
                 >
-                  Upload File
+                  {saving ? 'Saving…' : 'Add Material'}
                 </button>
               </div>
             </form>
