@@ -131,6 +131,27 @@ public class ExamController {
         return ApiResponse.of(exams.marksSheet(user, id));
     }
 
+    /** Question-wise breakdown of a paper (e.g. Q1-Q5); an empty list removes it. Must add up to the paper's marks. */
+    @RequireRole({Role.ADMIN, Role.TEACHER})
+    @PutMapping("/exam-schedules/{id}/questions")
+    public ApiResponse<com.ssa.schoolerp.model.ExamSchedule> setQuestions(
+            @CurrentUser User user, @PathVariable String id,
+            @Valid @RequestBody com.ssa.schoolerp.dto.ExamDtos.QuestionsRequest request) {
+        return ApiResponse.success("Questions saved", exams.setQuestions(user, id, request.questions()));
+    }
+
+    /** Marks from an Excel/CSV sheet, matched by student ID or roll number. dryRun checks without saving. */
+    @RequireRole({Role.ADMIN, Role.TEACHER})
+    @PostMapping("/exam-schedules/{id}/marks/import")
+    public ApiResponse<com.ssa.schoolerp.dto.ExamDtos.MarksImportResult> importMarks(
+            @CurrentUser User user, @PathVariable String id,
+            @Valid @RequestBody com.ssa.schoolerp.dto.ExamDtos.MarksImportRequest request) {
+        var result = exams.importMarks(user, id, request);
+        return ApiResponse.success(result.dryRun()
+                ? result.valid() + " of " + result.total() + " rows are ready"
+                : result.saved() + " students' marks saved as draft", result);
+    }
+
     @RequireRole({Role.ADMIN, Role.TEACHER})
     @PutMapping("/exam-schedules/{id}/marks")
     public ApiResponse<MarksSheet> saveMarks(@CurrentUser User user, @PathVariable String id,

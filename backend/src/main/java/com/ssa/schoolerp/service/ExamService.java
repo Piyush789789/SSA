@@ -6,6 +6,11 @@ import com.ssa.schoolerp.dto.ExamDtos.MarksProgress;
 import com.ssa.schoolerp.dto.ExamDtos.MarksSaveRequest;
 import com.ssa.schoolerp.dto.ExamDtos.MarksSheet;
 import com.ssa.schoolerp.dto.ExamDtos.MarksSheetRow;
+import com.ssa.schoolerp.dto.ExamDtos.MarksImportRequest;
+import com.ssa.schoolerp.dto.ExamDtos.MarksImportResult;
+import com.ssa.schoolerp.dto.ExamDtos.MarksImportRow;
+import com.ssa.schoolerp.dto.ExamDtos.MarksImportRowResult;
+import com.ssa.schoolerp.model.Question;
 import com.ssa.schoolerp.dto.ExamDtos.PendingMarksEntry;
 import com.ssa.schoolerp.dto.ExamDtos.StudentResult;
 import com.ssa.schoolerp.dto.ExamDtos.SubjectResult;
@@ -151,6 +156,7 @@ public class ExamService {
     public ExamSchedule addSchedule(String examId, ExamSchedule request) {
         Exam exam = store.exams.getById(examId);
         validateSchedule(exam, request, null);
+        checkQuestions(request.questions(), request.maxMarks());
         ExamSchedule schedule = request.withIds(store.nextId("SCH"), examId).withStatus(null);
         return withLiveStatus(store.schedules.save(schedule));
     }
@@ -170,13 +176,66 @@ public class ExamService {
                 throw ApiErrors.conflict("Marks have been entered for this paper; its class and subject cannot change");
             }
         }
-        ExamSchedule schedule = request.withIds(id, existing.examId()).withStatus(null);
+        // An edit of the paper without a "questions" field keeps the saved breakdown.
+        List<Question> questions = request.questionsMissing() ? existing.questions() : request.questions();
+        if (!questions.equals(existing.questions())) {
+            checkQuestionsReplaceable(id, questions);
+        }
+        checkQuestions(questions, request.maxMarks());
+        ExamSchedule schedule = request.withIds(id, existing.examId()).withStatus(null).withQuestions(questions);
         store.schedules.save(schedule);
         // Keep the stored copy of maxMarks on each marks record in step with the paper.
-        store.marks.findWhere(m -> m.scheduleId().equals(id)).forEach(m -> store.marks.save(new MarksRecord(
-                m.id(), m.examId(), m.scheduleId(), m.className(), m.subject(), m.studentId(), m.studentName(),
-                m.rollNumber(), request.maxMarks(), m.obtainedMarks(), m.absent(), m.status(), m.enteredBy())));
+        store.marks.where("e.scheduleId = ?1", id).forEach(m -> store.marks.save(m.copyWith(request.maxMarks())));
         return withLiveStatus(schedule);
+    }
+
+    /**
+     * Sets the paper's questions (e.g. Q1-Q5 with their marks), or removes them with an empty list. The questions
+     * must add up to the paper's maximum marks. Teachers of the subject (before results are published) and admins.
+     */
+    public ExamSchedule setQuestions(User user, String scheduleId, List<Question> questions) {
+        ExamSchedule paper = store.schedules.getById(scheduleId);
+        checkCanEnterMarks(user, paper);
+        List<Question> cleaned = questions.stream()
+                .map(q -> new Question(q.label().trim(), q.maxMarks()))
+                .toList();
+        checkQuestions(cleaned, paper.maxMarks());
+        checkQuestionsReplaceable(scheduleId, cleaned);
+        return withLiveStatus(store.schedules.save(paper.withQuestions(cleaned)));
+    }
+
+    private static void checkQuestions(List<Question> questions, int maxMarks) {
+        if (questions.isEmpty()) return;
+        if (questions.size() > 50) {
+            throw ApiErrors.badRequest("A paper can have at most 50 questions");
+        }
+        Set<String> labels = new HashSet<>();
+        for (Question q : questions) {
+            if (!labels.add(q.label().trim().toLowerCase())) {
+                throw ApiErrors.badRequest("Question " + q.label() + " is listed twice");
+            }
+        }
+        double sum = questions.stream().mapToDouble(Question::maxMarks).sum();
+        if (Math.abs(sum - maxMarks) > 0.001) {
+            throw ApiErrors.badRequest("The questions add up to " + Grading.round1(sum) + " marks but the paper is out of "
+                    + maxMarks + ". Make them equal.");
+        }
+    }
+
+    /** Question-wise marks already entered must still fit: same number of questions, none above the new maximum. */
+    private void checkQuestionsReplaceable(String scheduleId, List<Question> questions) {
+        for (MarksRecord m : store.marks.where("e.scheduleId = ?1", scheduleId)) {
+            List<Double> marks = m.questionMarks();
+            if (marks == null) continue;
+            boolean fits = marks.size() == questions.size();
+            for (int i = 0; fits && i < marks.size(); i++) {
+                fits = marks.get(i) == null || marks.get(i) <= questions.get(i).maxMarks();
+            }
+            if (!fits) {
+                throw ApiErrors.conflict("Question-wise marks are already entered for " + m.studentName()
+                        + " and others. Clear them on the marks sheet before changing the questions.");
+            }
+        }
     }
 
     public void deleteSchedule(String id) {
@@ -252,8 +311,9 @@ public class ExamService {
                 .map(st -> {
                     MarksRecord m = existing.get(st.id());
                     return m == null
-                            ? new MarksSheetRow(st.id(), st.name(), st.rollNumber(), null, false, "Not Entered")
-                            : new MarksSheetRow(st.id(), st.name(), st.rollNumber(), m.obtainedMarks(), m.absent(), m.status());
+                            ? new MarksSheetRow(st.id(), st.name(), st.rollNumber(), null, false, "Not Entered", null)
+                            : new MarksSheetRow(st.id(), st.name(), st.rollNumber(), m.obtainedMarks(), m.absent(),
+                            m.status(), m.questionMarks());
                 })
                 .toList();
         return new MarksSheet(withLiveStatus(paper), store.exams.getById(paper.examId()).name(), rows);
@@ -261,17 +321,7 @@ public class ExamService {
 
     public MarksSheet saveMarks(User user, String scheduleId, MarksSaveRequest request) {
         ExamSchedule paper = store.schedules.getById(scheduleId);
-        Exam exam = store.exams.getById(paper.examId());
-        if (user.getRole() == Role.TEACHER) {
-            if (!guard.teacherOf(user).teaches(paper.className(), paper.subject())) {
-                throw ApiErrors.forbidden();
-            }
-            if (exam.isPublished()) {
-                throw ApiErrors.conflict("Results for this exam are published; ask an admin to unpublish them first");
-            }
-        } else {
-            guard.checkCanManageClass(user, paper.className());
-        }
+        checkCanEnterMarks(user, paper);
         if (paper.date().isAfter(LocalDate.now(clock))) {
             throw ApiErrors.badRequest("Marks cannot be entered before the exam date (" + paper.date() + ")");
         }
@@ -295,20 +345,139 @@ public class ExamService {
                 cleared.add(MarksRecord.idFor(scheduleId, student.id()));
                 continue;
             }
-            if (!entry.absent() && entry.obtainedMarks() == null) {
-                continue; // left blank: not entered yet, not zero
+            String problem = entryProblem(paper, entry);
+            if (problem != null) {
+                throw ApiErrors.badRequest(student.name() + ": " + problem);
             }
-            if (!entry.absent() && entry.obtainedMarks() > paper.maxMarks()) {
-                throw ApiErrors.badRequest("Marks for " + student.name() + " exceed the maximum of " + paper.maxMarks());
+            List<Double> perQuestion = entry.absent() ? null : questionMarksOf(paper, entry);
+            Double total = entry.absent() ? null : perQuestion != null ? Double.valueOf(sum(perQuestion)) : entry.obtainedMarks();
+            if (!entry.absent() && total == null) {
+                continue; // left blank: not entered yet, not zero
             }
             records.add(new MarksRecord(MarksRecord.idFor(scheduleId, student.id()), paper.examId(), scheduleId,
                     paper.className(), paper.subject(), student.id(), student.name(), student.rollNumber(),
-                    paper.maxMarks(), entry.absent() ? null : entry.obtainedMarks(), entry.absent(), status,
-                    user.getName()));
+                    paper.maxMarks(), total, entry.absent(), status, user.getName()).withQuestionMarks(perQuestion));
         }
         records.forEach(store.marks::save);
         cleared.forEach(store.marks::deleteById);
         return marksSheet(user, scheduleId);
+    }
+
+    /** Teachers of the paper's class and subject (until results are published), and admins. */
+    private void checkCanEnterMarks(User user, ExamSchedule paper) {
+        if (user.getRole() == Role.TEACHER) {
+            if (!guard.teacherOf(user).teaches(paper.className(), paper.subject())) {
+                throw ApiErrors.forbidden();
+            }
+            if (store.exams.getById(paper.examId()).isPublished()) {
+                throw ApiErrors.conflict("Results for this exam are published; ask an admin to unpublish them first");
+            }
+        } else {
+            guard.checkCanManageClass(user, paper.className());
+        }
+    }
+
+    /** What is wrong with one student's entry, or null. */
+    private static String entryProblem(ExamSchedule paper, MarksEntry entry) {
+        if (entry.absent() || entry.clear()) return null;
+        List<Double> perQuestion = entry.questionMarks();
+        if (perQuestion != null && !perQuestion.stream().allMatch(java.util.Objects::isNull)) {
+            List<Question> questions = paper.questions();
+            if (questions.isEmpty()) {
+                return "this paper has no questions set; enter only the total";
+            }
+            if (perQuestion.size() != questions.size()) {
+                return "expected marks for " + questions.size() + " questions but got " + perQuestion.size();
+            }
+            for (int i = 0; i < questions.size(); i++) {
+                Double v = perQuestion.get(i);
+                if (v != null && (v < 0 || v > questions.get(i).maxMarks())) {
+                    return questions.get(i).label() + " is out of " + Grading.round1(questions.get(i).maxMarks())
+                            + " but has " + Grading.round1(v);
+                }
+            }
+            return null;
+        }
+        if (entry.obtainedMarks() != null && (entry.obtainedMarks() < 0 || entry.obtainedMarks() > paper.maxMarks())) {
+            return "marks must be between 0 and " + paper.maxMarks();
+        }
+        return null;
+    }
+
+    /** The entry's per-question marks when it has any (all-blank counts as none). */
+    private static List<Double> questionMarksOf(ExamSchedule paper, MarksEntry entry) {
+        List<Double> perQuestion = entry.questionMarks();
+        if (perQuestion == null || paper.questions().isEmpty() || perQuestion.stream().allMatch(java.util.Objects::isNull)) {
+            return null;
+        }
+        return perQuestion;
+    }
+
+    private static double sum(List<Double> values) {
+        return Math.round(values.stream().mapToDouble(v -> v == null ? 0 : v).sum() * 100) / 100.0;
+    }
+
+    /**
+     * Marks from a spreadsheet. Each row is matched to a student of the class by student ID (or roll number) and
+     * checked; the dry run reports problems without saving. The real run saves the valid rows as a draft (the
+     * teacher reviews them on the marks sheet and submits).
+     */
+    public MarksImportResult importMarks(User user, String scheduleId, MarksImportRequest request) {
+        ExamSchedule paper = store.schedules.getById(scheduleId);
+        checkCanEnterMarks(user, paper);
+        if (paper.date().isAfter(LocalDate.now(clock))) {
+            throw ApiErrors.badRequest("Marks cannot be entered before the exam date (" + paper.date() + ")");
+        }
+        List<Student> students = store.studentsOf(paper.className());
+        Map<String, Student> byId = students.stream()
+                .collect(Collectors.toMap(s -> s.id().toLowerCase(), Function.identity()));
+        Map<Integer, Student> byRoll = students.stream().filter(s -> s.rollNumber() != null)
+                .collect(Collectors.toMap(Student::rollNumber, Function.identity(), (a, b) -> a));
+
+        List<MarksImportRowResult> results = new ArrayList<>();
+        List<MarksEntry> valid = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (MarksImportRow row : request.rows()) {
+            boolean hasId = row.studentId() != null && !row.studentId().isBlank();
+            Student student = hasId ? byId.get(row.studentId().trim().toLowerCase())
+                    : row.rollNumber() != null ? byRoll.get(row.rollNumber()) : null;
+            String label = hasId ? row.studentId().trim() : row.rollNumber() != null ? "Roll " + row.rollNumber() : "";
+            if (student == null) {
+                results.add(new MarksImportRowResult(row.row(), label, null, "ERROR",
+                        label.isEmpty() ? "No student ID or roll number" : "Not a student of class " + paper.className(), null));
+                continue;
+            }
+            if (!seen.add(student.id())) {
+                results.add(new MarksImportRowResult(row.row(), student.id(), student.name(), "ERROR",
+                        "This student appears more than once in the file", null));
+                continue;
+            }
+            MarksEntry entry = new MarksEntry(student.id(), row.total(), row.absent(), false, row.questionMarks());
+            String problem = entryProblem(paper, entry);
+            List<Double> perQuestion = questionMarksOf(paper, entry);
+            Double total = row.absent() ? null : perQuestion != null ? Double.valueOf(sum(perQuestion)) : row.total();
+            if (problem == null && !row.absent() && total == null) {
+                problem = "No marks in this row";
+            }
+            if (problem != null) {
+                results.add(new MarksImportRowResult(row.row(), student.id(), student.name(), "ERROR", problem, null));
+                continue;
+            }
+            valid.add(entry);
+            results.add(new MarksImportRowResult(row.row(), student.id(), student.name(), "OK",
+                    row.absent() ? "Absent" : null, total));
+        }
+        int failed = (int) results.stream().filter(r -> "ERROR".equals(r.status())).count();
+        if (request.dryRun() || valid.isEmpty()) {
+            return new MarksImportResult(request.dryRun(), results.size(), valid.size(), 0, failed, results);
+        }
+        saveMarks(user, scheduleId, new MarksSaveRequest(valid, false));
+        List<MarksImportRowResult> saved = results.stream()
+                .map(r -> "OK".equals(r.status())
+                        ? new MarksImportRowResult(r.row(), r.studentId(), r.studentName(), "SAVED", r.message(), r.total())
+                        : r)
+                .toList();
+        return new MarksImportResult(false, results.size(), valid.size(), valid.size(), failed, saved);
     }
 
     /** Entered/submitted counts per paper, for the admin's "marks pending" view. */
@@ -403,7 +572,8 @@ public class ExamService {
         String grade = m.absent() ? "AB" : Grading.bandFor(percentage).grade();
         boolean passed = !m.absent() && m.obtainedMarks() >= paper.passingMarks();
         return new SubjectResult(exam.id(), exam.name(), m.subject(), paper.date(), m.maxMarks(), paper.passingMarks(),
-                m.obtainedMarks(), m.absent(), percentage, grade, passed);
+                m.obtainedMarks(), m.absent(), percentage, grade, passed, paper.questions(),
+                m.absent() ? null : m.questionMarks());
     }
 
     // ---------------------------------------------------------------- helpers

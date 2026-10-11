@@ -9,8 +9,9 @@ import library from './dict/library';
 import ptm from './dict/ptm';
 import gallery from './dict/gallery';
 import whatsapp from './dict/whatsapp';
+import marks from './dict/marks';
 
-const MODULES = { common, nav, campus, pages, library, ptm, gallery, whatsapp };
+const MODULES = { common, nav, campus, pages, library, ptm, gallery, whatsapp, marks };
 const placeholders = (text) => (String(text).match(/\{\w+\}/g) || []).sort();
 
 describe('dictionaries', () => {

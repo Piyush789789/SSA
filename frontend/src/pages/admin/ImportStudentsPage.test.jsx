@@ -77,7 +77,7 @@ describe('ImportStudentsPage', () => {
     expect(await screen.findByText('students.csv')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Check file/ }));
 
-    expect(files.postSlow).toHaveBeenNthCalledWith(1, '/import/students', { csv: CSV, dryRun: true, createLogins: true });
+    expect(files.postSlow).toHaveBeenNthCalledWith(1, '/import/students', { csv: CSV, dryRun: true, createLogins: true }, 180000);
     expect(await screen.findByText(/2 of 3 rows are ready to import, 1 has errors and will be skipped./)).toBeInTheDocument();
     expect(screen.getByText('Name is required')).toBeInTheDocument();
     // Errors are listed first.
@@ -87,7 +87,7 @@ describe('ImportStudentsPage', () => {
     await user.click(screen.getByRole('checkbox', { name: /Create logins/ }));
     await user.click(screen.getByRole('button', { name: 'Import 2 students' }));
 
-    expect(files.postSlow).toHaveBeenNthCalledWith(2, '/import/students', { csv: CSV, dryRun: false, createLogins: false });
+    expect(files.postSlow).toHaveBeenNthCalledWith(2, '/import/students', { csv: CSV, dryRun: false, createLogins: false }, 900000);
     expect(await screen.findByText('2 students admitted')).toBeInTheDocument();
     expect(screen.getByText('1 row was skipped because of errors.')).toBeInTheDocument();
     expect(screen.getByText('New logins (2)')).toBeInTheDocument();

@@ -6,7 +6,7 @@ import { downloadFile, postSlow, saveBlob } from '@/api/files';
 import { todayIso } from '@/utils';
 
 const COLUMNS =
-  'name, class, roll, gender, date of birth, blood group, email, address, admission date, guardian name, guardian relation, guardian phone, guardian email';
+  'student id (your admission no., optional), name, class (5-B, or class 5 + a separate section column), roll, gender, date of birth, blood group, email, address (+ city, state, PIN), admission date, guardian name, guardian relation, guardian phone, guardian email';
 
 const ROW_STYLES = {
   OK: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -60,7 +60,8 @@ export const ImportStudentsPage = () => {
     setBusy(dryRun ? 'check' : 'import');
     setError('');
     try {
-      const result = await postSlow('/import/students', { csv, dryRun, createLogins });
+      // Each new login gets a securely hashed password (~0.1-0.3 s each), so a whole school can take minutes.
+      const result = await postSlow('/import/students', { csv, dryRun, createLogins }, dryRun ? 180000 : 900000);
       if (dryRun) setCheck(result);
       else {
         setImported(result);
@@ -172,6 +173,12 @@ export const ImportStudentsPage = () => {
                   </button>
                 </div>
               </div>
+              {busy === 'import' && (
+                <p className="px-6 py-3 text-xs font-semibold text-amber-700 bg-amber-50 border-y border-amber-100">
+                  Importing… {createLogins ? 'Creating logins takes about a minute for every 200–300 students. ' : ''}
+                  Please keep this page open.
+                </p>
+              )}
               <RowsTable rows={check.rows} />
             </div>
           )}

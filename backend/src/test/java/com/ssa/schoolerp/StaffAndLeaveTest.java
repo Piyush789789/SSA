@@ -203,6 +203,35 @@ class StaffAndLeaveTest extends ApiTestSupport {
 
     // ---------------------------------------------------------------- bulk import
 
+    /** The format schools often export: own Student ID, Class and Section in separate columns, City/State/PIN. */
+    @Test
+    void importAcceptsSchoolFormatWithStudentIdAndSeparateSection() throws Exception {
+        String csv = "Student ID,Full Name,Email,Date of Birth,Gender,Roll Number,Class,Section,Admission Date,"
+                + "Parent Name,Relationship,Parent Phone,Parent Email,Address,City,State,PIN Code\n"
+                + "SSA2026901,Aarav Sharma,aarav@example.com,2015-01-04,Male,41,5,B,2024-03-03,Rajesh Sharma,Father,"
+                + "9000000901,rajesh901@example.com,\"101, Shanti Nagar\",Chandausi,Uttar Pradesh,202412\n"
+                + "SSA2026902,Ananya Verma,,2014-02-07,Female,42,Class 6,A,2025-04-05,Sunita Verma,Mother,9000000902,,"
+                + "102 Shanti Nagar,Chandausi,Uttar Pradesh,202412\n"
+                + "SSA2026901,Duplicate Id,,2014-02-07,Female,43,6,A,2025-04-05,,,,,,,,\n"
+                + "SSA 2026/9,Bad Id,,2014-02-07,Female,44,6,A,2025-04-05,,,,,,,,\n";
+        String admin = admin();
+        JsonNode dry = data(postAs(admin, "/api/import/students", Map.of("csv", csv, "dryRun", true)));
+        assertThat(dry.get("valid").asInt()).isEqualTo(2);
+        assertThat(dry.get("rows").get(2).get("message").asText()).contains("appears twice");
+        assertThat(dry.get("rows").get(3).get("message").asText()).contains("letters, numbers");
+
+        postAs(admin, "/api/import/students", Map.of("csv", csv, "dryRun", false, "createLogins", true))
+                .andExpect(status().isOk());
+        var aarav = store.students.getById("SSA2026901");
+        assertThat(aarav.className()).isEqualTo("5-B");
+        assertThat(aarav.address()).isEqualTo("101, Shanti Nagar, Chandausi, Uttar Pradesh, 202412");
+        assertThat(aarav.guardian().relation()).isEqualTo("Father");
+        assertThat(store.students.getById("SSA2026902").className()).isEqualTo("6-A");
+        // Importing the same file again refuses the IDs that now exist.
+        JsonNode again = data(postAs(admin, "/api/import/students", Map.of("csv", csv, "dryRun", true)));
+        assertThat(again.get("rows").get(0).get("message").asText()).contains("already exists");
+    }
+
     @Test
     void studentsAreImportedFromCsvAfterADryRun() throws Exception {
         String csv = "Name,Class,Gender,DOB,Guardian Name,Guardian Phone,Guardian Email\n"

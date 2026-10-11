@@ -7,6 +7,7 @@ import library from './dict/library';
 import ptm from './dict/ptm';
 import gallery from './dict/gallery';
 import whatsapp from './dict/whatsapp';
+import marks from './dict/marks';
 
 /**
  * A small homemade i18n. Each module in ./dict exports `{ en: {key: text}, hi: {key: text} }`; they are merged
@@ -14,7 +15,7 @@ import whatsapp from './dict/whatsapp';
  * `tx('Attendance')` translates by the English text itself (handy for labels passed around as strings, e.g. page
  * titles), and returns the text unchanged when no Hindi entry exists. Data from the server is never translated.
  */
-const MODULES = [common, nav, campus, pages, library, ptm, gallery, whatsapp];
+const MODULES = [common, nav, campus, pages, library, ptm, gallery, whatsapp, marks];
 
 export const LANGUAGES = [
   { id: 'en', label: 'English', short: 'EN' },

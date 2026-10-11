@@ -6,6 +6,10 @@ import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { formatDate } from '@/utils';
 import { gradeFor } from './grading';
 import { useI18n } from '@/i18n/translate';
+import { QuestionsEditor } from './QuestionsEditor';
+import { QuestionMarksGrid } from './QuestionMarksGrid';
+import { MarksImportPanel } from './MarksImportPanel';
+import { buildQuestionEntry, cellsFromSaved, rowHasCellErrors } from './questionMarks';
 
 const NONE = [];
 
@@ -14,7 +18,7 @@ const NONE = [];
  * GET /exam-schedules/{id}/marks (every student of the class) and save with PUT.
  */
 export const MarksEntryTable = ({ exams, selectedExamId, onExamChange, gradeBands = NONE, onSaved }) => {
-  const { tx } = useI18n();
+  const { t, tx } = useI18n();
   const currentExam = exams.find((e) => e.id === selectedExamId) || exams[0];
   const examClasses = currentExam?.classes || NONE;
 
@@ -29,7 +33,10 @@ export const MarksEntryTable = ({ exams, selectedExamId, onExamChange, gradeBand
   const [chosenPaperId, setChosenPaperId] = useState('');
   const paper = paperList.find((p) => p.id === chosenPaperId) || paperList[0] || null;
 
-  const sheet = useApi(paper ? `/exam-schedules/${paper.id}/marks` : null);
+  const sheetPath = paper ? `/exam-schedules/${paper.id}/marks` : null;
+  const sheet = useApi(sheetPath);
+  const questions = sheet.data?.schedule?.questions ?? NONE;
+  const hasQuestions = questions.length > 0;
 
   const [localRows, setLocalRows] = useState([]);
   const [validationErrors, setValidationErrors] = useState({});
@@ -41,6 +48,9 @@ export const MarksEntryTable = ({ exams, selectedExamId, onExamChange, gradeBand
       (sheet.data?.rows || []).map((r) => ({
         ...r,
         obtainedMarks: r.obtainedMarks == null ? '' : r.obtainedMarks,
+        cells: cellsFromSaved(r.questionMarks, sheet.data?.schedule?.questions ?? NONE),
+        saved: r,
+        changed: false,
       })),
     );
     setValidationErrors({});
@@ -78,8 +88,45 @@ export const MarksEntryTable = ({ exams, selectedExamId, onExamChange, gradeBand
     );
   };
 
+  const handleCellChange = (studentId, index, value) =>
+    setLocalRows((prev) =>
+      prev.map((r) =>
+        r.studentId === studentId
+          ? { ...r, absent: false, changed: true, cells: r.cells.map((c, i) => (i === index ? value : c)) }
+          : r,
+      ),
+    );
+
+  const handleQuestionAbsent = (studentId, absent) =>
+    setLocalRows((prev) =>
+      prev.map((r) =>
+        r.studentId === studentId
+          ? { ...r, absent, changed: true, cells: absent ? r.cells.map(() => '') : r.cells }
+          : r,
+      ),
+    );
+
+  const reloadSheet = async () => sheet.setData(await http.get(sheetPath));
+
+  const questionEntries = () =>
+    localRows.map((r) =>
+      buildQuestionEntry({
+        studentId: r.studentId,
+        absent: r.absent,
+        cells: r.cells,
+        status: r.status,
+        savedTotal: r.saved.obtainedMarks,
+        savedQuestionMarks: r.saved.questionMarks,
+        savedAbsent: r.saved.absent,
+      }),
+    );
+
   const handleSave = async (submit) => {
-    if (Object.keys(validationErrors).length > 0) {
+    if (hasQuestions && localRows.some((r) => !r.absent && rowHasCellErrors(r.cells, questions))) {
+      setSaveError(t('marks.fixQuestionMarks'));
+      return;
+    }
+    if (!hasQuestions && Object.keys(validationErrors).length > 0) {
       setSaveError('Please fix the highlighted marks before saving.');
       return;
     }
@@ -89,7 +136,9 @@ export const MarksEntryTable = ({ exams, selectedExamId, onExamChange, gradeBand
       const updated = await http.put(`/exam-schedules/${paper.id}/marks`, {
         submit,
         // An emptied box on a row that had saved marks deletes them (clear); other blanks are skipped.
-        entries: localRows.map((r) => {
+        entries: hasQuestions
+          ? questionEntries()
+          : localRows.map((r) => {
           const blank = !r.absent && r.obtainedMarks === '';
           return {
             studentId: r.studentId,
@@ -176,7 +225,43 @@ export const MarksEntryTable = ({ exams, selectedExamId, onExamChange, gradeBand
             <AsyncState state={sheet} loadingText="Loading marks sheet…">
               {() => (
                 <>
-                  {/* Roster & Marks Entry Table */}
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+                    <QuestionsEditor
+                      schedule={sheet.data?.schedule}
+                      hasUnsavedMarks={localRows.some((r) => r.changed)}
+                      onChanged={reloadSheet}
+                    />
+                    <MarksImportPanel sheet={sheet.data} onSheetReloaded={sheet.setData} />
+                  </div>
+
+                  {hasQuestions && localRows.length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-medium text-slate-500">{t('marks.gridHint')}</p>
+                      <QuestionMarksGrid
+                        questions={questions}
+                        maxMarks={maxMarks}
+                        rows={localRows.map((r) => ({
+                          studentId: r.studentId,
+                          studentName: r.studentName,
+                          rollNumber: r.rollNumber,
+                          status: r.status,
+                          absent: Boolean(r.absent),
+                          cells: r.cells,
+                          changed: r.changed,
+                          savedTotal: r.saved.obtainedMarks,
+                          savedQuestionMarks: r.saved.questionMarks,
+                        }))}
+                        onCellChange={handleCellChange}
+                        onAbsentChange={handleQuestionAbsent}
+                        renderGrade={(total) => (
+                          <span className="block text-[10px] font-bold text-slate-500">
+                            {gradeFor(maxMarks > 0 ? (total / maxMarks) * 100 : null, gradeBands)}
+                          </span>
+                        )}
+                      />
+                    </div>
+                  ) : (
+                  /* Roster & Marks Entry Table */
                   <div className="overflow-x-auto custom-scrollbar">
                     <table className="w-full text-left border-collapse">
                       <thead>
@@ -280,6 +365,7 @@ export const MarksEntryTable = ({ exams, selectedExamId, onExamChange, gradeBand
                       </tbody>
                     </table>
                   </div>
+                  )}
 
                   {saveError && <p className="text-xs font-semibold text-rose-600">{saveError}</p>}
 

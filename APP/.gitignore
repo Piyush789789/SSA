@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 apps/*/ios
 apps/*/android
+
+# Generated native projects (npx expo prebuild); rebuilt from app.json
+apps/*/android/
+apps/*/ios/

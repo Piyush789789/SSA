@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -16,6 +17,7 @@ import {
   todayIso,
   weekdayOf,
 } from '../format';
+import { useT } from '../i18n';
 import { colors, tones } from '../theme';
 import { combine, useApi } from '../useApi';
 import { Badge, Button, Card, Chips, Empty, Loaded, Row, Screen, SectionTitle, Stat, StatGrid, styles } from '../ui';
@@ -139,8 +141,95 @@ function AttendanceCalendar({ records, from }) {
 
 // ---------------------------------------------------------------- results
 
+/** Rounds to at most 2 decimals so half marks show as 2.5, not 2.5000001. */
+function marksNumber(value) {
+  return Math.round(value * 100) / 100;
+}
+
+/** Colour of one question's bar: full marks green, below 40% red, otherwise the brand colour. */
+function questionTone(obtained, max) {
+  if (obtained == null) return tones.neutral;
+  if (max > 0 && obtained >= max) return tones.success;
+  if (max > 0 && obtained / max < 0.4) return tones.danger;
+  return tones.primary;
+}
+
+/** Expandable "Question-wise marks" list under a subject result that has `questions`. */
+function QuestionMarks({ result }) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const questions = result.questions;
+  const marks = result.questionMarks;
+  const weak = marks ? questions.filter((q, i) => marks[i] == null || (q.maxMarks > 0 && marks[i] / q.maxMarks < 0.4)).length : 0;
+
+  return (
+    <View style={{ marginTop: 6 }}>
+      <Pressable
+        onPress={() => setOpen((value) => !value)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        style={({ pressed }) => [qm.toggle, pressed && styles.pressed]}
+      >
+        <Ionicons name="list-outline" size={15} color={colors.primary} />
+        <Text style={qm.toggleText}>{t('Question-wise marks')}</Text>
+        {!open && weak > 0 && !result.absent ? (
+          <Text style={[styles.small, { color: colors.warning, fontWeight: '600' }]}>
+            · {weak} {t('to practise')}
+          </Text>
+        ) : null}
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={colors.primary} style={{ marginLeft: 'auto' }} />
+      </Pressable>
+      {open ? (
+        result.absent ? (
+          <Text style={[styles.muted, { paddingVertical: 6 }]}>{t('Absent')}</Text>
+        ) : !marks ? (
+          <Text style={[styles.muted, { paddingVertical: 6 }]}>{t('Only the total marks were entered for this paper.')}</Text>
+        ) : (
+          <View style={{ paddingTop: 4 }}>
+            {questions.map((q, i) => {
+              const obtained = marks[i];
+              const tone = questionTone(obtained, q.maxMarks);
+              const share = obtained == null || !(q.maxMarks > 0) ? 0 : Math.min(1, Math.max(0, obtained / q.maxMarks));
+              return (
+                <View key={q.label} style={qm.row}>
+                  <Text style={qm.label}>{q.label}</Text>
+                  <View style={qm.track}>
+                    <View style={[qm.bar, { width: `${share * 100}%`, backgroundColor: tone.fg }]} />
+                  </View>
+                  <Text style={[qm.value, { color: obtained == null ? colors.muted : tone.fg }]}>
+                    {obtained == null ? t('Not attempted') : `${marksNumber(obtained)}/${marksNumber(q.maxMarks)}`}
+                  </Text>
+                </View>
+              );
+            })}
+            <View style={qm.legend}>
+              <View style={[qm.dot, { backgroundColor: colors.success }]} />
+              <Text style={[styles.muted, styles.small]}>{t('Full marks')}</Text>
+              <View style={[qm.dot, { backgroundColor: colors.danger, marginLeft: 12 }]} />
+              <Text style={[styles.muted, styles.small]}>{t('Below 40%')}</Text>
+            </View>
+          </View>
+        )
+      ) : null}
+    </View>
+  );
+}
+
+const qm = StyleSheet.create({
+  toggle: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6 },
+  toggleText: { color: colors.primary, fontWeight: '600', fontSize: 13 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 5 },
+  label: { width: 36, fontSize: 13, fontWeight: '700', color: colors.text },
+  track: { flex: 1, height: 8, borderRadius: 4, backgroundColor: '#F1F5F9', overflow: 'hidden' },
+  bar: { height: 8, borderRadius: 4 },
+  value: { minWidth: 64, textAlign: 'right', fontSize: 13, fontWeight: '600' },
+  legend: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+});
+
 export function ResultsScreen({ studentId, header }) {
   const state = useApi(`/results/students/${studentId}`);
+  const t = useT();
 
   return (
     <Screen refreshing={state.refreshing} onRefresh={state.reload}>
@@ -162,15 +251,18 @@ export function ResultsScreen({ studentId, header }) {
                   {subjects.map((s, index) => (
                     <View
                       key={`${s.examId}-${s.subject}`}
-                      style={[styles.row, { alignItems: 'center' }, index === subjects.length - 1 && { borderBottomWidth: 0 }]}
+                      style={[styles.row, { flexDirection: 'column', gap: 0 }, index === subjects.length - 1 && { borderBottomWidth: 0 }]}
                     >
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.body}>{s.subject}</Text>
-                        <Text style={styles.muted}>
-                          {s.absent ? 'Absent' : `${s.obtainedMarks} / ${s.maxMarks}`} · {formatDate(s.date)}
-                        </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.body}>{s.subject}</Text>
+                          <Text style={styles.muted}>
+                            {s.absent ? t('Absent') : `${s.obtainedMarks} / ${s.maxMarks}`} · {formatDate(s.date)}
+                          </Text>
+                        </View>
+                        <Badge label={s.grade} tone={s.absent || !s.passed ? 'danger' : 'success'} />
                       </View>
-                      <Badge label={s.grade} tone={s.absent || !s.passed ? 'danger' : 'success'} />
+                      {s.questions?.length > 0 ? <QuestionMarks result={s} /> : null}
                     </View>
                   ))}
                 </Card>

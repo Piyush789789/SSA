@@ -19,6 +19,7 @@ import com.ssa.schoolerp.model.MarksRecord;
 import com.ssa.schoolerp.model.Message;
 import com.ssa.schoolerp.model.Notice;
 import com.ssa.schoolerp.model.Parent;
+import com.ssa.schoolerp.model.Question;
 import com.ssa.schoolerp.model.RecipientType;
 import com.ssa.schoolerp.model.Role;
 import com.ssa.schoolerp.model.SchoolClass;
@@ -367,6 +368,14 @@ public final class SeedData {
         paper(s, "SCH-014", "EXM-2026-MID", "Computer Science", "10-B", today.plusDays(6), 100, 33);
         paper(s, "SCH-015", "EXM-2026-MID", "Social Science", "8-B", today.plusDays(7), 100, 33);
 
+        // Class 5-B's papers are marked question by question, so students see the breakdown (Q1 3/5, Q2 5/5, ...).
+        for (String scheduleId : List.of("SCH-001", "SCH-003", "SCH-008")) {
+            ExamSchedule paper = s.schedules.getById(scheduleId);
+            int each = paper.maxMarks() / 5;
+            s.schedules.save(paper.withQuestions(List.of(new Question("Q1", each), new Question("Q2", each),
+                    new Question("Q3", each), new Question("Q4", each), new Question("Q5", paper.maxMarks() - 4 * each))));
+        }
+
         // Unit Test 1 is fully marked; Test 2 is partly marked so marks entry has work left to do.
         for (String scheduleId : List.of("SCH-001", "SCH-002", "SCH-003", "SCH-004", "SCH-005", "SCH-006", "SCH-007")) {
             marks(s, scheduleId, Integer.MAX_VALUE, MarksRecord.SUBMITTED);
@@ -380,6 +389,35 @@ public final class SeedData {
         String endTime = maxMarks >= 100 ? "12:00 PM" : "10:30 AM";
         s.schedules.save(new ExamSchedule(id, examId, subject, className, date, "09:00 AM", endTime, maxMarks,
                 passingMarks, null));
+    }
+
+    /**
+     * Splits a total over the paper's questions so it adds up exactly: each question gets about the same share of
+     * its maximum, nudged per student so the breakdown is not uniform. Null when the paper has no questions.
+     */
+    private static List<Double> splitByQuestion(List<Question> questions, double total, int seed) {
+        if (questions.isEmpty()) return null;
+        double max = questions.stream().mapToDouble(Question::maxMarks).sum();
+        double[] marks = new double[questions.size()];
+        double given = 0;
+        for (int i = 0; i < marks.length; i++) {
+            double nudge = ((seed + i * 37) % 5 - 2) * 0.1; // -0.2 .. +0.2
+            double share = Math.max(0, Math.min(1, total / max + nudge));
+            marks[i] = Math.min(questions.get(i).maxMarks(), Math.round(questions.get(i).maxMarks() * share));
+            given += marks[i];
+        }
+        // Move the difference onto questions that still have room (or marks to give back).
+        for (int i = 0; given != total && i < marks.length * 50; i++) {
+            int q = i % marks.length;
+            if (given < total && marks[q] < questions.get(q).maxMarks()) {
+                marks[q]++;
+                given++;
+            } else if (given > total && marks[q] > 0) {
+                marks[q]--;
+                given--;
+            }
+        }
+        return java.util.Arrays.stream(marks).boxed().toList();
     }
 
     private static void marks(DataStore s, String scheduleId, int studentLimit, String status) {
@@ -399,7 +437,8 @@ public final class SeedData {
                     Double obtained = absent ? null : (double) Math.round(paper.maxMarks() * (0.3 + 0.7 * b / 99.0));
                     s.marks.save(new MarksRecord(MarksRecord.idFor(scheduleId, st.id()), paper.examId(), scheduleId,
                             paper.className(), paper.subject(), st.id(), st.name(), st.rollNumber(), paper.maxMarks(),
-                            obtained, absent, status, teacherName));
+                            obtained, absent, status, teacherName)
+                            .withQuestionMarks(absent ? null : splitByQuestion(paper.questions(), obtained, b)));
                 });
     }
 

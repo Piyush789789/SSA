@@ -41,17 +41,19 @@ import java.util.stream.Collectors;
 public class ImportService {
 
     /** Columns, in the order of the downloadable template. Only name and class are required. */
-    public static final List<String> COLUMNS = List.of("name", "class", "roll", "gender", "date of birth",
+    public static final List<String> COLUMNS = List.of("student id", "name", "class", "roll", "gender", "date of birth",
             "blood group", "email", "address", "admission date", "guardian name", "guardian relation", "guardian phone",
             "guardian email");
 
     private static final int MAX_ROWS = 2000;
+    /** A school's own student ID / admission number; no spaces or "/" so it works in links and file names. */
+    private static final Pattern STUDENT_ID = Pattern.compile("^[A-Za-z0-9][A-Za-z0-9_-]{1,29}$");
     private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
     private static final List<DateTimeFormatter> DATE_FORMATS = List.of(DateTimeFormatter.ISO_LOCAL_DATE,
             DateTimeFormatter.ofPattern("d/M/uuuu"), DateTimeFormatter.ofPattern("d-M-uuuu"),
             DateTimeFormatter.ofPattern("d.M.uuuu"));
 
-    private record Row(int line, Student student, String parentRelation) {
+    private record Row(int line, Student student, String parentRelation, String studentId) {
     }
 
     private final DataStore store;
@@ -68,7 +70,7 @@ public class ImportService {
 
     public String template() {
         return String.join(",", COLUMNS) + "\n"
-                + "Aarav Sharma,5-B,,Male,2015-04-12,B+,,\"12 MG Road, Agra\",2026-04-01,Rakesh Sharma,Father,9876543210,rakesh@example.com\n";
+                + "SSA2026101,Aarav Sharma,5-B,,Male,2015-04-12,B+,,\"12 MG Road, Agra\",2026-04-01,Rakesh Sharma,Father,9876543210,rakesh@example.com\n";
     }
 
     public ImportResult importStudents(ImportRequest request) {
@@ -87,6 +89,7 @@ public class ImportService {
 
         Set<String> classes = store.classes.stream().map(SchoolClass::id).collect(Collectors.toSet());
         Map<String, Set<Integer>> usedRolls = new HashMap<>();
+        Set<String> usedIds = new HashSet<>();
         List<ImportRowResult> results = new ArrayList<>();
         List<Row> valid = new ArrayList<>();
         for (int i = 1; i < lines.size(); i++) {
@@ -94,7 +97,7 @@ public class ImportService {
             if (cells.stream().allMatch(String::isBlank)) continue;
             String name = cell(cells, header, "name");
             try {
-                Row row = parseRow(i + 1, cells, header, classes, usedRolls);
+                Row row = parseRow(i + 1, cells, header, classes, usedRolls, usedIds);
                 valid.add(row);
                 results.add(new ImportRowResult(i + 1, name, "OK", null, null));
             } catch (IllegalArgumentException e) {
@@ -109,7 +112,7 @@ public class ImportService {
         List<CreatedLogin> logins = new ArrayList<>();
         Map<Integer, String> createdIds = new HashMap<>();
         for (Row row : valid) {
-            Student created = school.createStudent(row.student());
+            Student created = school.createStudent(row.student(), row.studentId());
             createdIds.put(row.line(), created.id());
             if (request.createLogins()) {
                 TemporaryPassword login = accounts.create(new CreateAccountRequest(Role.STUDENT, created.id(),
@@ -128,11 +131,31 @@ public class ImportService {
     }
 
     private Row parseRow(int line, List<String> cells, Map<String, Integer> header, Set<String> classes,
-                         Map<String, Set<Integer>> usedRolls) {
+                         Map<String, Set<Integer>> usedRolls, Set<String> usedIds) {
         String name = required(cell(cells, header, "name"), "Name");
-        String className = normalizeClass(required(cell(cells, header, "class"), "Class"));
+        // The class can be one column ("5-B") or two ("5" + section "B").
+        String classText = required(cell(cells, header, "class"), "Class");
+        String section = cell(cells, header, "section");
+        if (!section.isBlank() && !classText.matches(".*[A-Za-z]\\s*$")) {
+            classText = classText + "-" + section;
+        }
+        String className = normalizeClass(classText);
         if (!classes.contains(className)) {
-            throw new IllegalArgumentException("Class " + className + " does not exist");
+            throw new IllegalArgumentException("Class " + className + " does not exist (classes look like 5-B; "
+                    + "add it under Classes first)");
+        }
+        String studentId = blankToNull(cell(cells, header, "student id"));
+        if (studentId != null) {
+            if (!STUDENT_ID.matcher(studentId).matches()) {
+                throw new IllegalArgumentException("Student ID \"" + studentId + "\" may only use letters, numbers, - and _"
+                        + " (2-30 characters)");
+            }
+            if (!usedIds.add(studentId.toLowerCase(Locale.ROOT)) ) {
+                throw new IllegalArgumentException("Student ID " + studentId + " appears twice in the file");
+            }
+            if (store.students.existsById(studentId)) {
+                throw new IllegalArgumentException("Student ID " + studentId + " already exists");
+            }
         }
         Integer roll = null;
         String rollText = cell(cells, header, "roll");
@@ -166,9 +189,21 @@ public class ImportService {
             throw new IllegalArgumentException("Guardian name is missing");
         }
         Student student = new Student(null, name, className, roll, gender, dob,
-                blankToNull(cell(cells, header, "blood group")), email, blankToNull(cell(cells, header, "address")),
+                blankToNull(cell(cells, header, "blood group")), email, address(cells, header),
                 admission != null ? admission : LocalDate.now(clock), guardian);
-        return new Row(line, student, blankToNull(relation));
+        return new Row(line, student, blankToNull(relation), studentId);
+    }
+
+    /** The address, with City, State and PIN code columns added when the file has them separately. */
+    private static String address(List<String> cells, Map<String, Integer> header) {
+        String address = cell(cells, header, "address");
+        StringBuilder full = new StringBuilder(address);
+        for (String part : List.of(cell(cells, header, "city"), cell(cells, header, "state"), cell(cells, header, "pin code"))) {
+            if (!part.isBlank() && !address.toLowerCase(Locale.ROOT).contains(part.toLowerCase(Locale.ROOT))) {
+                full.append(full.length() > 0 ? ", " : "").append(part.trim());
+            }
+        }
+        return blankToNull(full.toString());
     }
 
     /** Adds the student to the parent with the guardian's email or phone, or creates that parent. */
@@ -217,13 +252,18 @@ public class ImportService {
             String key = cells.get(i).trim().toLowerCase(Locale.ROOT).replace('_', ' ').replaceAll("\\s+", " ");
             key = switch (key) {
                 case "student name", "full name" -> "name";
-                case "class name", "class-section", "grade" -> "class";
+                case "class name", "class-section", "grade", "standard", "std" -> "class";
+                case "section", "sec", "division", "div" -> "section";
+                case "student id", "id", "admission no", "admission no.", "admission number", "scholar no",
+                     "scholar number", "sr no", "enrollment no", "enrolment no" -> "student id";
                 case "roll no", "roll number", "roll no." -> "roll";
                 case "dob", "birth date" -> "date of birth";
-                case "parent name", "father name", "father's name" -> "guardian name";
-                case "parent phone", "mobile", "phone", "contact" -> "guardian phone";
-                case "parent email" -> "guardian email";
-                case "relation" -> "guardian relation";
+                case "parent name", "father name", "father's name", "guardian" -> "guardian name";
+                case "parent phone", "parent mobile", "mobile", "mobile number", "phone", "contact", "father phone",
+                     "father's phone", "father mobile" -> "guardian phone";
+                case "parent email", "father email", "parent e-mail" -> "guardian email";
+                case "relation", "relationship" -> "guardian relation";
+                case "pin", "pincode", "pin code", "postal code" -> "pin code";
                 default -> key;
             };
             header.putIfAbsent(key, i);
@@ -243,7 +283,8 @@ public class ImportService {
 
     /** "5b", "5 B", "5-b" → "5-B". */
     static String normalizeClass(String value) {
-        String compact = value.trim().toUpperCase(Locale.ROOT).replaceAll("[\\s-]+", "");
+        String compact = value.trim().toUpperCase(Locale.ROOT).replaceFirst("^(CLASS|STD|GRADE)\\.?", "")
+                .replaceAll("[\\s-]+", "");
         return compact.replaceFirst("^(\\d+)([A-Z]+)$", "$1-$2");
     }
 

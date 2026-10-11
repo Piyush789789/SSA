@@ -130,10 +130,19 @@ public class SchoolService {
     }
 
     public synchronized Student createStudent(Student request) {
+        return createStudent(request, null);
+    }
+
+    /** {@code studentId}: the school's own ID / admission number (e.g. from an import); null = generate one. */
+    public synchronized Student createStudent(Student request, String studentId) {
         store.classes.getById(request.className());
         int roll = request.rollNumber() != null ? request.rollNumber() : nextRollNumber(request.className());
         checkRollNumberFree(request.className(), roll, null);
-        Student student = request.withIdAndRollNumber(store.nextId("STU-2026"), roll).withStatus(Student.ACTIVE);
+        if (studentId != null && store.students.existsById(studentId)) {
+            throw ApiErrors.conflict("Student ID " + studentId + " already exists");
+        }
+        String id = studentId != null ? studentId : store.nextId("STU-2026");
+        Student student = request.withIdAndRollNumber(id, roll).withStatus(Student.ACTIVE);
         store.students.save(student);
         fees.billNewStudent(student);
         return student;

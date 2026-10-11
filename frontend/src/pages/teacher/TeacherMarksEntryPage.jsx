@@ -7,6 +7,10 @@ import { AsyncState, EmptyMessage, ErrorMessage, LoadingMessage } from '@/compon
 import { formatDate, initialsOf, todayIso } from '@/utils';
 import { useI18n } from '@/i18n/translate';
 import { useAuth } from '@/context/AuthContext';
+import { QuestionsEditor } from '@/components/exams/QuestionsEditor';
+import { QuestionMarksGrid } from '@/components/exams/QuestionMarksGrid';
+import { MarksImportPanel } from '@/components/exams/MarksImportPanel';
+import { buildQuestionEntry, cellsFromSaved, rowHasCellErrors } from '@/components/exams/questionMarks';
 
 /** Grade band for a percentage, using the scale from GET /meta (sorted high to low). */
 const gradeFor = (percentage, bands) => {
@@ -20,19 +24,22 @@ const STATUS_STYLES = {
   'Not Entered': 'bg-slate-100 text-slate-500 border-slate-200',
 };
 
+const NO_QUESTIONS = [];
+
 export const TeacherMarksEntryPage = () => {
-  const { tx } = useI18n();
+  const { t, tx } = useI18n();
   // The route param is the exam paper (ExamSchedule) id: /teacher/exams/:examId/marks
   const { examId: scheduleId } = useParams();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
-  const sheet = useApi(scheduleId ? `/exam-schedules/${encodeURIComponent(scheduleId)}/marks` : null);
+  const sheetPath = scheduleId ? `/exam-schedules/${encodeURIComponent(scheduleId)}/marks` : null;
+  const sheet = useApi(sheetPath);
   const meta = useApi('/meta');
   const parentExamId = sheet.data?.schedule?.examId;
   const exam = useApi(parentExamId ? `/exams/${encodeURIComponent(parentExamId)}` : null);
 
-  // Unsaved edits per student: { obtainedMarks: string, absent: boolean }
+  // Unsaved edits per student: { obtainedMarks: string, absent: boolean, cells?: string[] (question-wise papers) }
   const [edits, setEdits] = useState({});
   const [validationErrors, setValidationErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -41,6 +48,8 @@ export const TeacherMarksEntryPage = () => {
 
   const schedule = sheet.data?.schedule;
   const maxMarks = schedule?.maxMarks ?? 0;
+  const questions = schedule?.questions ?? NO_QUESTIONS;
+  const hasQuestions = questions.length > 0;
   const today = todayIso();
   const notYetHeld = schedule ? schedule.date > today : false;
   const published = exam.data?.resultsStatus === 'Published';
@@ -61,10 +70,11 @@ export const TeacherMarksEntryPage = () => {
           ...row,
           value: edit ? edit.obtainedMarks : row.obtainedMarks == null ? '' : String(row.obtainedMarks),
           isAbsent: edit ? edit.absent : row.absent,
+          cells: edit?.cells ?? cellsFromSaved(row.questionMarks, questions),
           changed: Boolean(edit),
         };
       }),
-    [sheet.data, edits],
+    [sheet.data, edits, questions],
   );
 
   const hasChanges = Object.keys(edits).length > 0;
@@ -96,7 +106,54 @@ export const TeacherMarksEntryPage = () => {
     setValidationErrors((prev) => ({ ...prev, [row.studentId]: absent ? null : validateValue(row.value) }));
   };
 
+  /** Replaces the sheet with a freshly loaded one (after questions change or an Excel import) and drops edits. */
+  const replaceSheet = (fresh) => {
+    sheet.setData(fresh);
+    setEdits({});
+    setValidationErrors({});
+    setSaveError('');
+  };
+
+  const refreshSheet = async () => replaceSheet(await http.get(sheetPath));
+
+  const handleCellChange = (studentId, index, value) => {
+    const row = rows.find((r) => r.studentId === studentId);
+    if (!row) return;
+    const cells = row.cells.map((c, i) => (i === index ? value : c));
+    setEdits((prev) => ({ ...prev, [studentId]: { obtainedMarks: '', absent: false, cells } }));
+  };
+
+  const handleQuestionAbsent = (studentId, absent) => {
+    const row = rows.find((r) => r.studentId === studentId);
+    if (!row) return;
+    setEdits((prev) => ({
+      ...prev,
+      [studentId]: { obtainedMarks: '', absent, cells: absent ? questions.map(() => '') : row.cells },
+    }));
+  };
+
+  const questionEntries = () =>
+    rows.map((row) =>
+      buildQuestionEntry({
+        studentId: row.studentId,
+        absent: row.isAbsent,
+        cells: row.cells,
+        status: row.status,
+        savedTotal: row.obtainedMarks,
+        savedQuestionMarks: row.questionMarks,
+        savedAbsent: row.absent,
+      }),
+    );
+
   const handleSave = async (submit) => {
+    if (hasQuestions) {
+      if (rows.some((row) => !row.isAbsent && rowHasCellErrors(row.cells, questions))) {
+        setSaveError(t('marks.fixQuestionMarks'));
+        return;
+      }
+      return saveEntries(submit, questionEntries());
+    }
+
     const errors = {};
     rows.forEach((row) => {
       if (!row.isAbsent) {
@@ -121,7 +178,10 @@ export const TeacherMarksEntryPage = () => {
         clear: blank && row.status !== 'Not Entered',
       };
     });
+    return saveEntries(submit, entries);
+  };
 
+  const saveEntries = async (submit, entries) => {
     setSaving(true);
     setSaveError('');
     try {
@@ -260,12 +320,46 @@ export const TeacherMarksEntryPage = () => {
       )}
       {saveError && <ErrorMessage error={{ message: saveError }} />}
 
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6 items-start">
+        {/* Teachers plan the paper's questions before the exam, so only results-published or another subject locks this. */}
+        <QuestionsEditor schedule={schedule} locked={published || notMySubject} hasUnsavedMarks={hasChanges} onChanged={refreshSheet} />
+        <MarksImportPanel sheet={sheet.data} locked={locked} onSheetReloaded={replaceSheet} />
+      </div>
+
       {/* Student Marks Entry Table */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <AsyncState state={meta}>
           {() =>
             rows.length === 0 ? (
               <EmptyMessage text={`No students are enrolled in Class ${schedule.className}.`} />
+            ) : hasQuestions ? (
+              <>
+                <p className="px-5 pt-4 text-[11px] font-medium text-slate-500">{t('marks.gridHint')}</p>
+                <QuestionMarksGrid
+                  questions={questions}
+                  maxMarks={maxMarks}
+                  locked={locked}
+                  rows={rows.map((row) => ({
+                    studentId: row.studentId,
+                    studentName: row.studentName,
+                    rollNumber: row.rollNumber,
+                    status: row.status,
+                    absent: row.isAbsent,
+                    cells: row.cells,
+                    changed: row.changed,
+                    savedTotal: row.obtainedMarks,
+                    savedQuestionMarks: row.questionMarks,
+                  }))}
+                  onCellChange={handleCellChange}
+                  onAbsentChange={handleQuestionAbsent}
+                  renderGrade={(total) => {
+                    const band = maxMarks > 0 ? gradeFor((total / maxMarks) * 100, bands) : null;
+                    return band ? (
+                      <span className="block text-[10px] font-bold text-emerald-700">{t('marks.gradeShort', { grade: band.grade })}</span>
+                    ) : null;
+                  }}
+                />
+              </>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">

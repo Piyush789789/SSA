@@ -1,5 +1,6 @@
 package com.ssa.schoolerp.dto;
 
+import com.ssa.schoolerp.model.Question;
 import com.ssa.schoolerp.model.ExamSchedule;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -22,8 +23,36 @@ public final class ExamDtos {
     }
 
     /** {@code clear: true} deletes the student's saved marks for this paper (back to "Not Entered"). */
+    /**
+     * {@code questionMarks}: marks per question in the paper's order (null = not attempted); when given, the total
+     * is their sum and {@code obtainedMarks} is ignored.
+     */
     public record MarksEntry(@NotBlank String studentId, @PositiveOrZero Double obtainedMarks, boolean absent,
-                             boolean clear) {
+                             boolean clear, java.util.List<@PositiveOrZero Double> questionMarks) {
+    }
+
+    /** Sets (or, with an empty list, removes) a paper's question-wise breakdown. */
+    public record QuestionsRequest(@jakarta.validation.constraints.NotNull
+                                   List<@Valid Question> questions) {
+    }
+
+    /**
+     * Marks from a spreadsheet, one row per student, matched by {@code studentId} (or roll number). {@code row} is
+     * the spreadsheet row number, echoed back in errors. Imported marks are saved as a draft for review.
+     */
+    public record MarksImportRequest(@NotEmpty List<@Valid MarksImportRow> rows, boolean dryRun) {
+    }
+
+    public record MarksImportRow(int row, String studentId, Integer rollNumber, boolean absent, Double total,
+                                 List<Double> questionMarks) {
+    }
+
+    public record MarksImportRowResult(int row, String studentId, String studentName, String status, String message,
+                                       Double total) {
+    }
+
+    public record MarksImportResult(boolean dryRun, int total, int valid, int saved, int failed,
+                                    List<MarksImportRowResult> rows) {
     }
 
     /** How far marks entry has got for one paper. */
@@ -48,7 +77,8 @@ public final class ExamDtos {
             int rollNumber,
             Double obtainedMarks,
             boolean absent,
-            String status) {
+            String status,
+            List<Double> questionMarks) {
     }
 
     public record SubjectResult(
@@ -62,7 +92,9 @@ public final class ExamDtos {
             boolean absent,
             Double percentage,
             String grade,
-            boolean passed) {
+            boolean passed,
+            List<Question> questions,
+            List<Double> questionMarks) {
     }
 
     public record StudentResult(

@@ -39,6 +39,13 @@ public class ExamSchedule implements Identifiable {
 
     private String status;
 
+    /** Question-wise breakdown (optional). When set, the questions' marks add up to {@code maxMarks}. */
+    @jakarta.persistence.ElementCollection(fetch = jakarta.persistence.FetchType.EAGER)
+    @jakarta.persistence.CollectionTable(name = "exam_question",
+            joinColumns = @jakarta.persistence.JoinColumn(name = "schedule_id"))
+    @jakarta.persistence.OrderColumn(name = "position")
+    private java.util.List<@jakarta.validation.Valid Question> questions;
+
     protected ExamSchedule() {
     }
 
@@ -58,12 +65,28 @@ public class ExamSchedule implements Identifiable {
 
     public ExamSchedule withIds(String newId, String newExamId) {
         return new ExamSchedule(newId, newExamId, subject, className, date, startTime, endTime, maxMarks,
-                passingMarks, status);
+                passingMarks, status).withQuestions(questions);
     }
 
     public ExamSchedule withStatus(String newStatus) {
         return new ExamSchedule(id, examId, subject, className, date, startTime, endTime, maxMarks,
-                passingMarks, newStatus);
+                passingMarks, newStatus).withQuestions(questions);
+    }
+
+    public ExamSchedule withQuestions(java.util.List<Question> newQuestions) {
+        ExamSchedule copy = new ExamSchedule(id, examId, subject, className, date, startTime, endTime, maxMarks,
+                passingMarks, status);
+        copy.questions = newQuestions == null ? new java.util.ArrayList<>() : new java.util.ArrayList<>(newQuestions);
+        return copy;
+    }
+
+    /** True when the request body carried no "questions" field at all (an older form): keep the saved ones. */
+    public boolean questionsMissing() {
+        return questions == null;
+    }
+
+    public java.util.List<Question> questions() {
+        return questions == null ? java.util.List.of() : questions;
     }
 
     @Override

@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useApi } from '@/hooks/useApi';
 import { AsyncState, EmptyMessage } from '@/components/common/AsyncState';
 import { AdmitCardLinks } from '@/components/exams/AdmitCardLinks';
+import { QuestionBreakdownRow } from '@/components/exams/QuestionBreakdown';
 import { useI18n } from '@/i18n/translate';
 import { formatDate } from '@/utils';
 
@@ -317,7 +318,8 @@ export const ParentResultsPage = () => {
                                 {exam.subjects.map((sub) => {
                                   const pct = sub.percentage;
                                   return (
-                                    <tr key={`${exam.id}-${sub.subject}`} className="hover:bg-slate-50/70 transition-colors">
+                                    <React.Fragment key={`${exam.id}-${sub.subject}`}>
+                                    <tr className="hover:bg-slate-50/70 transition-colors">
                                       <td className="py-3.5 px-4 sm:px-6 font-bold text-slate-900">{sub.subject}</td>
                                       <td className="py-3.5 px-4 text-slate-500">{formatDate(sub.date)}</td>
                                       <td className="py-3.5 px-4 text-center font-bold text-slate-800">
@@ -349,6 +351,8 @@ export const ParentResultsPage = () => {
                                         </span>
                                       </td>
                                     </tr>
+                                    <QuestionBreakdownRow subject={sub} colSpan={6} />
+                                    </React.Fragment>
                                   );
                                 })}
                               </tbody>

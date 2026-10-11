@@ -32,6 +32,14 @@ public class MarksRecord implements Identifiable {
     private String status;
     private String enteredBy;
 
+    /**
+     * Marks per question, in the paper's question order, as "3,5,,6" (an empty item = not attempted). Null when
+     * only a total was entered. Stored as text so blanks keep their position.
+     */
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @jakarta.persistence.Column(name = "question_marks", length = 1000)
+    private String questionMarksText;
+
     protected MarksRecord() {
     }
 
@@ -51,6 +59,33 @@ public class MarksRecord implements Identifiable {
         this.absent = absent;
         this.status = status;
         this.enteredBy = enteredBy;
+    }
+
+    public MarksRecord withQuestionMarks(java.util.List<Double> marks) {
+        MarksRecord copy = copyWith(maxMarks);
+        copy.questionMarksText = marks == null ? null : marks.stream()
+                .map(v -> v == null ? "" : (v == Math.floor(v) ? String.valueOf(v.longValue()) : String.valueOf(v)))
+                .collect(java.util.stream.Collectors.joining(","));
+        return copy;
+    }
+
+    /** Same record with the paper's new maximum (the question marks are kept). */
+    public MarksRecord copyWith(int newMaxMarks) {
+        MarksRecord copy = new MarksRecord(id, examId, scheduleId, className, subject, studentId, studentName,
+                rollNumber, newMaxMarks, obtainedMarks, absent, status, enteredBy);
+        copy.questionMarksText = questionMarksText;
+        return copy;
+    }
+
+    /** Marks per question (null items = not attempted), or null when only a total was entered. */
+    @com.fasterxml.jackson.annotation.JsonProperty("questionMarks")
+    public java.util.List<Double> questionMarks() {
+        if (questionMarksText == null) return null;
+        java.util.List<Double> list = new java.util.ArrayList<>();
+        for (String part : questionMarksText.split(",", -1)) {
+            list.add(part.isBlank() ? null : Double.valueOf(part));
+        }
+        return list;
     }
 
     /** One record per student per paper, so saving again overwrites instead of duplicating. */
